@@ -1,0 +1,250 @@
+---
+title: Bytecode Interpreter
+description: How CPython executes compiled bytecode in the evaluation loop
+---
+
+# The Bytecode Interpreter
+
+The bytecode interpreter is the part of CPython that executes compiled Python code. Its entry point is `_PyEval_EvalFrameDefault()` in [Python/ceval.c](https://github.com/python/cpython/blob/main/Python/ceval.c).
+
+## High-Level Architecture
+
+At its core, the interpreter is a loop that iterates over bytecode instructions, executing each via a large switch statement. This switch statement is automatically generated from instruction definitions in [Python/bytecodes.c](https://github.com/python/cpython/blob/main/Python/bytecodes.c) using a specialized DSL.
+
+### Execution Flow
+
+1. `PyEval_EvalCode()` is called with a [CodeObject](/internals/code-objects)
+2. A [Frame](/internals/frames) is constructed for the code object
+3. `_PyEval_EvalFrame()` is called to execute the frame
+4. By default, this calls `_PyEval_EvalFrameDefault()` (configurable via PEP 523)
+5. The interpreter loop decodes and executes instructions
+
+### Thread State
+
+The interpreter receives a `PyThreadState` object (`tstate`) that contains:
+- Exception state
+- Recursion depth tracking
+- Per-interpreter state (`tstate->interp`)
+- Per-runtime global state (`tstate->interp->runtime`)
+
+## Instruction Decoding
+
+Bytecode is stored as an array of 16-bit code units (`_Py_CODEUNIT`).
+
+### Code Unit Format
+
+Each code unit contains:
+- **8-bit opcode** (first byte)
+- **8-bit oparg** (second byte, unsigned)
+
+Macros extract these fields:
+- `_Py_OPCODE(word)` - Extract opcode
+- `_Py_OPARG(word)` - Extract argument
+
+### Basic Interpreter Loop
+
+```c
+_Py_CODEUNIT *first_instr = code->co_code_adaptive;
+_Py_CODEUNIT *next_instr = first_instr;
+while (1) {
+    _Py_CODEUNIT word = *next_instr++;
+    unsigned char opcode = _Py_OPCODE(word);
+    unsigned int oparg = _Py_OPARG(word);
+    switch (opcode) {
+    // ... A case for each opcode ...
+    }
+}
+```
+
+### Extended Arguments
+
+The 8-bit oparg limits arguments to 0-255. For larger values, the `EXTENDED_ARG` instruction prefixes the main instruction.
+
+**Example:**
+```
+EXTENDED_ARG  1
+EXTENDED_ARG  0  
+LOAD_CONST    2
+```
+
+This creates an effective `oparg` of `65538` (0x1_00_02).
+
+<Note>
+Up to three `EXTENDED_ARG` prefixes can be used, allowing 32-bit arguments.
+</Note>
+
+## Jump Instructions
+
+When the switch statement is reached, `next_instr` already points to the next instruction. Jumps work by modifying this pointer:
+
+- **Forward jump:** `next_instr += oparg`
+- **Backward jump:** `next_instr -= oparg`
+
+## Inline Cache Entries
+
+Specialized instructions have associated **inline caches** stored as additional code units following the instruction.
+
+### Cache Structure
+
+- Cache size is fixed per opcode
+- All instructions in a specialization family have the same cache size
+- Caches are initialized to zeros by the compiler
+- Accessed by casting `next_instr` to a struct pointer
+
+Structs are defined in [pycore_code.h](https://github.com/python/cpython/blob/main/Include/internal/pycore_code.h).
+
+<Info>
+**Important:** The instruction implementation must advance `next_instr` past the cache using `next_instr += n` or `JUMPBY(n)` macro.
+</Info>
+
+## The Evaluation Stack
+
+CPython's interpreter is a **stack machine**. Most instructions operate by pushing and popping values from the stack.
+
+### Stack Characteristics
+
+- Pre-allocated array of `PyObject*` pointers in the frame
+- Size determined by `co_stacksize` field of code object
+- Grows upward in memory
+- Stack pointer (`stack_pointer`) tracks current top
+
+### Stack Operations
+
+```c
+// Push value onto stack
+PUSH(x)  →  *stack_pointer++ = x
+
+// Pop value from stack  
+x = POP()  →  x = *--stack_pointer
+```
+
+### Stack Metadata
+
+Stack effects for each instruction are exposed through:
+- `_PyOpcode_num_popped()` - Items consumed
+- `_PyOpcode_num_pushed()` - Items produced
+
+Defined in [pycore_opcode_metadata.h](https://github.com/python/cpython/blob/main/Include/internal/pycore_opcode_metadata.h).
+
+<Note>
+**Don't confuse the evaluation stack with the call stack!** The evaluation stack holds operands for bytecode operations, while the call stack manages function calls.
+</Note>
+
+## Error Handling
+
+When an instruction raises an exception, execution jumps to the `exception_unwind` label in [Python/ceval.c](https://github.com/python/cpython/blob/main/Python/ceval.c:68).
+
+The exception is then handled using the [exception table](/internals/exception-handling) stored in the code object.
+
+## Python-to-Python Calls
+
+Since Python 3.11, Python function calls are "inlined" for efficiency:
+
+1. `CALL` instruction detects Python function objects
+2. New frame is pushed onto the call stack
+3. Interpreter "jumps" to callee's bytecode (no C recursion)
+4. `RETURN_VALUE` pops frame and returns to caller
+5. `frame->is_entry` flag indicates if frame was inlined
+
+This approach reduces C stack usage and improves performance.
+
+### Entry Frames
+
+Frames with `is_entry` set return from `_PyEval_EvalFrameDefault()` to C code. Other frames return to Python bytecode.
+
+## The Call Stack
+
+Since Python 3.11, frames use the internal `_PyInterpreterFrame` structure instead of full `PyFrameObject` instances.
+
+### Frame Allocation
+
+- Most frames allocated contiguously in per-thread stack
+- Functions: `_PyThreadState_PushFrame()` in [Python/pystate.c](https://github.com/python/cpython/blob/main/Python/pystate.c)
+- Fast path: `_PyFrame_PushUnchecked()` when space is available
+- Generator/coroutine frames embedded in generator objects
+
+### Frame Objects
+
+Full `PyFrameObject` instances are only created when needed:
+- `sys._getframe()` is called
+- Debuggers access frame
+- Extension modules call `PyEval_GetFrame()`
+
+See [Frames documentation](/internals/frames) for details.
+
+## Specialization
+
+Introduced in [PEP 659](https://peps.python.org/pep-0659/), bytecode specialization rewrites instructions at runtime based on observed types.
+
+### Adaptive Instructions
+
+Specializable instructions:
+1. Track execution count in inline cache
+2. Call `_Py_Specialize_XXX()` when hot ([Python/specialize.c](https://github.com/python/cpython/blob/main/Python/specialize.c))
+3. Replace with specialized version if applicable
+
+### Instruction Families
+
+A family consists of:
+- **Adaptive instruction** - Base implementation with counter
+- **Specialized forms** - Optimized for specific types/values
+
+**Example: LOAD_GLOBAL family**
+- `LOAD_GLOBAL` - Adaptive base
+- `LOAD_GLOBAL_MODULE` - Specialized for module globals
+- `LOAD_GLOBAL_BUILTIN` - Specialized for builtins
+
+### Deoptimization
+
+Specialized instructions include guard checks:
+
+```c
+DEOPT_IF(guard_condition_is_false, BASE_NAME)
+```
+
+If guards fail, the instruction deoptimizes back to the base form.
+
+<Info>
+**Performance Metric:**  
+Specialization benefit = `Tbase / Tadaptive`
+
+Where:
+- `Tbase` = time for base instruction
+- `Tadaptive` = weighted average time across all forms + misses
+</Info>
+
+## Adding New Bytecode Instructions
+
+To add a new opcode:
+
+1. **Define instruction** in [Python/bytecodes.c](https://github.com/python/cpython/blob/main/Python/bytecodes.c)
+2. **Document it** in [Doc/library/dis.rst](https://github.com/python/cpython/blob/main/Doc/library/dis.rst)
+3. **Run** `make regen-cases` to generate implementation
+4. **Update magic number** in `Lib/importlib/_bootstrap_external.py`
+5. **Run** `make regen-importlib`
+6. **Update compiler** in [Python/codegen.c](https://github.com/python/cpython/blob/main/Python/codegen.c) to emit the new instruction
+
+<Note>
+Changing the magic number invalidates all existing .pyc files, forcing recompilation.
+</Note>
+
+## Performance Tips
+
+### Specialization Design
+
+- Keep `Ti` (specialized instruction time) low
+- Minimize branches and dependent memory accesses
+- Keep inline caches small to reduce memory pressure
+- Record statistics with `STAT_INC(BASE_INSTRUCTION, hit)`
+
+### Testing Specializations
+
+Instrument specialization functions to gather usage patterns before designing specialized forms.
+
+## Related Topics
+
+- [Compiler Design](/internals/compiler) - How bytecode is generated
+- [Code Objects](/internals/code-objects) - Structure of compiled code
+- [Frames](/internals/frames) - Execution frame structure
+- [Exception Handling](/internals/exception-handling) - Exception table format
+- [JIT Compiler](/internals/jit) - Tier 2 optimization

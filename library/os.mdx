@@ -1,0 +1,523 @@
+---
+title: os - Operating System Interfaces
+description: Portable interface to operating system functionality
+---
+
+The `os` module provides a portable way to interact with the operating system, including file operations, process management, and environment variables.
+
+## Module Import
+
+```python
+import os
+```
+
+## File and Directory Operations
+
+### Current Directory
+
+```python
+import os
+
+# Get current working directory
+cwd = os.getcwd()
+print(cwd)  # '/home/user/project'
+
+# Change directory
+os.chdir('/tmp')
+
+# Create directory
+os.mkdir('new_folder')
+os.makedirs('path/to/nested/folder')  # Create nested directories
+
+# Remove directory
+os.rmdir('empty_folder')  # Only removes empty directories
+os.removedirs('path/to/folder')  # Remove nested empty directories
+```
+
+### Listing Directory Contents
+
+```python
+import os
+
+# List all files and directories
+contents = os.listdir('.')
+print(contents)  # ['file1.txt', 'folder1', 'file2.py']
+
+# List with full paths
+for item in os.listdir('/path/to/dir'):
+    full_path = os.path.join('/path/to/dir', item)
+    print(full_path)
+
+# Filter for specific files
+python_files = [f for f in os.listdir('.') if f.endswith('.py')]
+```
+
+### os.scandir() - Efficient Directory Iteration
+
+```python
+import os
+
+# More efficient than listdir for detailed info
+with os.scandir('.') as entries:
+    for entry in entries:
+        if entry.is_file():
+            print(f"File: {entry.name} ({entry.stat().st_size} bytes)")
+        elif entry.is_dir():
+            print(f"Directory: {entry.name}")
+```
+
+### os.walk() - Recursive Directory Traversal
+
+```python
+import os
+
+# Walk through directory tree
+for dirpath, dirnames, filenames in os.walk('.'):
+    print(f"Current directory: {dirpath}")
+    print(f"Subdirectories: {dirnames}")
+    print(f"Files: {filenames}")
+    print()
+
+# Find all Python files recursively
+for dirpath, _, filenames in os.walk('.'):
+    for filename in filenames:
+        if filename.endswith('.py'):
+            full_path = os.path.join(dirpath, filename)
+            print(full_path)
+```
+
+## File Operations
+
+### Creating and Removing Files
+
+```python
+import os
+
+# Remove file
+os.remove('file.txt')
+os.unlink('file.txt')  # Alias for remove
+
+# Rename/move file
+os.rename('old_name.txt', 'new_name.txt')
+os.replace('source.txt', 'dest.txt')  # Atomic replacement
+```
+
+### File Information
+
+```python
+import os
+from datetime import datetime
+
+# Get file stats
+stats = os.stat('file.txt')
+print(f"Size: {stats.st_size} bytes")
+print(f"Modified: {datetime.fromtimestamp(stats.st_mtime)}")
+print(f"Created: {datetime.fromtimestamp(stats.st_ctime)}")
+print(f"Accessed: {datetime.fromtimestamp(stats.st_atime)}")
+
+# Check if path exists
+if os.path.exists('file.txt'):
+    print("File exists")
+
+# Check if it's a file or directory
+if os.path.isfile('file.txt'):
+    print("It's a file")
+
+if os.path.isdir('folder'):
+    print("It's a directory")
+
+if os.path.islink('symlink'):
+    print("It's a symbolic link")
+```
+
+## Path Manipulation (os.path)
+
+### Joining Paths
+
+```python
+import os
+
+# Join path components (cross-platform)
+path = os.path.join('folder', 'subfolder', 'file.txt')
+print(path)  # 'folder/subfolder/file.txt' on Unix
+             # 'folder\\subfolder\\file.txt' on Windows
+
+# Build absolute path
+abs_path = os.path.join(os.getcwd(), 'data', 'file.txt')
+```
+
+### Path Components
+
+```python
+import os
+
+path = '/home/user/documents/file.txt'
+
+# Split into directory and filename
+dir_name, file_name = os.path.split(path)
+print(dir_name)  # '/home/user/documents'
+print(file_name)  # 'file.txt'
+
+# Get directory name
+dir_name = os.path.dirname(path)
+print(dir_name)  # '/home/user/documents'
+
+# Get filename
+file_name = os.path.basename(path)
+print(file_name)  # 'file.txt'
+
+# Split extension
+name, ext = os.path.splitext('file.txt')
+print(name)  # 'file'
+print(ext)  # '.txt'
+```
+
+### Path Properties
+
+```python
+import os
+
+path = '/home/user/file.txt'
+
+# Get absolute path
+abs_path = os.path.abspath(path)
+
+# Resolve relative path
+real_path = os.path.realpath(path)  # Follows symlinks
+
+# Expand user home directory
+expanded = os.path.expanduser('~/documents')
+print(expanded)  # '/home/user/documents'
+
+# Check if path is absolute
+if os.path.isabs(path):
+    print("Absolute path")
+```
+
+## Environment Variables
+
+### os.environ
+
+Dictionary of environment variables.
+
+```python
+import os
+
+# Get environment variable
+path = os.environ.get('PATH')
+home = os.environ.get('HOME')
+user = os.environ.get('USER', 'unknown')  # Default value
+
+# Set environment variable
+os.environ['MY_VAR'] = 'value'
+
+# Delete environment variable
+del os.environ['MY_VAR']
+
+# Iterate over all variables
+for key, value in os.environ.items():
+    print(f"{key} = {value}")
+```
+
+### os.getenv() and os.putenv()
+
+```python
+import os
+
+# Get environment variable
+value = os.getenv('PATH')
+value = os.getenv('CUSTOM_VAR', 'default')  # With default
+
+# Set environment variable (prefer os.environ)
+os.putenv('MY_VAR', 'value')
+```
+
+## Process Management
+
+### Current Process
+
+```python
+import os
+
+# Get process ID
+pid = os.getpid()
+print(f"Current PID: {pid}")
+
+# Get parent process ID
+ppid = os.getppid()
+print(f"Parent PID: {ppid}")
+```
+
+### Running Commands
+
+```python
+import os
+
+# Execute command (deprecated, use subprocess instead)
+os.system('ls -la')
+
+# Get command output (use subprocess.run instead)
+# output = os.popen('ls').read()
+
+# Better approach:
+import subprocess
+result = subprocess.run(['ls', '-la'], capture_output=True, text=True)
+print(result.stdout)
+```
+
+## File Descriptors
+
+### Low-Level File Operations
+
+```python
+import os
+
+# Open file (returns file descriptor)
+fd = os.open('file.txt', os.O_RDWR | os.O_CREAT)
+
+# Read from file descriptor
+data = os.read(fd, 1024)  # Read up to 1024 bytes
+
+# Write to file descriptor
+os.write(fd, b'Hello, World!')
+
+# Close file descriptor
+os.close(fd)
+```
+
+### File Descriptor Operations
+
+```python
+import os
+
+# Duplicate file descriptor
+fd2 = os.dup(fd)
+
+# Change file position
+os.lseek(fd, 0, os.SEEK_SET)  # Beginning
+os.lseek(fd, 0, os.SEEK_END)  # End
+os.lseek(fd, 10, os.SEEK_CUR)  # Current + 10
+```
+
+## Permissions and Ownership
+
+### File Permissions
+
+```python
+import os
+import stat
+
+# Change file permissions
+os.chmod('file.txt', 0o644)  # rw-r--r--
+os.chmod('script.sh', 0o755)  # rwxr-xr-x
+
+# Using stat constants
+os.chmod('file.txt', stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+
+# Check permissions
+stats = os.stat('file.txt')
+mode = stats.st_mode
+if mode & stat.S_IXUSR:
+    print("File is executable by owner")
+```
+
+### Ownership (Unix only)
+
+```python
+import os
+
+# Change owner (requires privileges)
+os.chown('file.txt', uid, gid)
+```
+
+## Platform-Specific
+
+### Path Separators
+
+```python
+import os
+
+print(os.sep)  # '/' on Unix, '\\' on Windows
+print(os.pathsep)  # ':' on Unix, ';' on Windows
+print(os.linesep)  # '\n' on Unix, '\r\n' on Windows
+
+# Platform name
+print(os.name)  # 'posix', 'nt', 'java'
+```
+
+### Special Paths
+
+```python
+import os
+
+print(os.devnull)  # '/dev/null' on Unix, 'nul' on Windows
+print(os.curdir)  # '.'
+print(os.pardir)  # '..'
+```
+
+## Practical Examples
+
+### Find All Files with Extension
+
+```python
+import os
+
+def find_files(directory, extension):
+    """Find all files with given extension recursively"""
+    matches = []
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if file.endswith(extension):
+                matches.append(os.path.join(root, file))
+    return matches
+
+# Usage
+python_files = find_files('.', '.py')
+for file in python_files:
+    print(file)
+```
+
+### Get Directory Size
+
+```python
+import os
+
+def get_directory_size(directory):
+    """Calculate total size of directory in bytes"""
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(directory):
+        for filename in filenames:
+            filepath = os.path.join(dirpath, filename)
+            if os.path.isfile(filepath):
+                total_size += os.path.getsize(filepath)
+    return total_size
+
+# Usage
+size = get_directory_size('.')
+print(f"Directory size: {size / (1024**2):.2f} MB")
+```
+
+### Create Backup with Timestamp
+
+```python
+import os
+from datetime import datetime
+import shutil
+
+def backup_file(filepath):
+    """Create timestamped backup of file"""
+    if not os.path.exists(filepath):
+        return None
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    name, ext = os.path.splitext(filepath)
+    backup_path = f"{name}_{timestamp}{ext}"
+    
+    shutil.copy2(filepath, backup_path)
+    return backup_path
+
+# Usage
+backup = backup_file('important.txt')
+print(f"Backup created: {backup}")
+```
+
+### Safe File Operations
+
+```python
+import os
+import tempfile
+
+def safe_write(filepath, content):
+    """Write to file atomically using temp file"""
+    # Get directory and create temp file in same location
+    directory = os.path.dirname(filepath) or '.'
+    
+    # Write to temporary file
+    fd, temp_path = tempfile.mkstemp(dir=directory, text=True)
+    try:
+        with os.fdopen(fd, 'w') as f:
+            f.write(content)
+        
+        # Atomic replacement
+        os.replace(temp_path, filepath)
+    except:
+        # Clean up temp file on error
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
+
+# Usage
+safe_write('config.txt', 'new configuration')
+```
+
+## Best Practices
+
+<Tip>
+  **Use pathlib for modern path handling:**
+  For new code, consider using `pathlib.Path` instead of `os.path`:
+  ```python
+  from pathlib import Path
+  
+  path = Path('folder') / 'subfolder' / 'file.txt'
+  if path.exists():
+      content = path.read_text()
+  ```
+</Tip>
+
+<Warning>
+  **Be careful with os.remove():**
+  It permanently deletes files without moving them to trash. Always verify the path before removing.
+  ```python
+  if os.path.exists(filepath) and os.path.isfile(filepath):
+      os.remove(filepath)
+  ```
+</Warning>
+
+<Note>
+  **Use os.path.join() for cross-platform paths:**
+  Always use `os.path.join()` instead of string concatenation with `/` or `\\`.
+  ```python
+  # Good
+  path = os.path.join('folder', 'file.txt')
+  
+  # Bad
+  path = 'folder' + '/' + 'file.txt'
+  ```
+</Note>
+
+## Migration to pathlib
+
+Many `os` and `os.path` functions have `pathlib` equivalents:
+
+```python
+import os
+from pathlib import Path
+
+# os module → pathlib
+os.getcwd()              # Path.cwd()
+os.path.exists(path)     # Path(path).exists()
+os.path.isfile(path)     # Path(path).is_file()
+os.path.isdir(path)      # Path(path).is_dir()
+os.listdir(path)         # list(Path(path).iterdir())
+os.mkdir(path)           # Path(path).mkdir()
+os.rename(old, new)      # Path(old).rename(new)
+os.remove(path)          # Path(path).unlink()
+os.rmdir(path)           # Path(path).rmdir()
+```
+
+## Related Modules
+
+<CardGroup cols={2}>
+  <Card title="pathlib" icon="route" href="/library/pathlib">
+    Object-oriented filesystem paths
+  </Card>
+  <Card title="shutil" icon="copy">
+    High-level file operations
+  </Card>
+  <Card title="glob" icon="asterisk">
+    Unix-style pathname pattern expansion
+  </Card>
+  <Card title="tempfile" icon="file">
+    Temporary files and directories
+  </Card>
+</CardGroup>

@@ -1,0 +1,79 @@
+---
+title: Memory Management
+description: Python memory management and allocators
+---
+
+## Overview
+
+Python provides specialized memory allocators for different purposes:
+
+1. **Raw** - System allocator wrappers (no GIL required)
+2. **Mem** - Python heap (GIL required)
+3. **Object** - Python objects only
+
+## Memory Domains
+
+### Raw Memory
+
+```c
+void* PyMem_RawMalloc(size_t size)
+void* PyMem_RawRealloc(void *ptr, size_t new_size)
+void PyMem_RawFree(void *ptr)
+```
+
+For buffers, no GIL required.
+
+### Python Memory
+
+```c
+void* PyMem_Malloc(size_t size)
+void* PyMem_Realloc(void *ptr, size_t new_size)
+void PyMem_Free(void *ptr)
+```
+
+For Python-managed memory.
+
+### Object Memory
+
+```c
+void* PyObject_Malloc(size_t size)
+void PyObject_Free(void *ptr)
+```
+
+<Warning>
+**Free-threaded builds:** Only use `PyObject_*` for Python objects, not buffers!
+</Warning>
+
+## Memory Errors
+
+```c
+PyObject* PyErr_NoMemory(void)
+```
+
+Set MemoryError exception.
+
+**Example:**
+```c
+void *buf = PyMem_Malloc(size);
+if (buf == NULL)
+    return PyErr_NoMemory();
+```
+
+## Best Practices
+
+<Warning>
+Never mix allocators:
+```c
+// WRONG:
+void *p = PyMem_Malloc(100);
+free(p);  // Wrong deallocator!
+
+// RIGHT:
+void *p = PyMem_Malloc(100);
+PyMem_Free(p);
+```
+</Warning>
+
+## See Also
+- [Allocation](/c-api/allocation)
+- [Reference Counting](/c-api/refcounting)

@@ -1,0 +1,600 @@
+---
+title: Contributing to Documentation
+description: Learn how to contribute to CPython's documentation
+---
+
+CPython's documentation is written in reStructuredText and built with Sphinx. This guide covers how to build, edit, and contribute to the documentation.
+
+## Documentation Overview
+
+CPython documentation is located in the `Doc/` directory and includes:
+
+- **Library reference**: Standard library documentation
+- **Language reference**: Python language specification  
+- **C API reference**: CPython C API documentation
+- **Tutorials**: Getting started guides
+- **How-tos**: Task-focused guides
+- **FAQs**: Frequently asked questions
+
+<Note>
+You don't need to build documentation yourself - [prebuilt versions](https://docs.python.org/dev/download.html) are available.
+</Note>
+
+## Setting Up Documentation Build
+
+### Install Dependencies
+
+<Steps>
+  <Step title="Navigate to Doc directory">
+    ```bash
+    cd Doc
+    ```
+  </Step>
+
+  <Step title="Create virtual environment">
+    ```bash
+    make venv
+    ```
+    This creates a virtual environment in `Doc/venv` with all necessary tools:
+    - **Sphinx**: Documentation builder
+    - **blurb**: News entry tool
+    - **python-docs-theme**: Python documentation theme
+  </Step>
+
+  <Step title="Build HTML documentation">
+    ```bash
+    make html
+    ```
+  </Step>
+</Steps>
+
+The built documentation will be in `Doc/build/html/`.
+
+<Note>
+You can specify a custom virtual environment location with `VENVDIR`:
+```bash
+make venv VENVDIR=~/my-doc-env
+```
+</Note>
+
+### Alternative: Without make
+
+If you can't use make:
+
+```bash
+# Install dependencies manually
+pip install sphinx blurb python-docs-theme
+
+# Build from Doc directory
+sphinx-build -b html . build/html
+```
+
+## Building Documentation
+
+### Available Build Targets
+
+```bash
+# HTML for offline viewing
+make html
+
+# Open in browser after building
+make htmlview
+
+# HTML with live reload (Unix only)
+make htmllive
+
+# Plain text output
+make text
+
+# EPUB for e-readers
+make epub
+
+# LaTeX for PDF generation
+make latex
+
+# Check for broken links
+make linkcheck
+
+# Check for markup errors
+make check
+
+# Clean build files
+make clean
+```
+
+### Windows Build
+
+On Windows, use `make.bat`:
+
+```cmd
+cd Doc
+make.bat html
+make.bat htmlview
+```
+
+Set the `PYTHON` environment variable if needed:
+
+```cmd
+set PYTHON=C:\Path\To\python.exe
+make.bat html
+```
+
+## reStructuredText Basics
+
+CPython documentation uses reStructuredText (reST) markup.
+
+### Headings
+
+```rst
+Main Title
+==========
+
+Section
+-------
+
+Subsection
+^^^^^^^^^^
+
+Subsubsection
+~~~~~~~~~~~~~
+```
+
+### Paragraphs and Text Formatting
+
+```rst
+This is a paragraph. Paragraphs are separated by blank lines.
+
+*Italic text* and **bold text**.
+
+``Inline code`` uses double backticks.
+
+A literal block::
+
+    def example():
+        return "indented code block"
+```
+
+### Code Blocks
+
+```rst
+Python code:
+
+.. code-block:: python
+
+    def greet(name):
+        """Greet someone."""
+        print(f"Hello, {name}!")
+
+C code:
+
+.. code-block:: c
+
+    static PyObject *
+    greet(PyObject *self, PyObject *args)
+    {
+        /* C implementation */
+    }
+```
+
+### Links
+
+```rst
+`External link <https://www.python.org/>`_
+
+:ref:`Internal cross-reference <label-name>`
+
+:func:`os.path.join` - Link to function
+:class:`dict` - Link to class
+:mod:`os` - Link to module
+:pep:`8` - Link to PEP
+```
+
+### Lists
+
+```rst
+Bulleted list:
+
+* Item one
+* Item two
+
+  * Nested item
+  * Another nested
+
+* Item three
+
+Numbered list:
+
+#. First
+#. Second
+#. Third
+
+Definition list:
+
+Term
+    Definition of the term
+
+Another term
+    Its definition
+```
+
+### Admonitions
+
+```rst
+.. note::
+
+    This is a note.
+
+.. warning::
+
+    This is a warning.
+
+.. versionadded:: 3.15
+
+.. versionchanged:: 3.15
+    Description of the change.
+
+.. deprecated:: 3.15
+    Use :func:`new_function` instead.
+```
+
+## Documenting Python Code
+
+### Module Documentation
+
+Create or edit files in `Doc/library/`:
+
+```rst
+:mod:`mymodule` --- Brief description
+======================================
+
+.. module:: mymodule
+   :synopsis: Brief description.
+
+.. moduleauthor:: Your Name <your.email@example.com>
+
+**Source code:** :source:`Lib/mymodule.py`
+
+--------------
+
+Detailed description of the module.
+
+.. function:: my_function(arg1, arg2)
+
+   Description of the function.
+
+   :param arg1: Description of arg1.
+   :type arg1: str
+   :param arg2: Description of arg2.
+   :type arg2: int
+   :return: Description of return value.
+   :rtype: bool
+   :raises ValueError: When arg1 is invalid.
+
+.. class:: MyClass
+
+   Description of the class.
+
+   .. method:: method_name(param)
+
+      Description of the method.
+```
+
+### Function Documentation
+
+```rst
+.. function:: open(file, mode='r', buffering=-1)
+
+   Open file and return a corresponding file object.
+
+   *file* is either a string or bytes object giving the pathname.
+
+   *mode* is an optional string that specifies the mode in which
+   the file is opened. It defaults to ``'r'``.
+
+   :param file: Path to the file
+   :type file: str or bytes
+   :param mode: File opening mode
+   :type mode: str
+   :return: File object
+   :rtype: file object
+   :raises FileNotFoundError: If file doesn't exist
+```
+
+### Class Documentation
+
+```rst
+.. class:: MyClass(arg1, arg2=None)
+
+   A class that does something.
+
+   :param arg1: First argument
+   :param arg2: Optional second argument
+
+   .. attribute:: value
+
+      The value attribute.
+
+   .. method:: process(data)
+
+      Process the data.
+
+      :param data: Data to process
+      :returns: Processed result
+```
+
+## Documenting C API
+
+### C Function Documentation
+
+In `Doc/c-api/*.rst`:
+
+```rst
+.. c:function:: PyObject* PyDict_New()
+
+   Return a new empty dictionary, or *NULL* on failure.
+
+   .. note::
+
+      This function always succeeds in practice, but returns
+      *NULL* for consistency with other APIs.
+
+.. c:function:: int PyDict_SetItem(PyObject *p, PyObject *key, PyObject *val)
+
+   Insert *value* into the dictionary with the given *key*.
+
+   :param p: Dictionary object
+   :param key: Key object
+   :param val: Value object
+   :return: ``0`` on success, ``-1`` on failure
+```
+
+### C Type Documentation
+
+```rst
+.. c:type:: PyDictObject
+
+   This subtype of :c:type:`PyObject` represents a Python
+   dictionary object.
+
+.. c:member:: Py_ssize_t PyDictObject.ma_used
+
+   Number of items in the dictionary.
+```
+
+## Adding News Entries
+
+For significant changes, add a news entry using `blurb`:
+
+<Steps>
+  <Step title="Create news entry">
+    ```bash
+    # In the CPython root directory
+    ./python -m blurb add
+    ```
+    This opens your editor to write the news entry.
+  </Step>
+
+  <Step title="Write the entry">
+    Describe the change clearly and concisely:
+    ```
+    Fixed memory leak in :func:`os.fspath` when handling
+    path-like objects with custom __fspath__ methods.
+    ```
+  </Step>
+
+  <Step title="Save and commit">
+    The entry is saved to `Misc/NEWS.d/next/`. Commit it with your changes:
+    ```bash
+    git add Misc/NEWS.d/next/
+    git commit
+    ```
+  </Step>
+</Steps>
+
+News entries are categorized by type:
+
+- `Core and Builtins`: Interpreter core
+- `Library`: Standard library
+- `Documentation`: Documentation changes
+- `Tests`: Test suite changes
+- `Build`: Build system changes
+- `Windows`: Windows-specific changes
+- `macOS`: macOS-specific changes
+- `IDLE`: IDLE changes
+- `Tools-Demos`: Tools and demos
+- `C API`: C API changes
+
+## Documentation Style Guide
+
+### Voice and Tone
+
+- Use active voice: "Returns a list" not "A list is returned"
+- Be concise but complete
+- Use present tense: "Creates" not "Will create"
+- Address the reader as "you" when appropriate
+
+### Technical Style
+
+```rst
+Good:
+    The :func:`open` function returns a file object.
+    
+Bad:
+    open() returns a file object.
+```
+
+### Parameter Documentation
+
+```rst
+Good:
+    :param str name: The name of the file
+    :param int mode: File permissions (default: 0o644)
+    
+Bad:
+    :param name: name
+```
+
+### Examples
+
+Include examples when helpful:
+
+```rst
+.. function:: greet(name)
+
+   Print a greeting.
+
+   Example::
+
+       >>> greet("World")
+       Hello, World!
+```
+
+## Checking Your Documentation
+
+### Syntax Check
+
+```bash
+cd Doc
+make check
+```
+
+This checks for:
+- Syntax errors
+- Broken references
+- Formatting issues
+
+### Link Check
+
+```bash
+make linkcheck
+```
+
+This verifies all external links are valid.
+
+### Build and Review
+
+```bash
+# Build and open in browser
+make htmlview
+
+# Or manually
+make html
+open build/html/index.html  # macOS
+xdg-open build/html/index.html  # Linux
+```
+
+## Contributing Documentation
+
+### Documentation-Only Changes
+
+<Steps>
+  <Step title="Create a branch">
+    ```bash
+    git checkout -b doc-improve-os-module
+    ```
+  </Step>
+
+  <Step title="Edit documentation">
+    ```bash
+    vim Doc/library/os.rst
+    ```
+  </Step>
+
+  <Step title="Build and review">
+    ```bash
+    cd Doc
+    make html
+    make htmlview
+    ```
+  </Step>
+
+  <Step title="Commit and push">
+    ```bash
+    git add Doc/library/os.rst
+    git commit -m "gh-12345: Improve os module documentation"
+    git push origin doc-improve-os-module
+    ```
+  </Step>
+</Steps>
+
+### Documentation with Code Changes
+
+When adding features:
+
+1. Update the relevant `.rst` file
+2. Add docstrings to the code
+3. Include examples if helpful
+4. Add a news entry with `blurb`
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Sphinx build errors">
+    Common issues:
+    ```bash
+    # Rebuild from scratch
+    make clean
+    make html
+    
+    # Check for syntax errors
+    make check
+    ```
+  </Accordion>
+
+  <Accordion title="Missing dependencies">
+    Reinstall documentation tools:
+    ```bash
+    cd Doc
+    make clean-venv
+    make venv
+    make html
+    ```
+  </Accordion>
+
+  <Accordion title="Broken cross-references">
+    Use the correct role:
+    ```rst
+    :func:`function_name`  # For functions
+    :class:`ClassName`     # For classes
+    :mod:`module`          # For modules
+    :meth:`obj.method`     # For methods
+    ```
+  </Accordion>
+
+  <Accordion title="blurb not found">
+    Install blurb:
+    ```bash
+    pip install blurb
+    # Or use the venv
+    cd Doc
+    make venv
+    source venv/bin/activate
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+- **Keep it simple**: Use clear, straightforward language
+- **Show examples**: Include code examples when helpful
+- **Link generously**: Cross-reference related functions
+- **Update thoroughly**: Update all affected docs
+- **Test the docs**: Build and review HTML output
+- **Follow style**: Match existing documentation style
+- **Spell check**: Use a spell checker
+
+## Next Steps
+
+- Browse [Python Documentation](https://docs.python.org/3/)
+- Read [Documenting Python Guide](https://devguide.python.org/documenting/)
+- Study [Sphinx Documentation](https://www.sphinx-doc.org/)
+- Review [reStructuredText Primer](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
+
+## Additional Resources
+
+- [CPython Documentation Source](https://github.com/python/cpython/tree/main/Doc)
+- [Documenting Python](https://devguide.python.org/documenting/)
+- [Sphinx Documentation](https://www.sphinx-doc.org/)
+- [reStructuredText Guide](https://docutils.sourceforge.io/rst.html)
+- [Python Documentation Discourse](https://discuss.python.org/c/documentation/)
+- [Python Doc Theme](https://pypi.org/project/python-docs-theme/)

@@ -1,0 +1,405 @@
+---
+title: Generators and Coroutines
+description: Implementation of generators, coroutines, and async generators in CPython
+---
+
+# Generators and Coroutines
+
+Generators and coroutines are implemented using specialized frame objects that can suspend and resume execution.
+
+## Generators
+
+Generators in CPython are implemented with the `PyGenObject` struct, which consists of an embedded [frame](/internals/frames) and metadata.
+
+### Generator Structure
+
+Defined as `_PyGenObject_HEAD` in [Include/internal/pycore_interpframe_structs.h](https://github.com/python/cpython/blob/main/Include/internal/pycore_interpframe_structs.h):
+
+```c
+typedef struct {
+    PyObject_HEAD
+    _PyInterpreterFrame gi_iframe;     // Embedded frame
+    PyObject *gi_name;                 // Generator name
+    PyObject *gi_qualname;             // Qualified name
+    // ... runtime state fields ...
+} PyGenObject;
+```
+
+### Frame Embedding
+
+The frame is **embedded** in the generator object:
+- Allocated as a single memory block with the generator
+- Can be accessed bidirectionally:
+  - Generator → Frame: Direct struct member
+  - Frame → Generator: `_PyGen_GetGeneratorFromFrame()` in [pycore_genobject.h](https://github.com/python/cpython/blob/main/Include/internal/pycore_genobject.h)
+
+## Generator Lifecycle
+
+### Creation
+
+Generator functions compile to bytecode that starts with `RETURN_GENERATOR`:
+
+```python
+def my_gen():
+    yield 1
+    yield 2
+
+# Bytecode:
+#   RETURN_GENERATOR      # Creates generator, returns it
+#   RESUME
+#   LOAD_CONST 1
+#   YIELD_VALUE
+#   ...
+```
+
+When `RETURN_GENERATOR` executes:
+
+1. Create `PyGenObject` with embedded frame
+2. Copy current frame state to embedded frame
+3. Set `owner` field to indicate generator ownership
+4. Push generator object to stack
+5. Return to caller (destroying current frame)
+
+### Execution
+
+When `.send()` is called on a generator:
+
+1. `gen_send_ex2()` in [Objects/genobject.c](https://github.com/python/cpython/blob/main/Objects/genobject.c) is invoked
+2. Generator's frame is pushed onto call stack
+3. `_PyEval_EvalFrame()` resumes execution
+4. Execution continues from last yield point
+
+### Yielding
+
+The `YIELD_VALUE` instruction:
+
+1. Puts value on stack for caller
+2. Updates frame's instruction pointer
+3. Saves interpreter exception state to generator
+4. Returns execution to calling frame
+5. Leaves generator frame ready to resume
+
+### Destruction
+
+In `gen_dealloc()` ([Objects/genobject.c](https://github.com/python/cpython/blob/main/Objects/genobject.c)):
+
+1. Check if frame is exposed as `PyFrameObject`
+2. If exposed and has `refcount > 1`, call `take_ownership()`
+3. `take_ownership()` copies frame to the frame object
+4. Otherwise, clear frame and deallocate generator
+
+Defined in [Python/frame.c](https://github.com/python/cpython/blob/main/Python/frame.c).
+
+## Iteration
+
+### FOR_ITER Instruction
+
+The `FOR_ITER` instruction calls `__next__()` on the iterator:
+
+```python
+for item in generator:
+    process(item)
+
+# Bytecode:
+#   GET_ITER
+#   FOR_ITER label
+#   STORE_NAME (item)
+#   LOAD_NAME (process)
+#   LOAD_NAME (item)
+#   CALL
+#   ...
+```
+
+### FOR_ITER_GEN Specialization
+
+The [specialized](/internals/interpreter#specialization) `FOR_ITER_GEN` instruction:
+
+- Detects when iterating over a generator
+- Bypasses `__next__()` call overhead  
+- Directly pushes generator frame and resumes execution
+- Significantly faster than generic `FOR_ITER`
+
+## Chained Generators (yield from)
+
+The `yield from` expression efficiently chains generators:
+
+```python
+def inner():
+    yield 1
+    yield 2
+
+def outer():
+    yield from inner()  # Efficient chaining
+```
+
+### SEND Instruction
+
+Implements `yield from` logic:
+
+1. Push value onto chained generator's stack
+2. Set exception state on generator's frame
+3. Resume chained generator execution
+4. On return, yield value up the chain with `YIELD_VALUE`
+
+### Loop Structure
+
+```python
+# Conceptual equivalent of 'yield from gen':
+while True:
+    try:
+        value = gen.send(sent_value)
+        sent_value = yield value  # Pass value up, get sent value down
+    except StopIteration as e:
+        result = e.value
+        break
+```
+
+### CLEANUP_THROW Instruction
+
+Handles exceptions in the send-yield loop:
+
+- `StopIteration`: Extract `value` field, return from generator
+- Other exceptions: Re-raise
+
+Defined in [Python/bytecodes.c](https://github.com/python/cpython/blob/main/Python/bytecodes.c).
+
+## Coroutines
+
+Coroutines are generators that can receive values via `.send()`:
+
+```python
+async def coroutine():
+    value = await something()  # Receives value from send()
+    return value * 2
+```
+
+### Send Value Flow
+
+Data flows bidirectionally:
+
+1. **Generator → Caller:** Value passed to `yield` expression
+2. **Caller → Generator:** Argument to `.send()` call
+
+```python
+def coroutine():
+    received = yield 'first'   # Send 'first', receive value
+    received = yield 'second'  # Send 'second', receive value
+    return 'done'
+
+coro = coroutine()
+next(coro)           # Returns 'first', same as send(None)
+coro.send('value1') # Returns 'second', coroutine receives 'value1'
+coro.send('value2') # Raises StopIteration('done')
+```
+
+### Implementation
+
+Both generators and coroutines use the same mechanism:
+
+- `__next__()` simply calls `self.send(None)`
+- `send()` is implemented in `gen_send_ex2()` ([Objects/genobject.c](https://github.com/python/cpython/blob/main/Objects/genobject.c))
+- Send argument becomes the value of the `yield` expression
+
+### Yield From with Send
+
+The `SEND` instruction passes the send argument down the generator chain:
+
+```python
+def inner():
+    x = yield 1
+    print(f"Inner received: {x}")
+    return "result"
+
+def outer():
+    result = yield from inner()
+    return result
+
+o = outer()
+next(o)          # Returns 1 from inner
+o.send("hello") # Prints "Inner received: hello"
+```
+
+## Coroutine Types
+
+CPython has three coroutine-like types:
+
+### Generator-based Coroutines
+
+Created with `@types.coroutine` or `asyncio.coroutine`:
+
+```python
+import asyncio
+
+@asyncio.coroutine
+def old_style():
+    yield from asyncio.sleep(1)
+```
+
+### Native Coroutines
+
+Defined with `async def`:
+
+```python
+async def native():
+    await asyncio.sleep(1)
+```
+
+### Asynchronous Generators
+
+Combine `async def` with `yield`:
+
+```python
+async def async_gen():
+    for i in range(10):
+        await asyncio.sleep(0.1)
+        yield i
+```
+
+All three share the same underlying implementation with different type flags.
+
+## Generator State
+
+Generators track their execution state:
+
+### State Values
+
+- `GEN_CREATED` - Just created, not started
+- `GEN_RUNNING` - Currently executing  
+- `GEN_SUSPENDED` - Yielded, can be resumed
+- `GEN_CLOSED` - Finished or closed
+
+### State Transitions
+
+```python
+gen = my_generator()  # GEN_CREATED
+next(gen)             # GEN_RUNNING → GEN_SUSPENDED
+next(gen)             # GEN_SUSPENDED → GEN_RUNNING → GEN_SUSPENDED
+gen.close()           # GEN_CLOSED
+```
+
+### Detecting Reentrancy
+
+```python
+def bad_generator():
+    yield gen.send(None)  # Reentrant call!
+
+gen = bad_generator()
+try:
+    next(gen)
+except ValueError as e:
+    print(e)  # "generator already executing"
+```
+
+State checking prevents reentrant generator execution.
+
+## Generator Methods
+
+### .send(value)
+
+Resume with a value:
+
+```python
+def gen():
+    x = yield 1
+    print(f"Received: {x}")
+    yield 2
+
+g = gen()
+next(g)        # Returns 1
+g.send("hi")  # Prints "Received: hi", returns 2
+```
+
+### .throw(exc)
+
+Inject exception at yield point:
+
+```python
+def gen():
+    try:
+        yield 1
+    except ValueError:
+        print("Caught ValueError")
+        yield 2
+
+g = gen()
+next(g)
+g.throw(ValueError)  # Prints "Caught ValueError", returns 2
+```
+
+### .close()
+
+Terminate generator:
+
+```python
+def gen():
+    try:
+        yield 1
+        yield 2
+    finally:
+        print("Cleaning up")
+
+g = gen()
+next(g)
+g.close()  # Prints "Cleaning up", raises GeneratorExit internally
+```
+
+## Example: Generator Inspection
+
+```python
+import inspect
+
+def my_gen(x):
+    print(f"Started with {x}")
+    y = yield x * 2
+    print(f"Received {y}")
+    return y + 1
+
+g = my_gen(5)
+
+print(f"State: {inspect.getgeneratorstate(g)}")
+# Output: GEN_CREATED
+
+result = next(g)  # Prints: Started with 5
+print(f"Yielded: {result}")  # Output: 10
+print(f"State: {inspect.getgeneratorstate(g)}")
+# Output: GEN_SUSPENDED
+
+try:
+    g.send(3)  # Prints: Received 3
+except StopIteration as e:
+    print(f"Returned: {e.value}")  # Output: 4
+
+print(f"State: {inspect.getgeneratorstate(g)}")
+# Output: GEN_CLOSED
+```
+
+## Performance Characteristics
+
+### Memory Efficiency
+
+Generators use less memory than lists:
+
+```python
+# List: Stores all values in memory
+numbers = [i * 2 for i in range(1_000_000)]  # ~8MB
+
+# Generator: Computes values on demand  
+numbers = (i * 2 for i in range(1_000_000))  # ~200 bytes
+```
+
+### Execution Overhead
+
+Per-iteration overhead:
+
+- **List iteration:** ~50 ns/iteration
+- **Generator iteration:** ~100 ns/iteration
+- **Specialized FOR_ITER_GEN:** ~75 ns/iteration
+
+Generators trade slightly higher per-item cost for much better memory usage.
+
+## Related Topics
+
+- [Frames](/internals/frames) - Frame structure and lifecycle
+- [Bytecode Interpreter](/internals/interpreter) - How generator bytecode executes
+- [Code Objects](/internals/code-objects) - Generator code compilation
+- [Exception Handling](/internals/exception-handling) - Generator exception propagation

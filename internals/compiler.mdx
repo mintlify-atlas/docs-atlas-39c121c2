@@ -1,0 +1,240 @@
+---
+title: Compiler Design
+description: Detailed overview of CPython's compilation pipeline from source to bytecode
+---
+
+# Compiler Design
+
+The CPython compiler transforms Python source code into executable bytecode through a multi-stage pipeline.
+
+## Compilation Pipeline
+
+CPython's compilation from source code to bytecode involves five main steps:
+
+1. **Tokenize** the source code ([Parser/lexer/](https://github.com/python/cpython/tree/main/Parser/lexer) and [Parser/tokenizer/](https://github.com/python/cpython/tree/main/Parser/tokenizer))
+2. **Parse** the token stream into an Abstract Syntax Tree ([Parser/parser.c](https://github.com/python/cpython/blob/main/Parser/parser.c))
+3. **Transform** AST into an instruction sequence ([Python/compile.c](https://github.com/python/cpython/blob/main/Python/compile.c))
+4. **Construct** a Control Flow Graph and apply optimizations ([Python/flowgraph.c](https://github.com/python/cpython/blob/main/Python/flowgraph.c))
+5. **Emit** bytecode based on the CFG ([Python/assemble.c](https://github.com/python/cpython/blob/main/Python/assemble.c))
+
+## Parsing
+
+As of Python 3.9, Python uses a PEG (Parsing Expression Grammar) parser. Unlike traditional parsers, the PEG parser operates on a stream of tokens rather than individual characters.
+
+### Grammar Definition
+
+The grammar file for Python is located at:
+- **Grammar/python.gram** - PEG grammar specification
+- **Grammar/Tokens** - Literal token definitions
+
+Generated files include:
+- **Parser/parser.c** - Generated C parser code
+
+<Info>
+See the [Parser Guide](/internals/parser) for a detailed description of how the PEG parser works and how to modify the grammar.
+</Info>
+
+## Abstract Syntax Trees (AST)
+
+The AST is a high-level representation of the program structure without the source code details.
+
+### ASDL Definition
+
+AST nodes are specified using the Zephyr Abstract Syntax Definition Language (ASDL) in [Parser/Python.asdl](https://github.com/python/cpython/blob/main/Parser/Python.asdl).
+
+#### Example ASDL Fragment
+
+```python
+module Python
+{
+    stmt = FunctionDef(identifier name, arguments args, stmt* body,
+                       expr* decorators)
+           | Return(expr? value) | Yield(expr? value)
+           attributes (int lineno)
+}
+```
+
+This defines:
+- Three statement types: `FunctionDef`, `Return`, `Yield`
+- Modifiers: `?` (optional), `*` (zero or more)
+- Common attributes like `lineno` for all statements
+
+### Generated C Structures
+
+The ASDL generates C structures like:
+
+```c
+typedef struct _stmt *stmt_ty;
+
+struct _stmt {
+    enum { FunctionDef_kind=1, Return_kind=2, Yield_kind=3 } kind;
+    union {
+        struct {
+            identifier name;
+            arguments_ty args;
+            asdl_seq *body;
+        } FunctionDef;
+        
+        struct {
+            expr_ty value;
+        } Return;
+        
+        struct {
+            expr_ty value;
+        } Yield;
+    } v;
+    int lineno;
+}
+```
+
+### AST Generation
+
+AST is generated from source code using:
+- `_PyParser_ASTFromString()` - For string input
+- `_PyParser_ASTFromFile()` - For file input
+
+Both functions are defined in [Parser/peg_api.c](https://github.com/python/cpython/blob/main/Parser/peg_api.c).
+
+## Memory Management
+
+The compiler uses an **arena** memory allocator for efficient memory management.
+
+### Arena API
+
+- `PyArena_New()` - Create a new arena
+- `PyArena_Free()` - Free all arena memory at once
+- `PyArena_AddPyObject()` - Register PyObject for cleanup
+
+Defined in:
+- [Include/internal/pycore_pyarena.h](https://github.com/python/cpython/blob/main/Include/internal/pycore_pyarena.h)
+- [Python/pyarena.c](https://github.com/python/cpython/blob/main/Python/pyarena.c)
+
+<Note>
+Arena allocation eliminates the need for explicit deallocation during compilation. A single `PyArena_Free()` call releases all compiler memory.
+</Note>
+
+## Control Flow Graphs
+
+A **Control Flow Graph** (CFG) models program flow as a directed graph of basic blocks.
+
+### Basic Blocks
+
+A basic block is a sequence of bytecode instructions that:
+- Always execute sequentially (no branches within)
+- Have a single entry point (at the beginning)
+- Have a single exit point (at the end)
+
+#### Example: If Statement CFG
+
+```python
+if x < 10:
+    f1()
+    f2()
+else:
+    g()
+end()
+```
+
+This creates four basic blocks:
+1. Condition block: `x < 10` → conditional jump
+2. If block: `f1()`, `f2()` → jump to end block
+3. Else block: `g()` → jump to end block
+4. End block: `end()`
+
+CFGs enable optimizations because they represent code structure explicitly.
+
+## AST to Bytecode
+
+The transformation from AST to bytecode is initiated by `_PyAST_Compile()` in [Python/compile.c](https://github.com/python/cpython/blob/main/Python/compile.c).
+
+### Compilation Steps
+
+1. **Build Symbol Table**
+   - `_PySymtable_Build()` in [Python/symtable.c](https://github.com/python/cpython/blob/main/Python/symtable.c)
+   - Determines variable scopes (local, global, nonlocal, etc.)
+   - Tracks code blocks and nested scopes
+
+2. **Generate Instruction Sequence**
+   - `compiler_codegen()` transforms AST into pseudo-instructions
+   - Uses `compiler_visit_{xx}` functions for each node type
+   - Emits instructions using macros like `ADDOP`, `ADDOP_I`, etc.
+
+3. **Construct CFG**
+   - `_PyCfg_FromInstructionSequence()` builds the control flow graph
+   - Identifies basic blocks and their connections
+
+4. **Optimize CFG**
+   - `_PyCfg_OptimizeCodeUnit()` applies peephole optimizations
+   - Examples: constant folding, dead code elimination
+
+5. **Assemble Bytecode**
+   - `_PyAssemble_MakeCodeObject()` generates final bytecode
+   - Converts pseudo-instructions to real bytecode
+   - Constructs exception and location tables
+   - Creates `PyCodeObject`
+
+### Instruction Emission Macros
+
+Defined in [Python/compile.c](https://github.com/python/cpython/blob/main/Python/compile.c:380):
+
+- `ADDOP(c, loc, op)` - Add simple opcode
+- `ADDOP_I(c, loc, op, arg)` - Add opcode with integer argument
+- `ADDOP_O(c, loc, op, obj, type)` - Add opcode with object argument
+- `ADDOP_JUMP(c, loc, op, block)` - Add jump instruction
+- `ADDOP_LOAD_CONST(c, loc, obj)` - Add LOAD_CONST instruction
+
+<Info>
+The `location` parameter contains source location info for error reporting and debugging. Use `LOC` macro to extract from AST nodes or `NO_LOCATION` for synthetic instructions.
+</Info>
+
+## Important Files
+
+### Parser
+
+- **Parser/Python.asdl** - AST node definitions
+- **Parser/asdl.py** - ASDL parser
+- **Parser/asdl_c.py** - C code generator from ASDL
+- **Parser/parser.c** - Generated PEG parser
+- **Parser/peg_api.c** - High-level parser API
+
+### Compiler
+
+- **Python/compile.c** - Main compiler (AST → instruction sequence)
+- **Python/symtable.c** - Symbol table builder
+- **Python/flowgraph.c** - CFG construction and optimization
+- **Python/assemble.c** - Final bytecode assembly
+- **Python/codegen.c** - Code generation utilities
+
+### AST
+
+- **Python/Python-ast.c** - Generated AST C structures
+- **Python/asdl.c** - ASDL sequence types
+- **Python/ast.c** - AST validation
+- **Python/ast_preprocess.c** - AST preprocessing
+- **Python/ast_unparse.c** - Convert AST back to string
+
+### Headers
+
+- **Include/cpython/code.h** - PyCodeObject definition
+- **Include/internal/pycore_ast.h** - Generated AST definitions
+- **Include/internal/pycore_symtable.h** - Symbol table structures
+- **Include/internal/pycore_compile.h** - Compiler structures
+
+## Code Object Structure
+
+The result of compilation is a `PyCodeObject`, defined in [Include/cpython/code.h](https://github.com/python/cpython/blob/main/Include/cpython/code.h).
+
+Key fields:
+- `co_code_adaptive` - Bytecode array (with inline caches)
+- `co_consts` - Tuple of constants
+- `co_names` - Tuple of names used
+- `co_varnames` - Tuple of local variable names
+- `co_exceptiontable` - Exception handling table
+- `co_linetable` - Source location table
+
+## Related Topics
+
+- [Parser Guide](/internals/parser) - Detailed parser documentation
+- [Bytecode Interpreter](/internals/interpreter) - How bytecode executes
+- [Code Objects](/internals/code-objects) - Code object structure
+- [Exception Handling](/internals/exception-handling) - Exception table format

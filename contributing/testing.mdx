@@ -1,0 +1,366 @@
+---
+title: Running the Test Suite
+description: Learn how to run and write tests for CPython
+---
+
+Testing is a critical part of CPython development. This guide covers running the test suite, interpreting results, and writing new tests.
+
+## Running Tests
+
+### Basic Test Run
+
+Run the entire test suite:
+
+```bash
+make test
+```
+
+The test suite produces output showing which tests pass, fail, or are skipped. You can generally ignore messages about skipped tests due to optional features.
+
+<Note>
+By default, tests are prevented from overusing resources like disk space and memory.
+</Note>
+
+### Resource-Intensive Tests
+
+To run tests that use more resources (like the buildbots do):
+
+```bash
+make buildbottest
+```
+
+## Running Specific Tests
+
+### Single Test Module
+
+Run a specific test file:
+
+```bash
+./python -m test test_os
+```
+
+### Multiple Test Modules
+
+Run several specific tests:
+
+```bash
+./python -m test test_os test_pathlib test_shutil
+```
+
+### With Make
+
+You can also use make with the `TESTOPTS` variable:
+
+```bash
+make test TESTOPTS="-v test_os test_gdb"
+```
+
+## Test Options
+
+### Verbose Output
+
+Get detailed output for debugging:
+
+```bash
+./python -m test -v test_os
+```
+
+### Running Failed Tests
+
+If tests fail, re-run them in verbose mode:
+
+```bash
+# After initial run shows failures
+make test TESTOPTS="-v test_os test_gdb"
+```
+
+### Common Test Options
+
+```bash
+# Verbose output
+./python -m test -v test_module
+
+# Run tests matching a pattern
+./python -m test -m test_pattern test_module
+
+# Run with timeout
+./python -m test --timeout=300 test_module
+
+# Run in random order
+./python -m test -r test_module
+
+# Fail fast (stop on first failure)
+./python -m test -x test_module
+
+# Use multiple processes
+./python -m test -j4
+
+# List tests without running
+./python -m test --list-tests test_module
+
+# Get help on all options
+./python -m test --help
+```
+
+## Understanding Test Output
+
+### Successful Test
+
+```
+test_os passed
+```
+
+### Skipped Test
+
+```
+test_ssl skipped -- No module named '_ssl'
+```
+
+This is normal if you haven't installed the required dependencies.
+
+### Failed Test
+
+```
+test_os failed
+```
+
+A failure indicates a problem. Check the traceback for details.
+
+### Test with Errors
+
+```
+test_os crashed -- Traceback (most recent call last):
+  ...
+```
+
+Crashes or core dumps indicate serious problems.
+
+## Debug Builds and Testing
+
+When testing with a debug build (`--with-pydebug`):
+
+```bash
+# Show reference counts
+./python -X showrefcount
+>>> 23
+23
+[8288 refs, 14332 blocks]
+>>>
+```
+
+This helps detect memory leaks - if the count increases without storing new objects, there's likely a leak.
+
+## Special Build Testing
+
+### Reference Counting Tests
+
+With `Py_REF_DEBUG` enabled (included in `--with-pydebug`):
+
+```python
+import sys
+print(sys.gettotalrefcount())  # Available in debug builds
+```
+
+### Trace References
+
+For deep reference debugging:
+
+```bash
+./configure --with-trace-refs
+make
+
+# Set environment variable before running
+export PYTHONDUMPREFS=1
+./python script.py
+```
+
+## Running Test Subsets
+
+### By Category
+
+```bash
+# Core tests only
+./python -m test --core
+
+# Standard library tests
+./python -m test --stdlib
+
+# Tests requiring network
+./python -m test -u network
+
+# Tests requiring CPU resources
+./python -m test -u cpu
+```
+
+### By Pattern
+
+```bash
+# All tests matching pattern
+./python -m test -m test_dict*
+
+# All tests in a directory
+./python -m test test.test_asyncio
+```
+
+## Writing Tests
+
+### Test File Structure
+
+Create test files in `Lib/test/`:
+
+```python
+import unittest
+from test import support
+
+class MyTestCase(unittest.TestCase):
+    def test_something(self):
+        self.assertEqual(1 + 1, 2)
+
+    def test_something_else(self):
+        with self.assertRaises(ValueError):
+            int('invalid')
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+### Using Test Support
+
+The `test.support` module provides utilities:
+
+```python
+from test import support
+
+# Skip tests if feature unavailable
+@support.requires_subprocess()
+def test_subprocess_feature(self):
+    pass
+
+# Clean up resources
+with support.temp_dir() as tmpdir:
+    # Use temporary directory
+    pass
+```
+
+### C Extension Tests
+
+For testing C API:
+
+```python
+import _testcapi
+
+class CAPITest(unittest.TestCase):
+    def test_c_function(self):
+        result = _testcapi.test_function()
+        self.assertEqual(result, expected)
+```
+
+## Continuous Integration
+
+CPython uses multiple CI systems:
+
+### GitHub Actions
+
+View build status:
+- [GitHub Actions](https://github.com/python/cpython/actions)
+- Runs on Linux, macOS, and Windows
+- Tests multiple configurations
+
+### Azure Pipelines
+
+View build status:
+- [Azure DevOps](https://dev.azure.com/python/cpython/_build)
+- Additional platform coverage
+
+## Reporting Test Failures
+
+If tests fail and it appears to be a CPython problem:
+
+<Steps>
+  <Step title="Re-run in verbose mode">
+    ```bash
+    make test TESTOPTS="-v test_failing_module"
+    ```
+  </Step>
+
+  <Step title="Verify it's not your environment">
+    - Try a clean build
+    - Check system dependencies
+    - Test on a different platform if possible
+  </Step>
+
+  <Step title="File a bug report">
+    Visit [github.com/python/cpython/issues](https://github.com/python/cpython/issues) and include:
+    - CPython version/commit
+    - Platform and OS version
+    - Verbose test output
+    - Steps to reproduce
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Tests are too slow">
+    Use parallel testing:
+    ```bash
+    ./python -m test -j4
+    ```
+    Or run fewer tests:
+    ```bash
+    ./python -m test test_specific_module
+    ```
+  </Accordion>
+
+  <Accordion title="Random test failures">
+    Some tests can be flaky. Try:
+    ```bash
+    # Run test multiple times
+    ./python -m test -x -r test_module
+    ```
+    If it's consistently flaky, report it as a bug.
+  </Accordion>
+
+  <Accordion title="Out of memory errors">
+    Some tests use significant memory. Either:
+    - Run tests individually
+    - Use `make test` instead of `make buildbottest`
+    - Skip memory-intensive tests
+  </Accordion>
+
+  <Accordion title="Permission errors in tests">
+    Some tests require specific permissions. Run with appropriate access or skip those tests:
+    ```bash
+    ./python -m test -x test_module
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Test Coverage
+
+Generate coverage reports:
+
+```bash
+# Configure with coverage support
+./configure --with-pydebug
+make
+
+# Run with coverage
+make coverage
+
+# View coverage report
+make coverage-report
+```
+
+## Next Steps
+
+- [Learn the development workflow](/contributing/workflow)
+- [Read the code style guide](/contributing/code-style)
+- [Running & Writing Tests](https://devguide.python.org/testing/run-write-tests.html) (detailed guide)
+
+## Additional Resources
+
+- [Python Test Documentation](https://docs.python.org/3/library/test.html)
+- [unittest Module](https://docs.python.org/3/library/unittest.html)
+- [CPython Developer Guide - Testing](https://devguide.python.org/testing/)
+- [GitHub Issue Tracker](https://github.com/python/cpython/issues)

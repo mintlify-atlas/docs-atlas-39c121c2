@@ -1,0 +1,160 @@
+---
+title: multiprocessing - Process-Based Parallelism
+description: Process-based parallelism for parallel execution
+---
+
+The `multiprocessing` module provides process-based parallelism, enabling true parallel execution on multiple CPU cores.
+
+## Module Import
+
+```python
+import multiprocessing
+from multiprocessing import Process, Pool, Queue
+```
+
+## Creating Processes
+
+### Basic Process
+
+```python
+import multiprocessing
+import time
+
+def worker(name):
+    print(f"Process {name} starting")
+    time.sleep(2)
+    print(f"Process {name} finishing")
+
+if __name__ == '__main__':
+    process = multiprocessing.Process(target=worker, args=("A",))
+    process.start()
+    process.join()
+    print("Process complete")
+```
+
+### Multiple Processes
+
+```python
+import multiprocessing
+
+def square(n):
+    return n * n
+
+if __name__ == '__main__':
+    processes = []
+    for i in range(5):
+        p = multiprocessing.Process(target=square, args=(i,))
+        processes.append(p)
+        p.start()
+    
+    for p in processes:
+        p.join()
+```
+
+## Process Pool
+
+```python
+import multiprocessing
+
+def square(n):
+    return n * n
+
+if __name__ == '__main__':
+    with multiprocessing.Pool(processes=4) as pool:
+        results = pool.map(square, range(10))
+        print(results)  # [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+```
+
+## Inter-Process Communication
+
+### Queue
+
+```python
+import multiprocessing
+
+def producer(queue):
+    for i in range(5):
+        queue.put(i)
+        print(f"Produced {i}")
+
+def consumer(queue):
+    while True:
+        item = queue.get()
+        if item is None:
+            break
+        print(f"Consumed {item}")
+
+if __name__ == '__main__':
+    queue = multiprocessing.Queue()
+    
+    p1 = multiprocessing.Process(target=producer, args=(queue,))
+    p2 = multiprocessing.Process(target=consumer, args=(queue,))
+    
+    p1.start()
+    p2.start()
+    
+    p1.join()
+    queue.put(None)  # Signal to stop
+    p2.join()
+```
+
+### Pipe
+
+```python
+import multiprocessing
+
+def sender(conn):
+    conn.send("Hello from process")
+    conn.close()
+
+if __name__ == '__main__':
+    parent_conn, child_conn = multiprocessing.Pipe()
+    process = multiprocessing.Process(target=sender, args=(child_conn,))
+    process.start()
+    print(parent_conn.recv())  # "Hello from process"
+    process.join()
+```
+
+## Shared Memory
+
+```python
+import multiprocessing
+
+def worker(shared_value, shared_array):
+    shared_value.value += 1
+    for i in range(len(shared_array)):
+        shared_array[i] *= 2
+
+if __name__ == '__main__':
+    shared_val = multiprocessing.Value('i', 0)
+    shared_arr = multiprocessing.Array('i', [1, 2, 3, 4, 5])
+    
+    processes = [multiprocessing.Process(target=worker, 
+                                        args=(shared_val, shared_arr))
+                for _ in range(5)]
+    
+    for p in processes:
+        p.start()
+    for p in processes:
+        p.join()
+    
+    print(f"Value: {shared_val.value}")
+    print(f"Array: {list(shared_arr)}")
+```
+
+<Tip>
+  Use multiprocessing for CPU-bound tasks to utilize multiple cores.
+</Tip>
+
+<Warning>
+  Always use `if __name__ == '__main__':` guard when creating processes to avoid infinite recursion on Windows.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="threading" href="/library/threading">
+    Thread-based parallelism
+  </Card>
+  <Card title="concurrent.futures" href="/library/concurrent-futures">
+    High-level concurrency
+  </Card>
+</CardGroup>

@@ -1,0 +1,158 @@
+---
+title: Using the Python Interpreter
+description: Learn how to invoke and use the Python interpreter
+---
+
+The Python interpreter is your gateway to running Python code. This guide covers how to start the interpreter, pass arguments, and understand its interactive mode.
+
+## Invoking the Interpreter
+
+The Python interpreter is usually installed as `/usr/local/bin/python3.15` on Unix systems. You can start it by typing:
+
+```bash
+python3.15
+```
+
+On Windows, if you've installed Python from the Microsoft Store, use:
+
+```bash
+python
+```
+
+Or with the py launcher:
+
+```bash
+py
+```
+
+### Exiting the Interpreter
+
+To exit the interpreter:
+- **Unix/Linux**: Press `Ctrl-D`
+- **Windows**: Press `Ctrl-Z` then Enter
+- **All platforms**: Type `quit()`
+
+### Command Line Editing
+
+The interpreter supports:
+- Interactive line editing
+- History substitution
+- Code completion on most systems
+
+Test if command line editing works by typing a word and pressing the Left arrow key. If the cursor moves, editing is enabled.
+
+## Running Python Scripts
+
+You can run Python code in several ways:
+
+### Execute a File
+
+```bash
+python script.py
+```
+
+### Execute a Command
+
+```bash
+python -c "print('Hello, World!')"
+```
+
+<Warning>
+Since Python statements often contain spaces or special characters, quote the entire command.
+</Warning>
+
+### Execute a Module
+
+```bash
+python -m http.server
+```
+
+### Interactive Mode After Script
+
+Run a script and then enter interactive mode:
+
+```bash
+python -i script.py
+```
+
+## Argument Passing
+
+When you run a Python script, command-line arguments are available in `sys.argv`:
+
+```python
+import sys
+
+print("Script name:", sys.argv[0])
+print("Arguments:", sys.argv[1:])
+```
+
+**Special cases:**
+- No script: `sys.argv[0]` is an empty string
+- With `-c`: `sys.argv[0]` is `'-c'`
+- With `-m`: `sys.argv[0]` is the full module name
+
+## Interactive Mode
+
+When you start the interpreter without a script, it enters interactive mode:
+
+```python
+$ python3.15
+Python 3.15 (default, May 7 2025, 15:46:04)
+[GCC 10.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>>
+```
+
+### Prompts
+
+- **Primary prompt** (`>>>`): Ready for a new statement
+- **Secondary prompt** (`...`): Continuation of a multi-line statement
+
+```python
+>>> the_world_is_flat = True
+>>> if the_world_is_flat:
+...     print("Be careful not to fall off!")
+...
+Be careful not to fall off!
+```
+
+## Source Code Encoding
+
+By default, Python source files are treated as UTF-8 encoded. This allows using characters from most languages:
+
+```python
+# UTF-8 is the default
+name = "François"
+greeting = "你好"
+```
+
+### Declaring a Different Encoding
+
+To use a different encoding, add a special comment as the **first line**:
+
+```python
+# -*- coding: encoding -*-
+```
+
+Example for Windows-1252:
+
+```python
+# -*- coding: cp1252 -*-
+```
+
+### With a Shebang Line
+
+If your script starts with a shebang, the encoding goes on the **second line**:
+
+```python
+#!/usr/bin/env python3
+# -*- coding: cp1252 -*-
+```
+
+<Info>
+For portable code, stick to UTF-8 encoding and ASCII identifiers even if you can use non-ASCII characters in strings and comments.
+</Info>
+
+## Next Steps
+
+Now that you know how to invoke the interpreter, let's explore Python basics in the [Introduction to Python](/tutorial/introduction).

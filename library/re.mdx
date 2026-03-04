@@ -1,0 +1,264 @@
+---
+title: re - Regular Expressions
+description: Regular expression operations for pattern matching
+---
+
+The `re` module provides regular expression matching operations.
+
+## Module Import
+
+```python
+import re
+```
+
+## Basic Matching
+
+### search() - Find First Match
+
+```python
+import re
+
+text = "The quick brown fox"
+
+# Find pattern
+match = re.search(r'quick', text)
+if match:
+    print(match.group())  # 'quick'
+    print(match.start())  # 4
+    print(match.end())    # 9
+```
+
+### match() - Match at Beginning
+
+```python
+import re
+
+text = "Hello, World!"
+
+# Matches only at start
+match = re.match(r'Hello', text)
+if match:
+    print("Found at start")
+```
+
+### findall() - Find All Matches
+
+```python
+import re
+
+text = "Contact: john@example.com or jane@test.com"
+
+# Find all email addresses
+emails = re.findall(r'\w+@\w+\.\w+', text)
+print(emails)  # ['john@example.com', 'jane@test.com']
+```
+
+### finditer() - Iterator of Matches
+
+```python
+import re
+
+text = "The price is $10.50 and $25.00"
+
+for match in re.finditer(r'\$([0-9.]+)', text):
+    print(f"Found ${match.group(1)} at position {match.start()}")
+```
+
+## Pattern Syntax
+
+### Common Patterns
+
+```python
+import re
+
+# Digit: \d or [0-9]
+re.findall(r'\d+', 'abc123def456')  # ['123', '456']
+
+# Word characters: \w or [a-zA-Z0-9_]
+re.findall(r'\w+', 'hello_world 123')  # ['hello_world', '123']
+
+# Whitespace: \s
+re.split(r'\s+', 'split  by   spaces')  # ['split', 'by', 'spaces']
+
+# Any character: .
+re.findall(r'h.t', 'hat hit hot')  # ['hat', 'hit', 'hot']
+
+# Start/End: ^ and $
+re.match(r'^Hello', 'Hello, World!')  # Matches
+re.search(r'World!$', 'Hello, World!')  # Matches
+```
+
+### Quantifiers
+
+```python
+import re
+
+# Zero or more: *
+re.findall(r'ab*', 'a ab abb abbb')  # ['a', 'ab', 'abb', 'abbb']
+
+# One or more: +
+re.findall(r'ab+', 'a ab abb abbb')  # ['ab', 'abb', 'abbb']
+
+# Zero or one: ?
+re.findall(r'ab?', 'a ab abb')  # ['a', 'ab', 'ab']
+
+# Exactly n: {n}
+re.findall(r'\d{3}', '123 45 6789')  # ['123', '678']
+
+# Range: {m,n}
+re.findall(r'\d{2,4}', '1 12 123 1234 12345')  # ['12', '123', '1234', '1234']
+```
+
+## Substitution
+
+### sub() - Replace Pattern
+
+```python
+import re
+
+text = "Contact: 123-456-7890"
+
+# Replace pattern
+result = re.sub(r'\d', 'X', text)
+print(result)  # 'Contact: XXX-XXX-XXXX'
+
+# With count
+result = re.sub(r'\d', 'X', text, count=3)
+print(result)  # 'Contact: XXX-456-7890'
+```
+
+### sub() with Function
+
+```python
+import re
+
+def replace_func(match):
+    return match.group(0).upper()
+
+text = "hello world"
+result = re.sub(r'\w+', replace_func, text)
+print(result)  # 'HELLO WORLD'
+```
+
+## Groups and Capturing
+
+```python
+import re
+
+text = "John Doe, age: 30"
+
+# Capture groups with ()
+match = re.search(r'(\w+) (\w+), age: (\d+)', text)
+if match:
+    print(match.group(0))  # 'John Doe, age: 30' (full match)
+    print(match.group(1))  # 'John' (first group)
+    print(match.group(2))  # 'Doe' (second group)
+    print(match.group(3))  # '30' (third group)
+    print(match.groups())  # ('John', 'Doe', '30')
+
+# Named groups
+match = re.search(r'(?P<first>\w+) (?P<last>\w+)', text)
+if match:
+    print(match.group('first'))  # 'John'
+    print(match.group('last'))   # 'Doe'
+    print(match.groupdict())     # {'first': 'John', 'last': 'Doe'}
+```
+
+## Compiled Patterns
+
+```python
+import re
+
+# Compile for reuse
+pattern = re.compile(r'\d+')
+
+result1 = pattern.findall('123 abc 456')
+result2 = pattern.search('abc 789 def')
+
+# With flags
+pattern = re.compile(r'hello', re.IGNORECASE)
+match = pattern.search('HELLO World')  # Matches
+```
+
+## Flags
+
+```python
+import re
+
+# Case insensitive
+re.search(r'hello', 'HELLO', re.IGNORECASE)
+
+# Multiline
+text = """line 1
+line 2
+line 3"""
+re.findall(r'^line', text, re.MULTILINE)  # ['line', 'line', 'line']
+
+# Dot matches newline
+re.search(r'a.*b', 'a\nb', re.DOTALL)
+
+# Verbose (allows comments)
+pattern = re.compile(r"""
+    \d{3}  # Area code
+    -      # Separator
+    \d{4}  # Number
+""", re.VERBOSE)
+```
+
+## Practical Examples
+
+### Email Validation
+
+```python
+import re
+
+def is_valid_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+print(is_valid_email('user@example.com'))  # True
+print(is_valid_email('invalid.email'))     # False
+```
+
+### Extract URLs
+
+```python
+import re
+
+text = "Visit https://example.com or http://test.org"
+url_pattern = r'https?://[\w.-]+(?:\.[\w.-]+)+'
+urls = re.findall(url_pattern, text)
+print(urls)  # ['https://example.com', 'http://test.org']
+```
+
+### Phone Number Formatting
+
+```python
+import re
+
+def format_phone(phone):
+    # Remove non-digits
+    digits = re.sub(r'\D', '', phone)
+    # Format as (XXX) XXX-XXXX
+    return re.sub(r'(\d{3})(\d{3})(\d{4})', r'(\1) \2-\3', digits)
+
+print(format_phone('1234567890'))  # '(123) 456-7890'
+print(format_phone('123.456.7890'))  # '(123) 456-7890'
+```
+
+<Tip>
+  Compile patterns you use repeatedly for better performance.
+</Tip>
+
+<Warning>
+  Be careful with greedy quantifiers. Use `?` for non-greedy matching: `.*?` instead of `.*`
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="string" href="/library/string">
+    String operations
+  </Card>
+  <Card title="Built-in Types" href="/library/built-in-types">
+    String type
+  </Card>
+</CardGroup>

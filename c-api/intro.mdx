@@ -1,0 +1,162 @@
+---
+title: Introduction to the C API
+description: Getting started with the Python/C API for extension modules and embedding
+---
+
+## Overview
+
+The Python/C API gives C and C++ programmers access to the Python interpreter at multiple levels. There are two primary use cases:
+
+1. **Extension Modules** - Write C modules that extend the Python interpreter with new functionality
+2. **Embedding Python** - Use Python as a component within a larger C/C++ application
+
+The API is compatible with C11 and C++11 standards. You don't need to enable special compiler modes.
+
+## Include Files
+
+All Python/C API functionality requires including a single header:
+
+```c
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+```
+
+<Warning>
+  Always include `Python.h` **before** any standard headers. Python may define preprocessor definitions that affect standard headers on some systems.
+</Warning>
+
+### What Gets Included
+
+The `Python.h` header automatically includes:
+- `<assert.h>`
+- `<inttypes.h>`
+- `<limits.h>`
+- `<math.h>`
+- `<stdarg.h>`
+- `<string.h>`
+- `<wchar.h>`
+
+<Note>
+  All names defined by Python.h use the `Py` or `_Py` prefix. Names beginning with `_Py` are internal and should not be used by extension writers.
+</Note>
+
+## Objects and Reference Counts
+
+Most Python/C API functions work with `PyObject*` - a pointer to an opaque type representing any Python object.
+
+### Key Concepts
+
+- All Python objects live on the **heap** - never declare automatic/static `PyObject` variables
+- Every object has a **type** and a **reference count**
+- The reference count tracks how many references to the object exist
+- When the reference count reaches zero, the object is deallocated
+
+### Basic Example
+
+```c
+PyObject *item = PyList_GetItem(list, 0);  // Borrowed reference
+if (!PyLong_Check(item)) {
+    PyErr_SetString(PyExc_TypeError, "Expected integer");
+    return NULL;
+}
+long value = PyLong_AsLong(item);
+if (value == -1 && PyErr_Occurred()) {
+    return NULL;  // Handle error
+}
+```
+
+## Error Handling
+
+C programmers must explicitly check for errors. The Python/C API uses error indicators:
+
+- Functions return `NULL` (for pointers) or `-1` (for integers) on error
+- An exception is set in thread-local storage
+- Check with `PyErr_Occurred()` or test return values
+
+### Error Handling Pattern
+
+```c
+PyObject *result = PyObject_GetItem(dict, key);
+if (result == NULL) {
+    // Check for specific exception
+    if (PyErr_ExceptionMatches(PyExc_KeyError)) {
+        PyErr_Clear();
+        // Handle missing key
+        result = PyLong_FromLong(0);
+    } else {
+        // Propagate other exceptions
+        return NULL;
+    }
+}
+```
+
+<Warning>
+  Always check return values! Unhandled errors can corrupt program state and cause mysterious failures.
+</Warning>
+
+## Useful Macros
+
+### Type Checking
+
+```c
+Py_ssize_t  // Signed integer type, same size as size_t
+```
+
+### Utility Macros
+
+<ParamField path="Py_MIN(x, y)" type="macro">
+  Return the smaller of two values
+</ParamField>
+
+<ParamField path="Py_MAX(x, y)" type="macro">
+  Return the larger of two values
+</ParamField>
+
+<ParamField path="Py_ABS(x)" type="macro">
+  Return absolute value (arguments may be evaluated multiple times)
+</ParamField>
+
+<ParamField path="Py_UNUSED(arg)" type="macro">
+  Silence compiler warnings for unused function arguments
+  
+  ```c
+  int func(int a, int Py_UNUSED(b)) { return a; }
+  ```
+</ParamField>
+
+## Thread Safety
+
+Python uses a Global Interpreter Lock (GIL) to protect internal state:
+
+- Most API functions require holding the GIL
+- Release the GIL for long-running operations
+- Reacquire before calling Python APIs
+
+```c
+Py_BEGIN_ALLOW_THREADS
+// Long computation without Python objects
+Py_END_ALLOW_THREADS
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Very High Level Layer" icon="layer-group" href="/c-api/veryhigh">
+    Execute Python code from C
+  </Card>
+  <Card title="Object Protocol" icon="cube" href="/c-api/object">
+    Work with Python objects
+  </Card>
+  <Card title="Reference Counting" icon="counter" href="/c-api/refcounting">
+    Memory management fundamentals
+  </Card>
+  <Card title="Exception Handling" icon="triangle-exclamation" href="/c-api/exceptions">
+    Handle and raise exceptions
+  </Card>
+</CardGroup>
+
+## See Also
+
+- [Python Packaging Guide: Binary Extensions](https://packaging.python.org/guides/packaging-binary-extensions/)
+- [PEP 7: Style Guide for C Code](https://peps.python.org/pep-0007/)
+- Third-party tools: Cython, cffi, pybind11, PyO3

@@ -1,0 +1,425 @@
+---
+title: Descriptors
+description: Understanding and implementing Python descriptors for managed attributes
+---
+
+Descriptors let objects customize attribute lookup, storage, and deletion. They're the mechanism behind properties, methods, static methods, class methods, and `__slots__`.
+
+## What is a Descriptor?
+
+A descriptor is any object that defines `__get__()`, `__set__()`, or `__delete__()` methods:
+
+```python
+class Descriptor:
+    def __get__(self, obj, objtype=None):
+        return "value from descriptor"
+    
+    def __set__(self, obj, value):
+        print(f"Setting value: {value}")
+    
+    def __delete__(self, obj):
+        print("Deleting attribute")
+```
+
+## Simple Example
+
+<Steps>
+
+### Create a Basic Descriptor
+
+```python
+class Ten:
+    def __get__(self, obj, objtype=None):
+        return 10
+
+class A:
+    x = 5        # Regular class attribute
+    y = Ten()    # Descriptor instance
+```
+
+### Use the Descriptor
+
+```python
+a = A()
+print(a.x)  # 5 - normal attribute lookup
+print(a.y)  # 10 - descriptor lookup
+```
+
+</Steps>
+
+## Dynamic Lookups
+
+Descriptors run computations instead of returning constants:
+
+```python
+import os
+
+class DirectorySize:
+    def __get__(self, obj, objtype=None):
+        return len(os.listdir(obj.dirname))
+
+class Directory:
+    size = DirectorySize()  # Descriptor instance
+    
+    def __init__(self, dirname):
+        self.dirname = dirname
+```
+
+Usage:
+
+```python
+s = Directory('songs')
+print(s.size)  # Shows current file count
+
+# Add a file
+with open('songs/new_song.mp3', 'w') as f:
+    f.write('')
+
+print(s.size)  # Automatically updated
+```
+
+## Managed Attributes
+
+Control access to instance data with validation:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+class LoggedAgeAccess:
+    def __get__(self, obj, objtype=None):
+        value = obj._age
+        logging.info('Accessing %r giving %r', 'age', value)
+        return value
+    
+    def __set__(self, obj, value):
+        logging.info('Updating %r to %r', 'age', value)
+        obj._age = value
+
+class Person:
+    age = LoggedAgeAccess()  # Descriptor instance
+    
+    def __init__(self, name, age):
+        self.name = name    # Regular attribute
+        self.age = age      # Calls __set__()
+    
+    def birthday(self):
+        self.age += 1       # Calls __get__() and __set__()
+```
+
+Now all age access is logged:
+
+```python
+mary = Person('Mary M', 30)
+# INFO:root:Updating 'age' to 30
+
+print(mary.age)
+# INFO:root:Accessing 'age' giving 30
+# 30
+
+mary.birthday()
+# INFO:root:Accessing 'age' giving 30
+# INFO:root:Updating 'age' to 31
+```
+
+## Customized Names
+
+Use `__set_name__()` to automatically capture attribute names:
+
+```python
+class LoggedAccess:
+    def __set_name__(self, owner, name):
+        self.public_name = name
+        self.private_name = '_' + name
+    
+    def __get__(self, obj, objtype=None):
+        value = getattr(obj, self.private_name)
+        logging.info('Accessing %r giving %r', self.public_name, value)
+        return value
+    
+    def __set__(self, obj, value):
+        logging.info('Updating %r to %r', self.public_name, value)
+        setattr(obj, self.private_name, value)
+
+class Person:
+    name = LoggedAccess()  # First descriptor
+    age = LoggedAccess()   # Second descriptor
+    
+    def __init__(self, name, age):
+        self.name = name   # Calls first descriptor
+        self.age = age     # Calls second descriptor
+```
+
+## Data Validation
+
+<Steps>
+
+### Create a Validator Base Class
+
+```python
+from abc import ABC, abstractmethod
+
+class Validator(ABC):
+    def __set_name__(self, owner, name):
+        self.private_name = '_' + name
+    
+    def __get__(self, obj, objtype=None):
+        return getattr(obj, self.private_name)
+    
+    def __set__(self, obj, value):
+        self.validate(value)
+        setattr(obj, self.private_name, value)
+    
+    @abstractmethod
+    def validate(self, value):
+        pass
+```
+
+### Create Specific Validators
+
+```python
+class OneOf(Validator):
+    def __init__(self, *options):
+        self.options = set(options)
+    
+    def validate(self, value):
+        if value not in self.options:
+            raise ValueError(
+                f'Expected {value!r} to be one of {self.options!r}'
+            )
+
+class Number(Validator):
+    def __init__(self, minvalue=None, maxvalue=None):
+        self.minvalue = minvalue
+        self.maxvalue = maxvalue
+    
+    def validate(self, value):
+        if not isinstance(value, (int, float)):
+            raise TypeError(f'Expected {value!r} to be an int or float')
+        if self.minvalue is not None and value < self.minvalue:
+            raise ValueError(
+                f'Expected {value!r} to be at least {self.minvalue!r}'
+            )
+        if self.maxvalue is not None and value > self.maxvalue:
+            raise ValueError(
+                f'Expected {value!r} to be no more than {self.maxvalue!r}'
+            )
+
+class String(Validator):
+    def __init__(self, minsize=None, maxsize=None, predicate=None):
+        self.minsize = minsize
+        self.maxsize = maxsize
+        self.predicate = predicate
+    
+    def validate(self, value):
+        if not isinstance(value, str):
+            raise TypeError(f'Expected {value!r} to be a str')
+        if self.minsize is not None and len(value) < self.minsize:
+            raise ValueError(
+                f'Expected {value!r} to be no smaller than {self.minsize!r}'
+            )
+        if self.maxsize is not None and len(value) > self.maxsize:
+            raise ValueError(
+                f'Expected {value!r} to be no bigger than {self.maxsize!r}'
+            )
+        if self.predicate is not None and not self.predicate(value):
+            raise ValueError(
+                f'Expected {self.predicate} to be true for {value!r}'
+            )
+```
+
+### Apply Validators
+
+```python
+class Component:
+    name = String(minsize=3, maxsize=10, predicate=str.isupper)
+    kind = OneOf('wood', 'metal', 'plastic')
+    quantity = Number(minvalue=0)
+    
+    def __init__(self, name, kind, quantity):
+        self.name = name
+        self.kind = kind
+        self.quantity = quantity
+```
+
+### Test Validation
+
+```python
+# This raises ValueError: predicate not satisfied
+Component('Widget', 'metal', 5)
+
+# This raises ValueError: not one of options
+Component('WIDGET', 'metle', 5)
+
+# This raises ValueError: negative number
+Component('WIDGET', 'metal', -5)
+
+# This works!
+c = Component('WIDGET', 'metal', 5)
+```
+
+</Steps>
+
+## Descriptor Types
+
+### Data vs Non-Data Descriptors
+
+**Data descriptors** define both `__get__()` and `__set__()`:
+- Take precedence over instance dictionary
+- Used for managed attributes
+
+**Non-data descriptors** define only `__get__()`:
+- Instance dictionary takes precedence
+- Used for methods and functions
+
+```python
+# Data descriptor (takes precedence)
+class DataDesc:
+    def __get__(self, obj, objtype=None):
+        return "data descriptor"
+    def __set__(self, obj, value):
+        pass
+
+# Non-data descriptor (instance dict wins)
+class NonDataDesc:
+    def __get__(self, obj, objtype=None):
+        return "non-data descriptor"
+
+class Example:
+    data = DataDesc()
+    nondata = NonDataDesc()
+
+e = Example()
+e.__dict__['data'] = 'instance value'     # Ignored
+e.__dict__['nondata'] = 'instance value'  # Takes precedence
+
+print(e.data)     # "data descriptor"
+print(e.nondata)  # "instance value"
+```
+
+## Property Implementation
+
+Here's how Python's `property()` works under the hood:
+
+```python
+class Property:
+    def __init__(self, fget=None, fset=None, fdel=None, doc=None):
+        self.fget = fget
+        self.fset = fset
+        self.fdel = fdel
+        if doc is None and fget is not None:
+            doc = fget.__doc__
+        self.__doc__ = doc
+    
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        if self.fget is None:
+            raise AttributeError
+        return self.fget(obj)
+    
+    def __set__(self, obj, value):
+        if self.fset is None:
+            raise AttributeError
+        self.fset(obj, value)
+    
+    def __delete__(self, obj):
+        if self.fdel is None:
+            raise AttributeError
+        self.fdel(obj)
+```
+
+Usage:
+
+```python
+class C:
+    def getx(self): return self.__x
+    def setx(self, value): self.__x = value
+    def delx(self): del self.__x
+    x = Property(getx, setx, delx, "I'm the 'x' property.")
+```
+
+## Common Use Cases
+
+### Lazy Properties
+
+Compute values only when needed:
+
+```python
+class LazyProperty:
+    def __init__(self, func):
+        self.func = func
+    
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        value = self.func(obj)
+        setattr(obj, self.func.__name__, value)
+        return value
+
+class Circle:
+    def __init__(self, radius):
+        self.radius = radius
+    
+    @LazyProperty
+    def area(self):
+        print('Computing area')
+        return 3.14159 * self.radius ** 2
+```
+
+### Type Checking
+
+```python
+class TypedProperty:
+    def __init__(self, name, expected_type):
+        self.name = name
+        self.expected_type = expected_type
+    
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        return obj.__dict__.get(self.name)
+    
+    def __set__(self, obj, value):
+        if not isinstance(value, self.expected_type):
+            raise TypeError(
+                f'{self.name} must be {self.expected_type.__name__}'
+            )
+        obj.__dict__[self.name] = value
+
+class Person:
+    name = TypedProperty('name', str)
+    age = TypedProperty('age', int)
+```
+
+## Best Practices
+
+<Warning>
+**Descriptor Pitfalls:**
+
+1. Descriptors only work as class variables, not instance variables
+2. Always handle the `obj is None` case in `__get__()`
+3. Be careful with `__set_name__()` - it's called at class creation time
+</Warning>
+
+<Note>
+**When to Use Descriptors:**
+
+- ✅ Repeated validation logic across multiple classes
+- ✅ Computed attributes with caching
+- ✅ Attribute access logging/monitoring
+- ✅ Type checking and coercion
+- ❌ Simple properties (use `@property` instead)
+- ❌ One-off custom behavior (use `__getattribute__` override)
+</Note>
+
+## Summary
+
+Key points about descriptors:
+
+1. Define `__get__()`, `__set__()`, or `__delete__()` to create a descriptor
+2. Use `__set_name__()` to capture the attribute name automatically
+3. Data descriptors override instance dictionary
+4. Non-data descriptors are overridden by instance dictionary
+5. Descriptors power properties, methods, classmethod, staticmethod, and slots

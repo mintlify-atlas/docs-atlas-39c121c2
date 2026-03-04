@@ -1,122 +1,235 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "CPython",
+  "theme": "linden",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#dedede",
+    "light": "#fbde58",
+    "dark": "#2a4d73"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.png",
+  "logo": {
+    "light": "https://media.brand.dev/64f0c14f-6ffd-4316-bca9-d8f3fb511874.png",
+    "dark": "https://media.brand.dev/64f0c14f-6ffd-4316-bca9-d8f3fb511874.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/python/cpython"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/python/cpython"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Tutorial",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "tutorial/interpreter",
+              "tutorial/introduction",
+              "tutorial/control-flow",
+              "tutorial/data-structures",
+              "tutorial/modules",
+              "tutorial/input-output",
+              "tutorial/errors",
+              "tutorial/classes"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Language Reference",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "reference/lexical-analysis",
+              "reference/data-model",
+              "reference/execution-model",
+              "reference/expressions",
+              "reference/statements",
+              "reference/compound-statements"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "How-To Guides",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "howto/regex",
+              "howto/descriptors",
+              "howto/logging",
+              "howto/functional",
+              "howto/async"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Standard Library",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
             "pages": [
-              "api-reference/introduction"
+              "library/overview",
+              "library/built-in-functions",
+              "library/built-in-types"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Built-in Modules",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "library/sys",
+              "library/os",
+              "library/pathlib",
+              "library/datetime",
+              "library/collections",
+              "library/itertools",
+              "library/functools",
+              "library/typing"
+            ]
+          },
+          {
+            "group": "Concurrency",
+            "pages": [
+              "library/asyncio",
+              "library/threading",
+              "library/multiprocessing",
+              "library/concurrent-futures"
+            ]
+          },
+          {
+            "group": "Text Processing",
+            "pages": [
+              "library/re",
+              "library/string",
+              "library/json",
+              "library/csv"
+            ]
+          },
+          {
+            "group": "File & Data",
+            "pages": [
+              "library/io",
+              "library/pickle",
+              "library/sqlite3",
+              "library/zipfile"
+            ]
+          },
+          {
+            "group": "Networking",
+            "pages": [
+              "library/socket",
+              "library/http",
+              "library/urllib",
+              "library/email"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "C API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "c-api/intro",
+              "c-api/veryhigh",
+              "c-api/extension-modules"
+            ]
+          },
+          {
+            "group": "Object Protocol",
+            "pages": [
+              "c-api/object",
+              "c-api/type",
+              "c-api/allocation",
+              "c-api/refcounting"
+            ]
+          },
+          {
+            "group": "Concrete Objects",
+            "pages": [
+              "c-api/bool",
+              "c-api/long",
+              "c-api/float",
+              "c-api/unicode",
+              "c-api/bytes",
+              "c-api/list",
+              "c-api/dict",
+              "c-api/set"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "c-api/memory",
+              "c-api/exceptions",
+              "c-api/utilities",
+              "c-api/import"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Internals",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "internals/structure",
+              "internals/compiler",
+              "internals/interpreter",
+              "internals/garbage-collector"
+            ]
+          },
+          {
+            "group": "Runtime",
+            "pages": [
+              "internals/code-objects",
+              "internals/frames",
+              "internals/generators",
+              "internals/exception-handling"
+            ]
+          },
+          {
+            "group": "Advanced Topics",
+            "pages": [
+              "internals/jit",
+              "internals/parser",
+              "internals/string-interning"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "contributing/setup",
+              "contributing/building",
+              "contributing/testing"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "contributing/workflow",
+              "contributing/code-style",
+              "contributing/documentation"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

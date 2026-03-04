@@ -1,0 +1,52 @@
+---
+title: Set Objects
+description: Working with Python set and frozenset types
+---
+
+## Overview
+
+Sets are unordered collections of unique hashable objects.
+
+## Creating Sets
+
+```c
+PyObject* PySet_New(PyObject *iterable)
+PyObject* PyFrozenSet_New(PyObject *iterable)
+```
+
+**Example:**
+```c
+PyObject *set = PySet_New(NULL);  // Empty set
+return set;
+```
+
+## Set Operations
+
+```c
+int PySet_Add(PyObject *set, PyObject *key)
+int PySet_Discard(PyObject *set, PyObject *key)
+int PySet_Contains(PyObject *anyset, PyObject *key)
+Py_ssize_t PySet_Size(PyObject *anyset)
+```
+
+**Example:**
+```c
+PyObject *item = PyLong_FromLong(42);
+PySet_Add(set, item);
+Py_DECREF(item);
+
+if (PySet_Contains(set, item)) {
+    printf("Set contains 42\n");
+}
+```
+
+## Set Methods
+
+```c
+PyObject* PySet_Pop(PyObject *set)
+void PySet_Clear(PyObject *set)
+```
+
+## See Also
+- [Dictionary Objects](/c-api/dict)
+- [Object Protocol](/c-api/object)

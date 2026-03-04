@@ -1,0 +1,144 @@
+---
+title: Development Environment Setup
+description: Set up your development environment for contributing to CPython
+---
+
+Before you can start contributing to CPython, you'll need to set up your development environment. This guide will walk you through the process step by step.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- A Unix-like operating system (Linux, macOS, BSD, or Cygwin on Windows)
+- Git for version control
+- A C compiler (GCC or Clang)
+- Basic development tools (make, etc.)
+
+<Note>
+For Windows development, see [PCbuild/readme.txt](https://github.com/python/cpython/blob/main/PCbuild/readme.txt) for platform-specific instructions.
+</Note>
+
+## Getting the Source Code
+
+<Steps>
+  <Step title="Fork the repository">
+    Visit [github.com/python/cpython](https://github.com/python/cpython) and click the "Fork" button to create your own copy of the repository.
+  </Step>
+
+  <Step title="Clone your fork">
+    ```bash
+    git clone https://github.com/YOUR-USERNAME/cpython.git
+    cd cpython
+    ```
+  </Step>
+
+  <Step title="Add upstream remote">
+    ```bash
+    git remote add upstream https://github.com/python/cpython.git
+    git fetch upstream
+    ```
+  </Step>
+</Steps>
+
+## Installing Dependencies
+
+CPython requires various third-party libraries depending on your platform and configuration. Not all standard library modules are buildable on all platforms.
+
+### Linux (Debian/Ubuntu)
+
+```bash
+sudo apt-get update
+sudo apt-get install build-essential gdb lcov pkg-config \
+      libbz2-dev libffi-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
+      libncurses5-dev libreadline6-dev libsqlite3-dev libssl-dev \
+      lzma lzma-dev tk-dev uuid-dev zlib1g-dev
+```
+
+### Linux (Fedora/RHEL)
+
+```bash
+sudo dnf install yum-utils gcc-c++ \
+      bzip2-devel expat-devel gdbm-devel ncurses-devel openssl-devel \
+      readline-devel sqlite-devel tk-devel xz-devel zlib-devel
+```
+
+### macOS
+
+```bash
+brew install openssl xz gdbm
+```
+
+<Note>
+macOS has additional configure and build options related to framework and universal builds. See [Mac/README.rst](https://github.com/python/cpython/blob/main/Mac/README.rst) for details.
+</Note>
+
+## Configuring Your Workspace
+
+### Editor Setup
+
+CPython follows specific coding standards. Configure your editor to:
+
+- Use 4 spaces for indentation (not tabs)
+- Trim trailing whitespace
+- Use Unix-style line endings (LF)
+- Follow PEP 7 for C code and PEP 8 for Python code
+
+### Git Configuration
+
+```bash
+# Set your name and email
+git config user.name "Your Name"
+git config user.email "your.email@example.com"
+
+# Optional: Set up commit template
+git config commit.template .gitmessage
+```
+
+## Verification
+
+Verify your setup by running a quick configuration test:
+
+```bash
+./configure --help
+```
+
+This should display available configuration options. If it works, you're ready to build CPython!
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Missing configure script">
+    If `./configure` doesn't exist, you may need to generate it:
+    ```bash
+    autoreconf -i
+    ```
+    However, this is rarely needed as the configure script is committed to the repository.
+  </Accordion>
+
+  <Accordion title="SSL/OpenSSL errors on macOS">
+    macOS's system OpenSSL may be outdated. Install via Homebrew and configure:
+    ```bash
+    brew install openssl
+    ./configure --with-openssl=$(brew --prefix openssl)
+    ```
+  </Accordion>
+
+  <Accordion title="Permission denied errors">
+    Ensure you have write permissions in the CPython directory. Avoid using `sudo` for build operations.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that your environment is set up, you're ready to:
+
+- [Build CPython from source](/contributing/building)
+- Read the [Developer Guide](https://devguide.python.org/) for comprehensive documentation
+- Join the discussion at [Python Discourse](https://discuss.python.org/)
+
+## Additional Resources
+
+- [CPython Developer Guide](https://devguide.python.org/)
+- [Build Dependencies](https://devguide.python.org/getting-started/setup-building.html#build-dependencies)
+- [GitHub Repository](https://github.com/python/cpython)
+- [Issue Tracker](https://github.com/python/cpython/issues)

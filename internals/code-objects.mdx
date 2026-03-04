@@ -1,0 +1,311 @@
+---
+title: Code Objects
+description: Structure and format of compiled Python code objects
+---
+
+# Code Objects
+
+A `CodeObject` is a built-in Python type representing compiled executable code, such as a function body or class definition.
+
+## Overview
+
+Code objects contain:
+- **Bytecode instructions** - The executable code
+- **Associated metadata** - Constants, names, variable info
+- **Context information** - Source locations, exception table
+
+## Structure
+
+### Key Fields
+
+The `PyCodeObject` C struct is defined in [Include/cpython/code.h](https://github.com/python/cpython/blob/main/Include/cpython/code.h).
+
+Important fields:
+
+- `co_code_adaptive` - Bytecode array (since 3.11, was `co_code` bytes object before)
+- `co_consts` - Tuple of constants used (numbers, strings, etc.)
+- `co_names` - Tuple of global/attribute names
+- `co_varnames` - Tuple of local variable names
+- `co_cellvars` - Tuple of cell variable names (for closures)
+- `co_freevars` - Tuple of free variable names (from outer scopes)
+- `co_exceptiontable` - Exception handling table
+- `co_linetable` - Source code location table
+- `co_stacksize` - Maximum stack depth needed
+- `co_firstlineno` - First source line number
+
+### Bytecode Array
+
+Since Python 3.11, bytecode is stored directly in the code object as `co_code_adaptive`:
+
+```c
+struct PyCodeObject {
+    // ... other fields ...
+    _Py_CODEUNIT co_code_adaptive[1];  // Variable-length array
+};
+```
+
+This change:
+- Saves an allocation (no separate bytes object)
+- Allows mutation for specialization
+- Enables inline caches
+
+<Note>
+The array is declared with size `[1]` but actually extends to the required length. This is a C flexible array member pattern.
+</Note>
+
+## Creation and Initialization
+
+Code objects are typically created by the [compiler](/internals/compiler):
+
+1. Compiler generates instruction sequence
+2. `_PyAssemble_MakeCodeObject()` creates `PyCodeObject` ([Python/assemble.c](https://github.com/python/cpython/blob/main/Python/assemble.c))
+3. `_PyCode_Quicken()` initializes inline caches ([Python/specialize.c](https://github.com/python/cpython/blob/main/Python/specialize.c))
+
+### Quickening
+
+Quickening initializes adaptive instruction caches:
+
+```python
+# On-disk format: simple bytecode
+LOAD_ATTR  5  
+00 00      # Cache entries (zeros)
+
+# After quickening: initialized cache
+LOAD_ATTR  5
+XX XX      # Counter initialized to adaptive threshold
+```
+
+## Immutability
+
+Code objects are **nominally immutable**:
+
+- Most fields are read-only after creation
+- Exceptions: `co_code_adaptive`, `_co_monitoring` (runtime info)
+- Immutable fields are used for hashing and comparison
+
+### Sharing Code Objects
+
+Code objects can be safely shared:
+- Between function objects
+- Across threads
+- When cached on disk (.pyc files)
+
+Mutable fields (`co_code_adaptive`) use appropriate synchronization.
+
+## Source Code Locations
+
+The `co_linetable` field maps bytecode offsets to source locations.
+
+### Why Source Locations Matter
+
+When an exception occurs:
+1. Interpreter adds traceback entry for current frame
+2. `tb_lineno` computed from `co_linetable` via `PyCode_Addr2Line()`
+3. Full location (line, column, end line, end column) available
+
+### Location Table Format
+
+The locations table is a compressed format storing 4-tuples:
+
+```python
+(start_line, end_line, start_column, end_column)
+```
+
+#### Accessing Locations
+
+From Python:
+```python
+# Iterator of 4-tuples (one per instruction)
+for loc in code.co_positions():
+    print(loc)  # (line, endline, col, endcol)
+
+# Iterator of (start, end, lineno) tuples  
+for item in code.co_lines():
+    print(item)  # (start_offset, end_offset, line)
+```
+
+From C:
+```c
+PyCode_Addr2Location(code, offset, &start_line, &start_col, 
+                     &end_line, &end_col);
+```
+
+### Locations Table Encoding
+
+<Info>
+The locations table uses variable-length encoding to save space. See the [format specification](https://github.com/python/cpython/blob/main/InternalDocs/code_objects.md#format-of-the-locations-table) for details.
+</Info>
+
+Each entry consists of:
+- Length (in code units)
+- Start line delta
+- End line delta  
+- Start column
+- End column
+
+Multiple encoding forms optimize for common cases:
+
+| Code  | Form              | Use Case                           |
+|-------|-------------------|------------------------------------|  
+| 0-9   | Short form        | Single line, column fits in byte   |
+| 10-12 | One line form     | Single line, full column info      |
+| 13    | No column info    | Line only                          |
+| 14    | Long form         | Multi-line, all details            |
+| 15    | No location       | Synthetic instructions             |
+
+### Variable-Length Integers
+
+Locations table uses two integer encodings:
+
+**Unsigned (varint):**
+```python
+def encode_varint(value):
+    chunks = []
+    while value >= 64:
+        chunks.append((value & 0x3F) | 0x40)
+        value >>= 6
+    chunks.append(value & 0x3F)
+    return bytes(chunks)
+```
+
+**Signed (svarint):**
+```python  
+def svarint_to_varint(signed_val):
+    if signed_val < 0:
+        return ((-signed_val) << 1) | 1
+    else:
+        return signed_val << 1
+```
+
+## Serialization
+
+Code objects are serialized using the [marshal](https://docs.python.org/3/library/marshal.html) protocol.
+
+### .pyc Files
+
+Compiled modules are cached as .pyc files:
+
+1. Source code compiled to code object
+2. Code object marshalled to bytes
+3. Magic number + timestamp/hash + marshalled code written to .pyc
+4. On import, .pyc loaded and unmarshalled
+
+### Magic Number
+
+The magic number identifies bytecode version:
+
+```python
+import importlib.util
+print(importlib.util.MAGIC_NUMBER.hex())
+```
+
+Changing bytecode format requires updating the magic number in:
+- `Lib/importlib/_bootstrap_external.py`
+- `PC/launcher.c` (Windows launcher)
+
+## Code Object Methods
+
+### Python API
+
+```python
+code = some_function.__code__
+
+# Introspection
+code.co_argcount        # Number of arguments
+code.co_posonlyargcount # Positional-only arg count
+code.co_kwonlyargcount  # Keyword-only arg count  
+code.co_nlocals         # Number of local variables
+code.co_stacksize       # Required stack depth
+code.co_flags           # Flags (CO_OPTIMIZED, CO_NEWLOCALS, etc.)
+
+# Data
+code.co_code            # Read-only bytecode view (compatibility)
+code.co_consts          # Constants tuple
+code.co_names           # Names tuple
+code.co_varnames        # Local variable names
+code.co_filename        # Source filename
+code.co_name            # Function/class name
+code.co_firstlineno     # First line number
+
+# Advanced  
+code.co_lnotab          # Legacy line number table (deprecated)
+code.co_lines()         # Modern line number iterator
+code.co_positions()     # Full position info iterator
+```
+
+### Replacement
+
+```python
+# Create modified version (since 3.8)
+new_code = code.replace(co_consts=new_consts)
+```
+
+## Execution
+
+Code objects are executed by the [interpreter](/internals/interpreter):
+
+```c
+PyObject *
+PyEval_EvalCode(PyObject *co, PyObject *globals, PyObject *locals)
+{
+    // 1. Create frame from code object
+    // 2. Call _PyEval_EvalFrame() to execute
+    // 3. Return result
+}
+```
+
+Defined in [Python/ceval.c](https://github.com/python/cpython/blob/main/Python/ceval.c).
+
+## Example: Examining Code Objects
+
+```python
+import dis
+
+def example(x, y):
+    z = x + y
+    return z * 2
+
+code = example.__code__
+
+print(f"Name: {code.co_name}")
+print(f"Args: {code.co_argcount}")
+print(f"Locals: {code.co_nlocals}")
+print(f"Stack size: {code.co_stacksize}")
+print(f"Consts: {code.co_consts}")
+print(f"Names: {code.co_names}") 
+print(f"Varnames: {code.co_varnames}")
+
+print("\nBytecode:")
+dis.dis(code)
+```
+
+Output:
+```
+Name: example
+Args: 2
+Locals: 3
+Stack size: 2
+Consts: (None, 2)
+Names: ()
+Varnames: ('x', 'y', 'z')
+
+Bytecode:
+  0           0 RESUME                   0
+
+  1           2 LOAD_FAST                0 (x)
+              4 LOAD_FAST                1 (y)
+              6 BINARY_OP                0 (+)
+             10 STORE_FAST               2 (z)
+
+  2          12 LOAD_FAST                2 (z)
+             14 LOAD_CONST               1 (2)
+             16 BINARY_OP                5 (*)
+             20 RETURN_VALUE
+```
+
+## Related Topics
+
+- [Compiler Design](/internals/compiler) - How code objects are created
+- [Bytecode Interpreter](/internals/interpreter) - How code objects are executed
+- [Exception Handling](/internals/exception-handling) - Exception table format
+- [Frames](/internals/frames) - Runtime execution context

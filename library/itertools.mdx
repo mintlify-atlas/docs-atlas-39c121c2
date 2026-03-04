@@ -1,0 +1,455 @@
+---
+title: itertools - Iterator Building Blocks
+description: Functions creating iterators for efficient looping
+---
+
+The `itertools` module provides fast, memory-efficient tools for creating iterators. These functions work with iterators to produce complex iterators.
+
+## Module Import
+
+```python
+import itertools
+```
+
+## Infinite Iterators
+
+### count() - Infinite Counter
+
+```python
+import itertools
+
+# Count from 0
+for i in itertools.count():
+    if i > 5:
+        break
+    print(i)  # 0, 1, 2, 3, 4, 5
+
+# Count from 10 by 2
+for i in itertools.count(10, 2):
+    if i > 20:
+        break
+    print(i)  # 10, 12, 14, 16, 18, 20
+
+# Practical use: enumerate alternative
+for i, item in zip(itertools.count(), ['a', 'b', 'c']):
+    print(f"{i}: {item}")
+```
+
+### cycle() - Cycle Through Iterable
+
+```python
+import itertools
+
+# Cycle through values
+for i, value in enumerate(itertools.cycle(['A', 'B', 'C'])):
+    if i >= 7:
+        break
+    print(value)  # A, B, C, A, B, C, A
+
+# Practical use: round-robin assignment
+tasks = ['task1', 'task2', 'task3', 'task4']
+workers = itertools.cycle(['Alice', 'Bob'])
+assignments = list(zip(tasks, workers))
+# [('task1', 'Alice'), ('task2', 'Bob'), ('task3', 'Alice'), ('task4', 'Bob')]
+```
+
+### repeat() - Repeat Value
+
+```python
+import itertools
+
+# Repeat indefinitely
+for i, value in enumerate(itertools.repeat('X')):
+    if i >= 3:
+        break
+    print(value)  # X, X, X
+
+# Repeat n times
+list(itertools.repeat('X', 5))  # ['X', 'X', 'X', 'X', 'X']
+
+# Practical use: with map
+result = list(map(pow, [2, 3, 4], itertools.repeat(2)))
+print(result)  # [4, 9, 16] (2^2, 3^2, 4^2)
+```
+
+## Terminating Iterators
+
+### chain() - Chain Iterables
+
+```python
+import itertools
+
+# Combine multiple iterables
+result = itertools.chain([1, 2, 3], ['a', 'b', 'c'])
+list(result)  # [1, 2, 3, 'a', 'b', 'c']
+
+# Chain from iterable of iterables
+result = itertools.chain.from_iterable([[1, 2], [3, 4], [5]])
+list(result)  # [1, 2, 3, 4, 5]
+
+# Flatten nested lists
+nested = [[1, 2], [3, 4], [5, 6]]
+flat = list(itertools.chain.from_iterable(nested))
+print(flat)  # [1, 2, 3, 4, 5, 6]
+```
+
+### compress() - Filter by Selectors
+
+```python
+import itertools
+
+data = ['A', 'B', 'C', 'D', 'E']
+selectors = [1, 0, 1, 0, 1]
+result = itertools.compress(data, selectors)
+list(result)  # ['A', 'C', 'E']
+
+# Filter by boolean conditions
+numbers = [1, 2, 3, 4, 5, 6]
+result = itertools.compress(numbers, [n % 2 == 0 for n in numbers])
+list(result)  # [2, 4, 6]
+```
+
+### dropwhile() and takewhile()
+
+```python
+import itertools
+
+# Drop while condition is true
+data = [1, 3, 5, 2, 4, 6]
+result = itertools.dropwhile(lambda x: x < 5, data)
+list(result)  # [5, 2, 4, 6]
+
+# Take while condition is true
+data = [1, 3, 5, 2, 4, 6]
+result = itertools.takewhile(lambda x: x < 5, data)
+list(result)  # [1, 3]
+```
+
+### filterfalse() - Opposite of filter()
+
+```python
+import itertools
+
+numbers = [1, 2, 3, 4, 5, 6]
+
+# Keep items where condition is False
+result = itertools.filterfalse(lambda x: x % 2 == 0, numbers)
+list(result)  # [1, 3, 5] (odd numbers)
+```
+
+### islice() - Slice Iterator
+
+```python
+import itertools
+
+# Slice iterator without converting to list
+data = range(100)
+result = itertools.islice(data, 5)  # First 5
+list(result)  # [0, 1, 2, 3, 4]
+
+# With start, stop, step
+result = itertools.islice(data, 10, 20, 2)
+list(result)  # [10, 12, 14, 16, 18]
+
+# Useful for large files
+with open('large_file.txt') as f:
+    first_10_lines = list(itertools.islice(f, 10))
+```
+
+## Combinatoric Iterators
+
+### product() - Cartesian Product
+
+```python
+import itertools
+
+# Product of iterables
+result = itertools.product([1, 2], ['a', 'b'])
+list(result)  # [(1, 'a'), (1, 'b'), (2, 'a'), (2, 'b')]
+
+# Product with itself
+result = itertools.product([1, 2, 3], repeat=2)
+list(result)  # [(1,1), (1,2), (1,3), (2,1), (2,2), (2,3), (3,1), (3,2), (3,3)]
+
+# All combinations of options
+colors = ['red', 'blue']
+sizes = ['S', 'M', 'L']
+for color, size in itertools.product(colors, sizes):
+    print(f"{color}-{size}")
+```
+
+### permutations() - All Permutations
+
+```python
+import itertools
+
+# All permutations of length r
+result = itertools.permutations([1, 2, 3], 2)
+list(result)  # [(1,2), (1,3), (2,1), (2,3), (3,1), (3,2)]
+
+# All permutations (full length)
+result = itertools.permutations([1, 2, 3])
+list(result)  # [(1,2,3), (1,3,2), (2,1,3), (2,3,1), (3,1,2), (3,2,1)]
+
+# Permutations of string
+list(itertools.permutations('ABC', 2))
+# [('A','B'), ('A','C'), ('B','A'), ('B','C'), ('C','A'), ('C','B')]
+```
+
+### combinations() - All Combinations
+
+```python
+import itertools
+
+# Combinations without replacement
+result = itertools.combinations([1, 2, 3, 4], 2)
+list(result)  # [(1,2), (1,3), (1,4), (2,3), (2,4), (3,4)]
+
+# Combinations with replacement
+result = itertools.combinations_with_replacement([1, 2, 3], 2)
+list(result)  # [(1,1), (1,2), (1,3), (2,2), (2,3), (3,3)]
+```
+
+## Grouping and Accumulating
+
+### groupby() - Group Consecutive Elements
+
+```python
+import itertools
+
+# Group by key function
+data = [('A', 1), ('A', 2), ('B', 3), ('B', 4), ('C', 5)]
+for key, group in itertools.groupby(data, lambda x: x[0]):
+    print(f"{key}: {list(group)}")
+# A: [('A', 1), ('A', 2)]
+# B: [('B', 3), ('B', 4)]
+# C: [('C', 5)]
+
+# Group consecutive duplicates
+data = [1, 1, 2, 2, 2, 3, 1, 1]
+for key, group in itertools.groupby(data):
+    print(f"{key}: {len(list(group))}")
+# 1: 2
+# 2: 3
+# 3: 1
+# 1: 2
+```
+
+### accumulate() - Running Totals
+
+```python
+import itertools
+import operator
+
+# Cumulative sum (default)
+data = [1, 2, 3, 4, 5]
+result = itertools.accumulate(data)
+list(result)  # [1, 3, 6, 10, 15]
+
+# Cumulative product
+result = itertools.accumulate(data, operator.mul)
+list(result)  # [1, 2, 6, 24, 120]
+
+# Cumulative maximum
+data = [5, 2, 8, 1, 9, 3]
+result = itertools.accumulate(data, max)
+list(result)  # [5, 5, 8, 8, 9, 9]
+```
+
+## Practical Examples
+
+### Pagination
+
+```python
+import itertools
+
+def paginate(iterable, page_size):
+    """Split iterable into pages"""
+    iterator = iter(iterable)
+    while True:
+        page = list(itertools.islice(iterator, page_size))
+        if not page:
+            break
+        yield page
+
+# Usage
+items = range(25)
+for page_num, page in enumerate(paginate(items, 10), 1):
+    print(f"Page {page_num}: {page}")
+```
+
+### Round Robin
+
+```python
+import itertools
+
+def roundrobin(*iterables):
+    """Round-robin across iterables"""
+    iterators = [iter(it) for it in iterables]
+    while iterators:
+        result = []
+        for it in iterators:
+            try:
+                result.append(next(it))
+            except StopIteration:
+                iterators.remove(it)
+        if result:
+            yield from result
+
+# Usage
+list(roundrobin('ABC', 'D', 'EF'))
+# ['A', 'D', 'E', 'B', 'F', 'C']
+```
+
+### Sliding Window
+
+```python
+import itertools
+
+def sliding_window(iterable, n):
+    """Return sliding window of size n"""
+    it = iter(iterable)
+    window = list(itertools.islice(it, n))
+    if len(window) == n:
+        yield tuple(window)
+    for item in it:
+        window = window[1:] + [item]
+        yield tuple(window)
+
+# Usage
+for window in sliding_window([1, 2, 3, 4, 5], 3):
+    print(window)
+# (1, 2, 3)
+# (2, 3, 4)
+# (3, 4, 5)
+```
+
+### Flatten Nested Structure
+
+```python
+import itertools
+
+def flatten(nested):
+    """Flatten nested iterable"""
+    for item in nested:
+        if isinstance(item, (list, tuple)):
+            yield from flatten(item)
+        else:
+            yield item
+
+# Usage
+nested = [1, [2, 3, [4, 5]], 6, [7, [8, 9]]]
+list(flatten(nested))  # [1, 2, 3, 4, 5, 6, 7, 8, 9]
+```
+
+### Generate All Subsets
+
+```python
+import itertools
+
+def powerset(iterable):
+    """Generate all subsets (power set)"""
+    items = list(iterable)
+    return itertools.chain.from_iterable(
+        itertools.combinations(items, r)
+        for r in range(len(items) + 1)
+    )
+
+# Usage
+list(powerset([1, 2, 3]))
+# [(), (1,), (2,), (3,), (1,2), (1,3), (2,3), (1,2,3)]
+```
+
+### Pairwise Iteration
+
+```python
+import itertools
+
+def pairwise(iterable):
+    """Return successive overlapping pairs"""
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+# Usage
+list(pairwise([1, 2, 3, 4, 5]))
+# [(1, 2), (2, 3), (3, 4), (4, 5)]
+```
+
+## Best Practices
+
+<Tip>
+  **itertools is memory efficient:**
+  Iterators don't create intermediate lists, saving memory.
+  ```python
+  # Memory efficient
+  for item in itertools.chain(list1, list2, list3):
+      process(item)
+  
+  # Memory intensive
+  for item in list1 + list2 + list3:
+      process(item)
+  ```
+</Tip>
+
+<Tip>
+  **Use itertools for complex iterations:**
+  ```python
+  # Clean and readable
+  for a, b, c in itertools.product(range(3), repeat=3):
+      print(a, b, c)
+  
+  # Instead of nested loops
+  for a in range(3):
+      for b in range(3):
+          for c in range(3):
+              print(a, b, c)
+  ```
+</Tip>
+
+## Complete Function List
+
+<AccordionGroup>
+  <Accordion title="Infinite Iterators">
+    - `count(start=0, step=1)` - Count infinitely
+    - `cycle(iterable)` - Cycle through iterable
+    - `repeat(object, times=None)` - Repeat object
+  </Accordion>
+  
+  <Accordion title="Terminating Iterators">
+    - `accumulate(iterable, func=operator.add)` - Running totals
+    - `chain(*iterables)` - Chain iterables
+    - `chain.from_iterable(iterable)` - Chain from iterable
+    - `compress(data, selectors)` - Filter by selectors
+    - `dropwhile(predicate, iterable)` - Drop while true
+    - `filterfalse(predicate, iterable)` - Filter false values
+    - `groupby(iterable, key=None)` - Group consecutive
+    - `islice(iterable, stop)` - Slice iterator
+    - `pairwise(iterable)` - Successive pairs (Python 3.10+)
+    - `starmap(function, iterable)` - Map with unpacking
+    - `takewhile(predicate, iterable)` - Take while true
+    - `tee(iterable, n=2)` - Split iterator
+    - `zip_longest(*iterables, fillvalue=None)` - Zip with padding
+  </Accordion>
+  
+  <Accordion title="Combinatoric Iterators">
+    - `product(*iterables, repeat=1)` - Cartesian product
+    - `permutations(iterable, r=None)` - Permutations
+    - `combinations(iterable, r)` - Combinations
+    - `combinations_with_replacement(iterable, r)` - Combinations with replacement
+  </Accordion>
+</AccordionGroup>
+
+## Related Modules
+
+<CardGroup cols={2}>
+  <Card title="functools" icon="function" href="/library/functools">
+    Higher-order functions
+  </Card>
+  <Card title="collections" icon="box" href="/library/collections">
+    Specialized containers
+  </Card>
+  <Card title="operator" icon="calculator">
+    Function equivalents of operators
+  </Card>
+</CardGroup>

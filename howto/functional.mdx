@@ -1,0 +1,607 @@
+---
+title: Functional Programming
+description: Guide to functional programming techniques and tools in Python
+---
+
+Functional programming decomposes problems into a set of functions. This guide covers Python's features for functional-style programming.
+
+## Key Concepts
+
+Functional programming emphasizes:
+- **Pure functions**: Output depends only on input
+- **Immutability**: Avoid changing state
+- **Higher-order functions**: Functions that take/return functions
+- **Composability**: Combine simple functions into complex ones
+
+## Iterators
+
+### Basic Iterator Usage
+
+An iterator returns data one element at a time:
+
+```python
+L = [1, 2, 3]
+it = iter(L)
+
+print(next(it))  # 1
+print(next(it))  # 2
+print(next(it))  # 3
+print(next(it))  # Raises StopIteration
+```
+
+### Iterate Through Collections
+
+```python
+# Lists
+for item in [1, 2, 3]:
+    print(item)
+
+# Dictionaries
+for key in {'a': 1, 'b': 2}:
+    print(key, dict[key])
+
+# Files
+for line in open('file.txt'):
+    print(line)
+
+# Strings
+for char in 'abc':
+    print(char)
+```
+
+## List Comprehensions
+
+<Steps>
+
+### Basic Syntax
+
+```python
+# Create a list of squares
+squares = [x**2 for x in range(10)]
+# [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+```
+
+### With Filtering
+
+```python
+# Only even squares
+even_squares = [x**2 for x in range(10) if x % 2 == 0]
+# [0, 4, 16, 36, 64]
+```
+
+### Multiple Loops
+
+```python
+# Cartesian product
+pairs = [(x, y) for x in [1, 2, 3] for y in ['a', 'b']]
+# [(1, 'a'), (1, 'b'), (2, 'a'), (2, 'b'), (3, 'a'), (3, 'b')]
+```
+
+### Nested Comprehensions
+
+```python
+# Flatten a matrix
+matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+flat = [num for row in matrix for num in row]
+# [1, 2, 3, 4, 5, 6, 7, 8, 9]
+```
+
+</Steps>
+
+## Generator Expressions
+
+### Memory-Efficient Iteration
+
+```python
+# List comprehension - creates full list in memory
+squares_list = [x**2 for x in range(1000000)]
+
+# Generator expression - creates values on demand
+squares_gen = (x**2 for x in range(1000000))
+
+# Use the generator
+for square in squares_gen:
+    if square > 100:
+        break
+```
+
+### Generator vs List Comprehension
+
+```python
+# Generator - parentheses
+gen = (x**2 for x in range(10))
+type(gen)  # <class 'generator'>
+
+# List comprehension - brackets
+lst = [x**2 for x in range(10)]
+type(lst)  # <class 'list'>
+```
+
+## Generator Functions
+
+### Creating Generators
+
+Use `yield` instead of `return`:
+
+```python
+def generate_ints(n):
+    for i in range(n):
+        yield i
+
+gen = generate_ints(5)
+list(gen)  # [0, 1, 2, 3, 4]
+```
+
+### Infinite Generators
+
+```python
+def infinite_sequence():
+    num = 0
+    while True:
+        yield num
+        num += 1
+
+gen = infinite_sequence()
+print(next(gen))  # 0
+print(next(gen))  # 1
+print(next(gen))  # 2
+```
+
+### Generator State
+
+Generators maintain state between calls:
+
+```python
+def counter(maximum):
+    i = 0
+    while i < maximum:
+        val = (yield i)
+        # If value provided, change counter
+        if val is not None:
+            i = val
+        else:
+            i += 1
+
+it = counter(10)
+print(next(it))    # 0
+print(next(it))    # 1
+print(it.send(8))  # 8
+print(next(it))    # 9
+```
+
+## Built-in Functions
+
+### map()
+
+Apply function to every item:
+
+```python
+def square(x):
+    return x ** 2
+
+result = map(square, [1, 2, 3, 4])
+list(result)  # [1, 4, 9, 16]
+
+# With lambda
+result = map(lambda x: x ** 2, [1, 2, 3, 4])
+list(result)  # [1, 4, 9, 16]
+```
+
+### filter()
+
+Select items that match a condition:
+
+```python
+def is_even(x):
+    return x % 2 == 0
+
+result = filter(is_even, range(10))
+list(result)  # [0, 2, 4, 6, 8]
+
+# With lambda
+result = filter(lambda x: x % 2 == 0, range(10))
+list(result)  # [0, 2, 4, 6, 8]
+```
+
+### enumerate()
+
+Get index and value:
+
+```python
+for i, value in enumerate(['a', 'b', 'c']):
+    print(f'{i}: {value}')
+# 0: a
+# 1: b
+# 2: c
+
+# Start from different index
+for i, value in enumerate(['a', 'b', 'c'], start=1):
+    print(f'{i}: {value}')
+# 1: a
+# 2: b
+# 3: c
+```
+
+### zip()
+
+Combine multiple iterables:
+
+```python
+names = ['Alice', 'Bob', 'Charlie']
+ages = [25, 30, 35]
+
+for name, age in zip(names, ages):
+    print(f'{name} is {age} years old')
+# Alice is 25 years old
+# Bob is 30 years old
+# Charlie is 35 years old
+
+# Create dictionary
+dict(zip(names, ages))
+# {'Alice': 25, 'Bob': 30, 'Charlie': 35}
+```
+
+### any() and all()
+
+Test iterator contents:
+
+```python
+# any() - True if any element is true
+any([False, False, True, False])  # True
+any([False, False, False])        # False
+
+# all() - True if all elements are true
+all([True, True, True])           # True
+all([True, False, True])          # False
+```
+
+### sorted()
+
+Sort any iterable:
+
+```python
+sorted([3, 1, 4, 1, 5, 9, 2, 6])
+# [1, 1, 2, 3, 4, 5, 6, 9]
+
+# With key function
+sorted(['apple', 'pie', 'a', 'cherry'], key=len)
+# ['a', 'pie', 'apple', 'cherry']
+
+# Reverse order
+sorted([3, 1, 4, 1, 5], reverse=True)
+# [5, 4, 3, 1, 1]
+```
+
+## The itertools Module
+
+### Creating Iterators
+
+<Steps>
+
+### Infinite Iterators
+
+```python
+import itertools
+
+# count() - infinite counter
+for i in itertools.count(10, 2):
+    if i > 20:
+        break
+    print(i)  # 10, 12, 14, 16, 18, 20
+
+# cycle() - repeat sequence infinitely
+counter = 0
+for item in itertools.cycle(['a', 'b', 'c']):
+    if counter >= 5:
+        break
+    print(item)
+    counter += 1
+# a, b, c, a, b
+
+# repeat() - repeat element
+list(itertools.repeat('hello', 3))
+# ['hello', 'hello', 'hello']
+```
+
+### Combinatoric Iterators
+
+```python
+import itertools
+
+# combinations() - all r-length combinations
+list(itertools.combinations([1, 2, 3], 2))
+# [(1, 2), (1, 3), (2, 3)]
+
+# permutations() - all r-length permutations
+list(itertools.permutations([1, 2, 3], 2))
+# [(1, 2), (1, 3), (2, 1), (2, 3), (3, 1), (3, 2)]
+
+# product() - cartesian product
+list(itertools.product([1, 2], ['a', 'b']))
+# [(1, 'a'), (1, 'b'), (2, 'a'), (2, 'b')]
+```
+
+### Filtering Iterators
+
+```python
+import itertools
+
+def is_even(x):
+    return x % 2 == 0
+
+# filterfalse() - opposite of filter()
+list(itertools.filterfalse(is_even, range(10)))
+# [1, 3, 5, 7, 9]
+
+# takewhile() - take while predicate is true
+list(itertools.takewhile(lambda x: x < 5, range(10)))
+# [0, 1, 2, 3, 4]
+
+# dropwhile() - drop while predicate is true
+list(itertools.dropwhile(lambda x: x < 5, range(10)))
+# [5, 6, 7, 8, 9]
+```
+
+### Combining Iterators
+
+```python
+import itertools
+
+# chain() - combine multiple iterators
+list(itertools.chain([1, 2], [3, 4], [5, 6]))
+# [1, 2, 3, 4, 5, 6]
+
+# islice() - slice an iterator
+list(itertools.islice(range(10), 2, 8, 2))
+# [2, 4, 6]
+
+# tee() - split iterator into n independent iterators
+it1, it2 = itertools.tee(range(5), 2)
+list(it1)  # [0, 1, 2, 3, 4]
+list(it2)  # [0, 1, 2, 3, 4]
+```
+
+### Grouping
+
+```python
+import itertools
+
+data = [
+    ('A', 1), ('A', 2), ('B', 3), ('B', 4), ('C', 5)
+]
+
+# groupby() - group consecutive items by key
+for key, group in itertools.groupby(data, lambda x: x[0]):
+    print(key, list(group))
+# A [('A', 1), ('A', 2)]
+# B [('B', 3), ('B', 4)]
+# C [('C', 5)]
+```
+
+</Steps>
+
+## The functools Module
+
+### reduce()
+
+Cumulatively apply a function:
+
+```python
+from functools import reduce
+import operator
+
+# Sum all elements
+reduce(operator.add, [1, 2, 3, 4, 5])
+# ((((1 + 2) + 3) + 4) + 5) = 15
+
+# Product of all elements
+reduce(operator.mul, [1, 2, 3, 4, 5])
+# 120
+
+# With initial value
+reduce(operator.mul, [1, 2, 3, 4, 5], 10)
+# 1200
+```
+
+### partial()
+
+Create functions with pre-filled arguments:
+
+```python
+from functools import partial
+
+def power(base, exponent):
+    return base ** exponent
+
+# Create specialized functions
+square = partial(power, exponent=2)
+cube = partial(power, exponent=3)
+
+square(5)  # 25
+cube(5)    # 125
+```
+
+### lru_cache()
+
+Cache function results:
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=None)
+def fibonacci(n):
+    if n < 2:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+fibonacci(100)  # Computed quickly with caching
+```
+
+## Lambda Functions
+
+### Basic Usage
+
+```python
+# Regular function
+def add(x, y):
+    return x + y
+
+# Lambda equivalent
+add = lambda x, y: x + y
+
+add(2, 3)  # 5
+```
+
+### With Built-in Functions
+
+```python
+# Sort by second element
+pairs = [(1, 'one'), (2, 'two'), (3, 'three'), (4, 'four')]
+sorted(pairs, key=lambda pair: pair[1])
+# [(4, 'four'), (1, 'one'), (3, 'three'), (2, 'two')]
+
+# Filter evens
+list(filter(lambda x: x % 2 == 0, range(10)))
+# [0, 2, 4, 6, 8]
+
+# Map to uppercase
+list(map(lambda s: s.upper(), ['hello', 'world']))
+# ['HELLO', 'WORLD']
+```
+
+<Warning>
+**When to avoid lambda:**
+
+```python
+# Bad - complex logic in lambda
+result = map(lambda x: x * 2 if x % 2 == 0 else x * 3, numbers)
+
+# Good - use named function
+def transform(x):
+    return x * 2 if x % 2 == 0 else x * 3
+
+result = map(transform, numbers)
+```
+</Warning>
+
+## The operator Module
+
+Function equivalents of operators:
+
+```python
+import operator
+
+# Arithmetic
+operator.add(1, 2)      # 3
+operator.mul(3, 4)      # 12
+operator.truediv(10, 3) # 3.333...
+
+# Comparison
+operator.eq(1, 1)       # True
+operator.lt(1, 2)       # True
+
+# Item access
+operator.itemgetter(1)(['a', 'b', 'c'])  # 'b'
+operator.attrgetter('__name__')(operator) # 'operator'
+
+# Use with sorted()
+data = [('Alice', 25), ('Bob', 30), ('Charlie', 20)]
+sorted(data, key=operator.itemgetter(1))
+# [('Charlie', 20), ('Alice', 25), ('Bob', 30)]
+```
+
+## Practical Examples
+
+### Data Pipeline
+
+```python
+from itertools import islice
+
+# Process large file efficiently
+def process_lines(filename):
+    with open(filename) as f:
+        # Take first 100 non-empty, stripped lines
+        lines = (line.strip() for line in f)  # Generator
+        lines = filter(None, lines)            # Remove empty
+        lines = islice(lines, 100)             # Take 100
+        
+        for line in lines:
+            yield line.upper()
+
+for processed in process_lines('data.txt'):
+    print(processed)
+```
+
+### Functional Data Processing
+
+```python
+from functools import reduce
+import operator
+
+# Calculate total price with tax
+cart = [
+    {'name': 'Apple', 'price': 1.50, 'qty': 3},
+    {'name': 'Banana', 'price': 0.75, 'qty': 5},
+]
+
+# Functional approach
+totals = map(lambda item: item['price'] * item['qty'], cart)
+subtotal = reduce(operator.add, totals)
+total = subtotal * 1.08  # 8% tax
+
+print(f'Total: ${total:.2f}')
+```
+
+### Composing Functions
+
+```python
+from functools import reduce
+
+def compose(*functions):
+    """Compose multiple functions into one."""
+    return reduce(lambda f, g: lambda x: f(g(x)), functions)
+
+# Create pipeline
+process = compose(
+    str.upper,
+    str.strip,
+    lambda s: s.replace(' ', '_')
+)
+
+process('  hello world  ')  # 'HELLO_WORLD'
+```
+
+## Best Practices
+
+<Note>
+**When to use functional programming:**
+
+- ✅ Data transformations and pipelines
+- ✅ Processing collections
+- ✅ Stateless operations
+- ✅ Parallel processing
+- ❌ Complex stateful logic
+- ❌ I/O heavy operations
+- ❌ When performance is critical (imperative may be faster)
+</Note>
+
+<Warning>
+**Common pitfalls:**
+
+1. **Iterator exhaustion** - iterators can only be used once
+2. **Late binding in loops** - lambda captures variables by reference
+3. **Excessive nesting** - deeply nested comprehensions are hard to read
+4. **Overusing lambda** - named functions are more readable
+</Warning>
+
+## Summary
+
+Key functional programming tools in Python:
+
+1. **Iterators** - process data one item at a time
+2. **Generators** - create iterators with `yield`
+3. **List comprehensions** - concise list creation
+4. **Built-ins** - `map()`, `filter()`, `zip()`, `enumerate()`
+5. **itertools** - combinatoric and infinite iterators
+6. **functools** - `reduce()`, `partial()`, higher-order functions
+7. **operator** - function equivalents of operators

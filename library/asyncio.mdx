@@ -1,0 +1,242 @@
+---
+title: asyncio - Asynchronous I/O
+description: Write concurrent code using async/await syntax
+---
+
+The `asyncio` module provides infrastructure for writing single-threaded concurrent code using coroutines, event loops, and async/await syntax.
+
+## Module Import
+
+```python
+import asyncio
+```
+
+## Basic Async/Await
+
+### Coroutines
+
+```python
+import asyncio
+
+# Define async function
+async def say_hello():
+    print("Hello")
+    await asyncio.sleep(1)
+    print("World")
+
+# Run coroutine
+asyncio.run(say_hello())
+```
+
+### Running Async Code
+
+```python
+import asyncio
+
+async def main():
+    print("Started")
+    await asyncio.sleep(1)
+    print("Finished")
+
+# Run async function
+asyncio.run(main())
+```
+
+## Concurrent Execution
+
+### gather() - Run Multiple Coroutines
+
+```python
+import asyncio
+
+async def fetch_data(id):
+    await asyncio.sleep(1)
+    return f"Data {id}"
+
+async def main():
+    # Run concurrently
+    results = await asyncio.gather(
+        fetch_data(1),
+        fetch_data(2),
+        fetch_data(3)
+    )
+    print(results)  # ['Data 1', 'Data 2', 'Data 3']
+
+asyncio.run(main())
+```
+
+### create_task() - Create Tasks
+
+```python
+import asyncio
+
+async def background_task():
+    await asyncio.sleep(2)
+    print("Background task complete")
+
+async def main():
+    # Create task (starts running)
+    task = asyncio.create_task(background_task())
+    
+    # Do other work
+    await asyncio.sleep(1)
+    print("Main work done")
+    
+    # Wait for task
+    await task
+
+asyncio.run(main())
+```
+
+## Timeouts and Waiting
+
+### wait_for() - Timeout
+
+```python
+import asyncio
+
+async def slow_operation():
+    await asyncio.sleep(5)
+    return "Done"
+
+async def main():
+    try:
+        result = await asyncio.wait_for(slow_operation(), timeout=2.0)
+    except asyncio.TimeoutError:
+        print("Operation timed out")
+
+asyncio.run(main())
+```
+
+### wait() - Wait for Multiple Tasks
+
+```python
+import asyncio
+
+async def task(n):
+    await asyncio.sleep(n)
+    return n
+
+async def main():
+    tasks = [task(i) for i in [1, 2, 3]]
+    
+    # Wait for all
+    done, pending = await asyncio.wait(tasks)
+    
+    for task in done:
+        print(task.result())
+
+asyncio.run(main())
+```
+
+## Async Iteration
+
+### Async Generators
+
+```python
+import asyncio
+
+async def count_async(n):
+    for i in range(n):
+        await asyncio.sleep(0.1)
+        yield i
+
+async def main():
+    async for number in count_async(5):
+        print(number)
+
+asyncio.run(main())
+```
+
+## Queues
+
+```python
+import asyncio
+
+async def producer(queue):
+    for i in range(5):
+        await asyncio.sleep(0.1)
+        await queue.put(i)
+        print(f"Produced {i}")
+
+async def consumer(queue):
+    while True:
+        item = await queue.get()
+        print(f"Consumed {item}")
+        queue.task_done()
+
+async def main():
+    queue = asyncio.Queue()
+    
+    # Start producer and consumer
+    producer_task = asyncio.create_task(producer(queue))
+    consumer_task = asyncio.create_task(consumer(queue))
+    
+    await producer_task
+    await queue.join()  # Wait for all items processed
+    consumer_task.cancel()
+
+asyncio.run(main())
+```
+
+## Practical Examples
+
+### Concurrent HTTP Requests
+
+```python
+import asyncio
+import aiohttp
+
+async def fetch_url(session, url):
+    async with session.get(url) as response:
+        return await response.text()
+
+async def main():
+    urls = [
+        'https://api.example.com/1',
+        'https://api.example.com/2',
+        'https://api.example.com/3',
+    ]
+    
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_url(session, url) for url in urls]
+        results = await asyncio.gather(*tasks)
+        return results
+
+asyncio.run(main())
+```
+
+### Periodic Tasks
+
+```python
+import asyncio
+
+async def periodic_task(interval):
+    while True:
+        print(f"Running task every {interval}s")
+        await asyncio.sleep(interval)
+
+async def main():
+    task = asyncio.create_task(periodic_task(2))
+    await asyncio.sleep(10)  # Run for 10 seconds
+    task.cancel()
+
+asyncio.run(main())
+```
+
+<Tip>
+  Use asyncio for I/O-bound concurrent operations like network requests and file I/O.
+</Tip>
+
+<Warning>
+  Don't use asyncio for CPU-bound tasks - use multiprocessing instead.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="threading" href="/library/threading">
+    Thread-based parallelism
+  </Card>
+  <Card title="multiprocessing" href="/library/multiprocessing">
+    Process-based parallelism
+  </Card>
+</CardGroup>

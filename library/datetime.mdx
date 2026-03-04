@@ -1,0 +1,483 @@
+---
+title: datetime - Date and Time Types
+description: Classes for manipulating dates and times
+---
+
+The `datetime` module provides classes for working with dates, times, and time intervals.
+
+## Module Import
+
+```python
+from datetime import datetime, date, time, timedelta, timezone
+```
+
+## datetime Class
+
+Represents a specific date and time.
+
+### Creating datetime Objects
+
+```python
+from datetime import datetime
+
+# Current date and time
+now = datetime.now()
+print(now)  # 2024-03-15 14:30:45.123456
+
+# UTC time
+utc_now = datetime.utcnow()
+today = datetime.today()
+
+# Specific date and time
+dt = datetime(2024, 3, 15, 14, 30, 45)
+
+# With microseconds
+dt = datetime(2024, 3, 15, 14, 30, 45, 123456)
+
+# From timestamp
+timestamp = 1710511845.0
+dt = datetime.fromtimestamp(timestamp)
+
+# From ISO format string
+dt = datetime.fromisoformat('2024-03-15T14:30:45')
+
+# From string with format
+dt = datetime.strptime('2024-03-15 14:30', '%Y-%m-%d %H:%M')
+```
+
+### Accessing Components
+
+```python
+from datetime import datetime
+
+dt = datetime(2024, 3, 15, 14, 30, 45, 123456)
+
+print(dt.year)        # 2024
+print(dt.month)       # 3
+print(dt.day)         # 15
+print(dt.hour)        # 14
+print(dt.minute)      # 30
+print(dt.second)      # 45
+print(dt.microsecond) # 123456
+print(dt.weekday())   # 4 (Friday, 0=Monday)
+print(dt.isoweekday())# 5 (Friday, 1=Monday)
+```
+
+### Formatting datetime
+
+```python
+from datetime import datetime
+
+dt = datetime.now()
+
+# ISO format
+print(dt.isoformat())  # '2024-03-15T14:30:45.123456'
+
+# Custom format
+print(dt.strftime('%Y-%m-%d'))           # '2024-03-15'
+print(dt.strftime('%B %d, %Y'))          # 'March 15, 2024'
+print(dt.strftime('%I:%M %p'))           # '02:30 PM'
+print(dt.strftime('%Y-%m-%d %H:%M:%S'))  # '2024-03-15 14:30:45'
+
+# Common formats
+print(dt.date())  # 2024-03-15
+print(dt.time())  # 14:30:45.123456
+```
+
+### Format Codes
+
+<AccordionGroup>
+  <Accordion title="Date Format Codes">
+    - `%Y` - Year with century (2024)
+    - `%y` - Year without century (24)
+    - `%m` - Month as number (01-12)
+    - `%B` - Full month name (January)
+    - `%b` - Abbreviated month (Jan)
+    - `%d` - Day of month (01-31)
+    - `%j` - Day of year (001-366)
+  </Accordion>
+  
+  <Accordion title="Time Format Codes">
+    - `%H` - Hour 24-hour (00-23)
+    - `%I` - Hour 12-hour (01-12)
+    - `%M` - Minute (00-59)
+    - `%S` - Second (00-59)
+    - `%f` - Microsecond (000000-999999)
+    - `%p` - AM/PM
+  </Accordion>
+  
+  <Accordion title="Weekday Format Codes">
+    - `%A` - Full weekday name (Monday)
+    - `%a` - Abbreviated weekday (Mon)
+    - `%w` - Weekday as number (0=Sunday)
+    - `%W` - Week number of year (00-53)
+  </Accordion>
+</AccordionGroup>
+
+## date Class
+
+Represents a date (year, month, day) without time.
+
+```python
+from datetime import date
+
+# Today's date
+today = date.today()
+print(today)  # 2024-03-15
+
+# Specific date
+dt = date(2024, 3, 15)
+
+# From timestamp
+dt = date.fromtimestamp(1710511845.0)
+
+# From ISO format
+dt = date.fromisoformat('2024-03-15')
+
+# Components
+print(today.year)   # 2024
+print(today.month)  # 3
+print(today.day)    # 15
+
+# Formatting
+print(today.strftime('%B %d, %Y'))  # 'March 15, 2024'
+print(today.isoformat())             # '2024-03-15'
+```
+
+## time Class
+
+Represents a time (hour, minute, second, microsecond) without date.
+
+```python
+from datetime import time
+
+# Create time
+t = time(14, 30, 45)
+print(t)  # 14:30:45
+
+# With microseconds
+t = time(14, 30, 45, 123456)
+
+# Components
+print(t.hour)        # 14
+print(t.minute)      # 30
+print(t.second)      # 45
+print(t.microsecond) # 123456
+
+# Formatting
+print(t.strftime('%I:%M %p'))  # '02:30 PM'
+print(t.isoformat())           # '14:30:45.123456'
+```
+
+## timedelta Class
+
+Represents a duration or difference between dates/times.
+
+### Creating timedelta
+
+```python
+from datetime import timedelta
+
+# Various durations
+delta = timedelta(days=1)
+delta = timedelta(hours=2)
+delta = timedelta(minutes=30)
+delta = timedelta(seconds=45)
+delta = timedelta(weeks=1)
+
+# Combined
+delta = timedelta(days=1, hours=2, minutes=30, seconds=45)
+
+# Negative duration
+delta = timedelta(days=-1)
+```
+
+### Arithmetic with datetime
+
+```python
+from datetime import datetime, timedelta
+
+now = datetime.now()
+
+# Add time
+tomorrow = now + timedelta(days=1)
+next_week = now + timedelta(weeks=1)
+in_two_hours = now + timedelta(hours=2)
+
+# Subtract time
+yesterday = now - timedelta(days=1)
+last_week = now - timedelta(weeks=1)
+
+# Difference between datetimes
+dt1 = datetime(2024, 3, 15)
+dt2 = datetime(2024, 3, 1)
+diff = dt1 - dt2
+print(diff.days)  # 14
+print(diff.total_seconds())  # 1209600.0
+```
+
+### timedelta Components
+
+```python
+from datetime import timedelta
+
+delta = timedelta(days=1, hours=2, minutes=30)
+
+print(delta.days)              # 1
+print(delta.seconds)           # 9000 (2.5 hours in seconds)
+print(delta.total_seconds())   # 95400.0
+```
+
+## timezone and tzinfo
+
+### Timezone-Aware datetime
+
+```python
+from datetime import datetime, timezone, timedelta
+
+# UTC timezone
+utc = timezone.utc
+dt_utc = datetime.now(utc)
+print(dt_utc)  # 2024-03-15 14:30:45.123456+00:00
+
+# Custom timezone (UTC+5:30)
+ist = timezone(timedelta(hours=5, minutes=30))
+dt_ist = datetime.now(ist)
+
+# Convert timezone
+dt_utc = datetime.now(timezone.utc)
+dt_local = dt_utc.astimezone()
+```
+
+### Working with Timezones
+
+```python
+from datetime import datetime, timezone
+
+# Create timezone-aware datetime
+dt = datetime(2024, 3, 15, 14, 30, tzinfo=timezone.utc)
+
+# Check if datetime is aware
+if dt.tzinfo is not None:
+    print("Timezone-aware")
+
+# Replace timezone (doesn't convert time)
+dt_new = dt.replace(tzinfo=None)  # Make naive
+
+# Convert to different timezone
+utc_time = datetime.now(timezone.utc)
+local_time = utc_time.astimezone()
+```
+
+## Practical Examples
+
+### Age Calculator
+
+```python
+from datetime import date
+
+def calculate_age(birth_date):
+    """Calculate age from birth date"""
+    today = date.today()
+    age = today.year - birth_date.year
+    
+    # Adjust if birthday hasn't occurred this year
+    if (today.month, today.day) < (birth_date.month, birth_date.day):
+        age -= 1
+    
+    return age
+
+# Usage
+birth = date(1990, 5, 15)
+age = calculate_age(birth)
+print(f"Age: {age} years")
+```
+
+### Days Until Event
+
+```python
+from datetime import date, datetime
+
+def days_until(target_date):
+    """Calculate days until target date"""
+    today = date.today()
+    delta = target_date - today
+    return delta.days
+
+# Usage
+event = date(2024, 12, 25)
+days = days_until(event)
+print(f"{days} days until Christmas")
+```
+
+### Working Hours Calculator
+
+```python
+from datetime import datetime, timedelta
+
+def calculate_business_hours(start, end):
+    """Calculate working hours between two datetimes"""
+    # Assuming 9 AM - 5 PM workday
+    work_start = 9
+    work_end = 17
+    
+    total_hours = 0
+    current = start
+    
+    while current < end:
+        if current.weekday() < 5:  # Monday-Friday
+            if work_start <= current.hour < work_end:
+                total_hours += 1
+        current += timedelta(hours=1)
+    
+    return total_hours
+
+# Usage
+start = datetime(2024, 3, 15, 10, 0)
+end = datetime(2024, 3, 16, 14, 0)
+hours = calculate_business_hours(start, end)
+print(f"Business hours: {hours}")
+```
+
+### Timestamp Conversion
+
+```python
+from datetime import datetime
+
+# datetime to timestamp
+dt = datetime(2024, 3, 15, 14, 30, 45)
+timestamp = dt.timestamp()
+print(timestamp)  # 1710511845.0
+
+# Timestamp to datetime
+dt = datetime.fromtimestamp(timestamp)
+print(dt)  # 2024-03-15 14:30:45
+
+# Unix epoch
+epoch = datetime(1970, 1, 1)
+print(epoch.timestamp())  # 0.0 (or timezone offset)
+```
+
+### Date Range Generator
+
+```python
+from datetime import date, timedelta
+
+def date_range(start_date, end_date):
+    """Generate all dates between start and end"""
+    current = start_date
+    while current <= end_date:
+        yield current
+        current += timedelta(days=1)
+
+# Usage
+start = date(2024, 3, 1)
+end = date(2024, 3, 7)
+
+for dt in date_range(start, end):
+    print(dt.strftime('%A, %B %d'))  # Monday, March 01
+```
+
+### Week Number and Day
+
+```python
+from datetime import date
+
+today = date.today()
+
+# Week number
+week_num = today.isocalendar()[1]
+print(f"Week {week_num} of the year")
+
+# Day of week
+day_name = today.strftime('%A')
+print(f"Today is {day_name}")
+
+# Is it weekend?
+if today.weekday() >= 5:
+    print("It's the weekend!")
+```
+
+### Parse Multiple Date Formats
+
+```python
+from datetime import datetime
+
+def parse_date(date_string):
+    """Try to parse date from multiple formats"""
+    formats = [
+        '%Y-%m-%d',
+        '%d/%m/%Y',
+        '%m-%d-%Y',
+        '%B %d, %Y',
+        '%d %B %Y',
+    ]
+    
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_string, fmt)
+        except ValueError:
+            continue
+    
+    raise ValueError(f"Unable to parse date: {date_string}")
+
+# Usage
+date1 = parse_date('2024-03-15')
+date2 = parse_date('15/03/2024')
+date3 = parse_date('March 15, 2024')
+```
+
+## Constants
+
+```python
+from datetime import MINYEAR, MAXYEAR
+
+print(MINYEAR)  # 1
+print(MAXYEAR)  # 9999
+```
+
+## Best Practices
+
+<Tip>
+  **Always use timezone-aware datetimes for timestamps:**
+  ```python
+  from datetime import datetime, timezone
+  
+  # Good - timezone aware
+  now = datetime.now(timezone.utc)
+  
+  # Avoid - timezone naive
+  now = datetime.now()
+  ```
+</Tip>
+
+<Warning>
+  **Don't use utcnow() - it's deprecated:**
+  ```python
+  # Use this
+  from datetime import datetime, timezone
+  now = datetime.now(timezone.utc)
+  
+  # Not this
+  now = datetime.utcnow()  # Deprecated
+  ```
+</Warning>
+
+<Note>
+  **Be careful with datetime arithmetic across DST boundaries:**
+  Use proper timezone libraries like `zoneinfo` for complex timezone handling.
+</Note>
+
+## Related Modules
+
+<CardGroup cols={2}>
+  <Card title="time" icon="clock">
+    Time access and conversions
+  </Card>
+  <Card title="zoneinfo" icon="globe">
+    IANA time zone support
+  </Card>
+  <Card title="calendar" icon="calendar">
+    General calendar functions
+  </Card>
+</CardGroup>

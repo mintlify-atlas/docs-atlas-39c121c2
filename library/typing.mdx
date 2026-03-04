@@ -1,0 +1,193 @@
+---
+title: typing - Type Hints Support
+description: Support for type hints and static type checking
+---
+
+The `typing` module provides runtime support for type hints, enabling static type checkers to analyze Python code.
+
+## Module Import
+
+```python
+from typing import List, Dict, Tuple, Set, Optional, Union, Any
+```
+
+## Basic Types
+
+### Built-in Collection Types
+
+```python
+from typing import List, Dict, Tuple, Set
+
+# List of integers
+def process_numbers(numbers: List[int]) -> int:
+    return sum(numbers)
+
+# Dictionary with string keys and int values
+def count_items(items: Dict[str, int]) -> int:
+    return len(items)
+
+# Tuple with specific types
+def get_coordinates() -> Tuple[float, float]:
+    return (10.5, 20.3)
+
+# Set of strings
+def unique_words(words: Set[str]) -> int:
+    return len(words)
+```
+
+### Optional and Union
+
+```python
+from typing import Optional, Union
+
+# Optional[X] is equivalent to Union[X, None]
+def find_user(user_id: int) -> Optional[str]:
+    if user_id > 0:
+        return "Alice"
+    return None
+
+# Union for multiple types
+def process_data(data: Union[int, str, float]) -> str:
+    return str(data)
+
+# Python 3.10+ syntax
+def process_new(data: int | str | float) -> str:
+    return str(data)
+```
+
+### Any and TypeVar
+
+```python
+from typing import Any, TypeVar
+
+# Any type
+def print_value(value: Any) -> None:
+    print(value)
+
+# Type variables for generics
+T = TypeVar('T')
+
+def first_element(items: List[T]) -> T:
+    return items[0]
+
+# Works with any type
+first_element([1, 2, 3])  # Returns int
+first_element(['a', 'b'])  # Returns str
+```
+
+## Function Signatures
+
+### Callable
+
+```python
+from typing import Callable
+
+# Function that takes int, returns str
+def process(func: Callable[[int], str], value: int) -> str:
+    return func(value)
+
+# Multiple arguments
+def apply(func: Callable[[int, str], bool]) -> bool:
+    return func(42, "test")
+```
+
+### Generic Functions
+
+```python
+from typing import TypeVar, List
+
+T = TypeVar('T')
+
+def reverse(items: List[T]) -> List[T]:
+    return items[::-1]
+
+reverse([1, 2, 3])  # List[int]
+reverse(['a', 'b'])  # List[str]
+```
+
+## Complex Types
+
+### Literal
+
+```python
+from typing import Literal
+
+def set_mode(mode: Literal['read', 'write', 'append']) -> None:
+    print(f"Mode: {mode}")
+
+set_mode('read')  # OK
+# set_mode('delete')  # Type error
+```
+
+### TypedDict
+
+```python
+from typing import TypedDict
+
+class Person(TypedDict):
+    name: str
+    age: int
+    email: str
+
+def greet(person: Person) -> str:
+    return f"Hello, {person['name']}"
+
+person: Person = {
+    'name': 'Alice',
+    'age': 30,
+    'email': 'alice@example.com'
+}
+```
+
+### Protocol
+
+```python
+from typing import Protocol
+
+class Drawable(Protocol):
+    def draw(self) -> None:
+        ...
+
+def render(obj: Drawable) -> None:
+    obj.draw()
+
+# Any class with draw() method works
+class Circle:
+    def draw(self) -> None:
+        print("Drawing circle")
+
+render(Circle())  # OK
+```
+
+## Best Practices
+
+```python
+from typing import List, Dict, Optional
+
+# Good - clear types
+def process_users(users: List[Dict[str, str]]) -> int:
+    return len(users)
+
+# Better - use TypedDict
+from typing import TypedDict
+
+class User(TypedDict):
+    name: str
+    email: str
+
+def process_users_typed(users: List[User]) -> int:
+    return len(users)
+```
+
+<Tip>
+  Use type hints for better code documentation and IDE support.
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="Built-in Types" href="/library/built-in-types">
+    Fundamental data types
+  </Card>
+  <Card title="dataclasses" icon="database">
+    Data classes with type hints
+  </Card>
+</CardGroup>

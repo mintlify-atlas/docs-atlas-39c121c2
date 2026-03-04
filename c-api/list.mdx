@@ -1,0 +1,48 @@
+---
+title: List Objects
+description: Working with Python list type
+---
+
+## Overview
+
+Lists are mutable sequences of Python objects with O(1) indexing and append.
+
+## Creating Lists
+
+```c
+PyObject* PyList_New(Py_ssize_t len)
+```
+
+Create new list with `len` items (initially NULL).
+
+**Example:**
+```c
+PyObject *list = PyList_New(3);
+PyList_SetItem(list, 0, PyLong_FromLong(1));  // Steals ref
+PyList_SetItem(list, 1, PyLong_FromLong(2));
+PyList_SetItem(list, 2, PyLong_FromLong(3));
+return list;
+```
+
+## Accessing Items
+
+```c
+PyObject* PyList_GetItem(PyObject *list, Py_ssize_t index)  // Borrowed!
+Py_ssize_t PyList_Size(PyObject *list)
+```
+
+<Warning>
+`PyList_GetItem` returns **borrowed reference** - don't Py_DECREF!
+</Warning>
+
+## Modifying Lists
+
+```c
+int PyList_SetItem(PyObject *list, Py_ssize_t index, PyObject *item)  // Steals!
+int PyList_Append(PyObject *list, PyObject *item)  // Doesn't steal
+int PyList_Insert(PyObject *list, Py_ssize_t index, PyObject *item)
+```
+
+## See Also
+- [Object Protocol](/c-api/object)
+- [Reference Counting](/c-api/refcounting)

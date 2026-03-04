@@ -1,0 +1,417 @@
+---
+title: Expressions
+description: Specification of expression elements, operators, and evaluation semantics
+---
+
+# Expressions
+
+This chapter explains the meaning of the elements of expressions in Python.
+
+<Note>
+  In this and the following chapters, extended BNF notation will be used to describe syntax, not lexical analysis. When (one alternative of) a syntax rule has the form `name: othername` and no semantics are given, the semantics of this form of `name` are the same as for `othername`.
+</Note>
+
+## Arithmetic Conversions
+
+When a description of an arithmetic operator below uses the phrase "the numeric arguments are converted to a common real type", this means that the operator implementation for built-in numeric types works as described in the Numeric Types section of the standard library documentation.
+
+Some additional rules apply for certain operators and non-numeric operands. Extensions must define their own conversion behavior.
+
+## Atoms
+
+Atoms are the most basic elements of expressions. The simplest atoms are names or literals. Forms enclosed in parentheses, brackets or braces are also categorized syntactically as atoms.
+
+```
+atom:
+   | 'True'
+   | 'False'
+   | 'None'
+   | '...'
+   | identifier
+   | literal
+   | enclosure
+```
+
+### Built-in Constants
+
+The keywords `True`, `False`, and `None` name built-in constants. The token `...` names the Ellipsis constant.
+
+Evaluation of these atoms yields the corresponding value.
+
+```python
+True   # Evaluates to True
+False  # Evaluates to False
+None   # Evaluates to None
+...    # Evaluates to Ellipsis
+```
+
+### Identifiers (Names)
+
+An identifier occurring as an atom is a name. When the name is bound to an object, evaluation of the atom yields that object. When a name is not bound, an attempt to evaluate it raises a `NameError` exception.
+
+#### Private Name Mangling
+
+When an identifier that textually occurs in a class definition begins with two or more underscore characters and does not end in two or more underscores, it is considered a *private name* of that class.
+
+Private names are transformed to a longer form before code is generated for them. The transformation is independent of the syntactical context in which the identifier is used:
+
+```python
+class Foo:
+    def __spam(self):  # Transformed to _Foo__spam
+        pass
+```
+
+The transformation rule:
+
+- The class name, with leading underscores removed and a single leading underscore inserted, is inserted in front of the identifier
+- For example, the identifier `__spam` occurring in a class named `Foo` is transformed to `_Foo__spam`
+
+### Literals
+
+A *literal* is a textual representation of a value. Python supports numeric, string and bytes literals.
+
+Numeric literals consist of a single `NUMBER` token, which names an integer, floating-point number, or an imaginary number.
+
+String and bytes literals may consist of several tokens. Format strings and template strings are treated as string literals.
+
+```python
+42              # Integer literal
+3.14            # Floating-point literal
+3.14j           # Imaginary literal
+"hello"          # String literal
+b"data"          # Bytes literal
+f"{x}"           # Format string
+```
+
+<Note>
+  Negative and complex numbers, like `-3` or `3+4.2j`, are syntactically not literals, but unary or binary arithmetic operations involving the `-` or `+` operator.
+</Note>
+
+#### String Literal Concatenation
+
+Multiple adjacent string or bytes literals are allowed, and their meaning is the same as their concatenation:
+
+```python
+"hello" 'world'  # Same as "helloworld"
+```
+
+This feature is defined at the syntactical level, so it only works with literals. To concatenate string expressions at run time, the `+` operator may be used.
+
+Literal concatenation can freely mix raw strings, triple-quoted strings, and formatted string literals:
+
+```python
+"Hello" r', ' f"{name}!"  # Valid concatenation
+```
+
+### Parenthesized Forms
+
+A parenthesized form is an optional expression list enclosed in parentheses:
+
+```python
+(expression_list)
+```
+
+A parenthesized expression list yields whatever that expression list yields:
+
+- If the list contains at least one comma, it yields a tuple
+- Otherwise, it yields the single expression that makes up the expression list
+
+An empty pair of parentheses yields an empty tuple object:
+
+```python
+()          # Empty tuple
+(1,)        # Tuple with one element
+(1, 2)      # Tuple with two elements
+(1)         # Just the integer 1, not a tuple
+```
+
+## Comprehensions
+
+For constructing a list, a set or a dictionary Python provides special syntax called "displays", each of them in two flavors:
+
+- Either the container contents are listed explicitly, or
+- They are computed via a set of looping and filtering instructions, called a *comprehension*
+
+Common syntax elements for comprehensions:
+
+```python
+[x*y for x in range(10) for y in range(x, x+10)]  # List comprehension
+{x for x in range(10)}                             # Set comprehension
+{x: x**2 for x in range(10)}                       # Dict comprehension
+(x for x in range(10))                             # Generator expression
+```
+
+The comprehension consists of a single expression followed by at least one `for` clause and zero or more `for` or `if` clauses. In this case, the elements of the new container are those that would be produced by considering each of the `for` or `if` clauses a block, nesting from left to right, and evaluating the expression to produce an element each time the innermost block is reached.
+
+The iterable expression in the leftmost `for` clause is evaluated directly in the enclosing scope and then passed as an argument to the implicitly nested scope. Subsequent `for` clauses and any filter condition in the leftmost `for` clause cannot be evaluated in the enclosing scope.
+
+### Asynchronous Comprehensions
+
+In an `async def` function, an `async for` clause may be used to iterate over an asynchronous iterator. A comprehension in an `async def` function may consist of either a `for` or `async for` clause following the leading expression, and may also use `await` expressions.
+
+If a comprehension contains `async for` clauses, or if it contains `await` expressions or other asynchronous comprehensions, it is called an *asynchronous comprehension*. An asynchronous comprehension may suspend the execution of the coroutine function in which it appears.
+
+## Primaries
+
+Primaries represent the most tightly bound operations of the language. Their syntax is:
+
+```
+primary: atom | attributeref | subscription | call
+```
+
+### Attribute References
+
+An attribute reference is a primary followed by a period and a name:
+
+```python
+obj.attribute
+```
+
+The primary must evaluate to an object of a type that supports attribute references. This object is then asked to produce the attribute whose name is the identifier.
+
+```python
+import math
+math.pi  # Attribute reference: 3.141592653589793
+```
+
+### Subscriptions and Slicings
+
+The *subscription* syntax is usually used for selecting an element from a container:
+
+```python
+digits_by_name = {'one': 1, 'two': 2}
+digits_by_name['two']  # Returns 2
+```
+
+The object being subscribed is followed by a *subscript* in square brackets. The subscript can be:
+
+- A single expression (simple subscription)
+- A slice (slicing)
+- Comma-separated expressions or slices (tuple subscription)
+- A starred expression (starred subscription)
+
+#### Simple Subscription
+
+```python
+colors = ['red', 'blue', 'green', 'black']
+colors[3]  # Returns 'black'
+```
+
+#### Slicing
+
+A *slice* is used to extract a portion of a sequence:
+
+```python
+number_names = ['zero', 'one', 'two', 'three', 'four', 'five']
+number_names[1:3]   # Returns ['one', 'two']
+number_names[1:]    # Returns ['one', 'two', 'three', 'four', 'five']
+number_names[:3]    # Returns ['zero', 'one', 'two']
+number_names[::2]   # Returns ['zero', 'two', 'four']
+```
+
+When a slice is evaluated, the interpreter constructs a `slice` object whose `start`, `stop` and `step` attributes are the results of the expressions between the colons. Any missing expression evaluates to `None`.
+
+#### Comma-Separated Subscripts
+
+The subscript can be given as two or more comma-separated expressions or slices:
+
+```python
+array[1, 2, 3]       # Tuple subscript: (1, 2, 3)
+array[1:2, 3]        # Tuple subscript: (slice(1, 2, None), 3)
+```
+
+This form is commonly used with numerical libraries for slicing multi-dimensional data.
+
+### Calls
+
+A call calls a callable object (e.g., a function) with a possibly empty series of arguments:
+
+```python
+func(positional_args, keyword=value)
+```
+
+The primary must evaluate to a callable object. All argument expressions are evaluated before the call is attempted.
+
+#### Positional and Keyword Arguments
+
+If keyword arguments are present, they are first converted to positional arguments. For each keyword argument, the identifier is used to determine the corresponding slot.
+
+If there are more positional arguments than there are formal parameter slots, a `TypeError` exception is raised, unless a formal parameter using the syntax `*identifier` is present. If any keyword argument does not correspond to a formal parameter name, a `TypeError` exception is raised, unless a formal parameter using the syntax `**identifier` is present.
+
+```python
+def func(a, b, c=3):
+    return a + b + c
+
+func(1, 2)          # Returns 6 (c defaults to 3)
+func(1, b=2, c=4)   # Returns 7
+func(1, 2, 3)       # Returns 6
+```
+
+#### Unpacking Arguments
+
+If the syntax `*expression` appears in the function call, `expression` must evaluate to an iterable. Elements from this iterable are treated as if they were additional positional arguments:
+
+```python
+args = [1, 2, 3]
+func(*args)  # Equivalent to func(1, 2, 3)
+```
+
+If the syntax `**expression` appears in the function call, `expression` must evaluate to a mapping. Key/value pairs from this mapping are treated as if they were additional keyword arguments:
+
+```python
+kwargs = {'b': 2, 'c': 3}
+func(1, **kwargs)  # Equivalent to func(1, b=2, c=3)
+```
+
+## Operators
+
+The following sections describe the semantics of operators in Python.
+
+### Power Operator
+
+The power operator has higher precedence than unary operators on its left; it has lower precedence than unary operators on its right:
+
+```python
+2 ** 3      # Returns 8
+2 ** 3 ** 2 # Returns 512 (right associative: 2 ** (3 ** 2))
+-2 ** 2     # Returns -4 (equivalent to -(2 ** 2))
+```
+
+### Unary Operators
+
+The unary `-` (minus) operator yields the negation of its numeric argument. The unary `+` (plus) operator yields its numeric argument unchanged. The unary `~` (invert) operator yields the bitwise inversion of its integer argument.
+
+```python
+-5    # Returns -5
++5    # Returns 5
+~5    # Returns -6 (bitwise NOT)
+```
+
+### Binary Arithmetic Operators
+
+The binary arithmetic operators are:
+
+```python
++      # Addition
+-      # Subtraction
+*      # Multiplication
+/      # True division
+//     # Floor division
+%      # Modulo
+@      # Matrix multiplication
+```
+
+Examples:
+
+```python
+10 + 5   # Returns 15
+10 - 5   # Returns 5
+10 * 5   # Returns 50
+10 / 3   # Returns 3.3333...
+10 // 3  # Returns 3
+10 % 3   # Returns 1
+```
+
+### Comparison Operators
+
+There are eight comparison operations in Python:
+
+```python
+<      # Less than
+<=     # Less than or equal
+>      # Greater than
+>=     # Greater than or equal
+==     # Equal
+!=     # Not equal
+is     # Object identity
+is not # Negated object identity
+```
+
+Comparisons can be chained arbitrarily:
+
+```python
+x < y <= z  # Equivalent to: x < y and y <= z
+```
+
+### Boolean Operators
+
+The Boolean operators `and`, `or`, and `not` have lower priority than comparison operators:
+
+```python
+x or y   # Returns x if x is true, else returns y
+x and y  # Returns x if x is false, else returns y
+not x    # Returns True if x is false, else returns False
+```
+
+These operators use "short-circuit" evaluation:
+
+```python
+a = 0
+b = 10
+a or b   # Returns 10 (a is falsy, so b is returned)
+a and b  # Returns 0 (a is falsy, so a is returned)
+```
+
+### Membership Test Operators
+
+The operators `in` and `not in` test for membership:
+
+```python
+'x' in 'xyz'      # Returns True
+5 not in [1,2,3]  # Returns True
+```
+
+### Identity Comparisons
+
+The operators `is` and `is not` test for object identity:
+
+```python
+a = [1, 2, 3]
+b = a
+c = [1, 2, 3]
+
+a is b      # Returns True (same object)
+a is c      # Returns False (different objects)
+a == c      # Returns True (equal values)
+```
+
+## Conditional Expressions
+
+Conditional expressions (sometimes called a "ternary operator") have the form:
+
+```python
+x if condition else y
+```
+
+First, the condition is evaluated. If it is true, `x` is evaluated and returned; otherwise, `y` is evaluated and returned:
+
+```python
+result = "positive" if x > 0 else "non-positive"
+```
+
+## Lambda Expressions
+
+Lambda expressions are used to create anonymous functions:
+
+```python
+lambda parameters: expression
+```
+
+A lambda expression yields a function object. The unnamed object behaves like a function object defined with:
+
+```python
+def <lambda>(parameters):
+    return expression
+```
+
+Example:
+
+```python
+square = lambda x: x ** 2
+square(5)  # Returns 25
+
+# Used with higher-order functions
+numbers = [1, 2, 3, 4, 5]
+squared = list(map(lambda x: x ** 2, numbers))
+# Result: [1, 4, 9, 16, 25]
+```

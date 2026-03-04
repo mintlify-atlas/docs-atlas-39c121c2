@@ -1,0 +1,391 @@
+---
+title: Boolean Objects
+description: Working with Python bool type in C
+---
+
+## Overview
+
+Booleans in Python are implemented as a subclass of integers. There are only two boolean objects: `Py_True` and `Py_False`. Both are **immortal** (never deallocated).
+
+## Type Object
+
+### PyBool_Type
+
+```c
+PyTypeObject PyBool_Type
+```
+
+The Python `bool` type object.
+
+## Type Checking
+
+### PyBool_Check
+
+```c
+int PyBool_Check(PyObject *o)
+```
+
+Check if object is a boolean (True or False).
+
+<ParamField path="o" type="PyObject*" required>
+  Object to check
+</ParamField>
+
+**Returns:** `1` if boolean, `0` otherwise (never fails)
+
+**Example:**
+
+```c
+if (PyBool_Check(obj)) {
+    if (obj == Py_True) {
+        printf("True\n");
+    } else {
+        printf("False\n");
+    }
+}
+```
+
+## Boolean Singletons
+
+### Py_True
+
+```c
+PyObject* Py_True
+```
+
+The Python `True` object. This object is **immortal** and has no methods.
+
+**Example:**
+
+```c
+return Py_True;  // No need to Py_INCREF (but doesn't hurt)
+```
+
+### Py_False
+
+```c
+PyObject* Py_False
+```
+
+The Python `False` object. This object is **immortal** and has no methods.
+
+**Example:**
+
+```c
+return Py_False;  // No need to Py_INCREF (but doesn't hurt)
+```
+
+<Note>
+  Since Python 3.12, `Py_True` and `Py_False` are immortal. You don't need to increment their reference counts, but it's still good practice to do so for compatibility.
+</Note>
+
+## Testing Truth Values
+
+### Py_IsTrue
+
+```c
+int Py_IsTrue(PyObject *x)
+```
+
+Test if object is the `True` singleton. Equivalent to `x is True` in Python.
+
+<ParamField path="x" type="PyObject*" required>
+  Object to test
+</ParamField>
+
+**Returns:** `1` if `True`, `0` otherwise
+
+**Example:**
+
+```c
+if (Py_IsTrue(obj)) {
+    // obj is exactly True
+}
+```
+
+### Py_IsFalse
+
+```c
+int Py_IsFalse(PyObject *x)
+```
+
+Test if object is the `False` singleton. Equivalent to `x is False` in Python.
+
+**Returns:** `1` if `False`, `0` otherwise
+
+**Example:**
+
+```c
+if (Py_IsFalse(obj)) {
+    // obj is exactly False
+}
+```
+
+## Creating Booleans
+
+### PyBool_FromLong
+
+```c
+PyObject* PyBool_FromLong(long v)
+```
+
+Return `Py_True` or `Py_False` based on truth value of integer.
+
+<ParamField path="v" type="long" required>
+  Integer value to convert
+</ParamField>
+
+**Returns:** `Py_True` if `v` is non-zero, `Py_False` if zero
+
+**Example:**
+
+```c
+long status = check_condition();
+return PyBool_FromLong(status);  // Returns True if status != 0
+```
+
+**Common usage:**
+
+```c
+int is_valid = validate_input(data);
+return PyBool_FromLong(is_valid);
+```
+
+## Return Macros
+
+### Py_RETURN_TRUE
+
+```c
+Py_RETURN_TRUE
+```
+
+Convenience macro to return `Py_True` from a function.
+
+**Example:**
+
+```c
+static PyObject* is_ready(MyObject *self, PyObject *Py_UNUSED(ignored)) {
+    if (self->ready)
+        Py_RETURN_TRUE;
+    else
+        Py_RETURN_FALSE;
+}
+```
+
+### Py_RETURN_FALSE
+
+```c
+Py_RETURN_FALSE
+```
+
+Convenience macro to return `Py_False` from a function.
+
+**Expands to:**
+
+```c
+// Python 3.12+:
+return Py_True;   // or Py_False
+
+// Python 3.11 and earlier:
+return Py_NewRef(Py_True);  // Increments refcount
+```
+
+## Complete Example
+
+```c
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
+static PyObject* check_even(PyObject *self, PyObject *args) {
+    long number;
+    
+    if (!PyArg_ParseTuple(args, "l", &number))
+        return NULL;
+    
+    // Method 1: Using macro
+    if (number % 2 == 0)
+        Py_RETURN_TRUE;
+    else
+        Py_RETURN_FALSE;
+}
+
+static PyObject* check_positive(PyObject *self, PyObject *args) {
+    long number;
+    
+    if (!PyArg_ParseTuple(args, "l", &number))
+        return NULL;
+    
+    // Method 2: Using PyBool_FromLong
+    return PyBool_FromLong(number > 0);
+}
+
+static PyObject* check_flags(PyObject *self, PyObject *args) {
+    PyObject *flag1, *flag2;
+    
+    if (!PyArg_ParseTuple(args, "OO", &flag1, &flag2))
+        return NULL;
+    
+    // Check if both are True
+    if (Py_IsTrue(flag1) && Py_IsTrue(flag2))
+        Py_RETURN_TRUE;
+    
+    Py_RETURN_FALSE;
+}
+
+static PyMethodDef module_methods[] = {
+    {"check_even", check_even, METH_VARARGS,
+     "Check if number is even"},
+    {"check_positive", check_positive, METH_VARARGS,
+     "Check if number is positive"},
+    {"check_flags", check_flags, METH_VARARGS,
+     "Check if both flags are True"},
+    {NULL, NULL, 0, NULL}
+};
+
+static struct PyModuleDef boolmodule = {
+    PyModuleDef_HEAD_INIT,
+    "boolexample",
+    "Boolean operations example",
+    -1,
+    module_methods
+};
+
+PyMODINIT_FUNC PyInit_boolexample(void) {
+    return PyModule_Create(&boolmodule);
+}
+```
+
+## Working with Boolean Values
+
+### Converting to C bool
+
+```c
+// Test if object is truthy
+int is_true = PyObject_IsTrue(obj);
+if (is_true < 0) {
+    // Error occurred
+    return NULL;
+}
+
+if (is_true) {
+    // Object is truthy
+}
+```
+
+### Boolean Operations
+
+```c
+static PyObject* logical_and(PyObject *self, PyObject *args) {
+    PyObject *a, *b;
+    int result_a, result_b;
+    
+    if (!PyArg_ParseTuple(args, "OO", &a, &b))
+        return NULL;
+    
+    result_a = PyObject_IsTrue(a);
+    if (result_a < 0)
+        return NULL;
+    
+    if (!result_a)
+        Py_RETURN_FALSE;
+    
+    result_b = PyObject_IsTrue(b);
+    if (result_b < 0)
+        return NULL;
+    
+    return PyBool_FromLong(result_b);
+}
+```
+
+## Comparison with None
+
+```c
+if (Py_IsTrue(obj)) {
+    // obj is True
+} else if (Py_IsFalse(obj)) {
+    // obj is False  
+} else if (Py_IsNone(obj)) {
+    // obj is None
+} else {
+    // obj is some other object
+}
+```
+
+## Truth Value Testing
+
+For general truth value testing (not just bool objects), use:
+
+```c
+int PyObject_IsTrue(PyObject *o);  // Returns 1, 0, or -1 on error
+int PyObject_Not(PyObject *o);     // Returns negation
+```
+
+**Example:**
+
+```c
+static PyObject* negate(PyObject *self, PyObject *arg) {
+    int negated = PyObject_Not(arg);
+    if (negated < 0)
+        return NULL;  // Error in truth value testing
+    return PyBool_FromLong(negated);
+}
+```
+
+## Best Practices
+
+<Note>
+  **Use macros for simple returns:**
+  
+  ```c
+  if (condition)
+      Py_RETURN_TRUE;
+  Py_RETURN_FALSE;
+  ```
+</Note>
+
+<Note>
+  **Use PyBool_FromLong for computed results:**
+  
+  ```c
+  return PyBool_FromLong(x > 0 && x < 10);
+  ```
+</Note>
+
+<Note>
+  **Don't compare by reference unless needed:**
+  
+  ```c
+  // For identity check:
+  if (obj == Py_True) { ... }
+  
+  // For truth value:
+  int is_true = PyObject_IsTrue(obj);
+  ```
+</Note>
+
+<Warning>
+  **Don't create new boolean objects:**
+  
+  ```c
+  // WRONG: Don't try to create booleans
+  PyObject *mybool = PyObject_Call(&PyBool_Type, ...);
+  
+  // RIGHT: Use the singletons
+  return Py_True;
+  return PyBool_FromLong(value);
+  ```
+</Warning>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Integer Objects" icon="hashtag" href="/c-api/long">
+    Booleans are a subclass of int
+  </Card>
+  <Card title="Object Protocol" icon="cube" href="/c-api/object">
+    Truth value testing
+  </Card>
+  <Card title="Reference Counting" icon="counter" href="/c-api/refcounting">
+    Immortal objects
+  </Card>
+</CardGroup>

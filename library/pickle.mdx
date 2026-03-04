@@ -1,0 +1,156 @@
+---
+title: pickle - Python Object Serialization
+description: Python object serialization and deserialization
+---
+
+The `pickle` module implements binary protocols for serializing and de-serializing Python objects.
+
+## Module Import
+
+```python
+import pickle
+```
+
+## Basic Operations
+
+### dumps() / loads() - Serialize to/from Bytes
+
+```python
+import pickle
+
+data = {'name': 'Alice', 'scores': [95, 87, 92]}
+
+# Serialize to bytes
+pickled = pickle.dumps(data)
+print(pickled)  # b'\x80\x04\x95...'
+
+# Deserialize from bytes
+restored = pickle.loads(pickled)
+print(restored)  # {'name': 'Alice', 'scores': [95, 87, 92]}
+```
+
+### dump() / load() - Serialize to/from File
+
+```python
+import pickle
+
+data = {'name': 'Alice', 'age': 30}
+
+# Write to file
+with open('data.pkl', 'wb') as f:
+    pickle.dump(data, f)
+
+# Read from file
+with open('data.pkl', 'rb') as f:
+    restored = pickle.load(f)
+print(restored)
+```
+
+## Pickling Complex Objects
+
+```python
+import pickle
+
+class Person:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+    
+    def __repr__(self):
+        return f"Person('{self.name}', {self.age})"
+
+# Pickle custom object
+person = Person('Alice', 30)
+pickled = pickle.dumps(person)
+
+# Unpickle
+restored = pickle.loads(pickled)
+print(restored)  # Person('Alice', 30)
+```
+
+## Protocol Versions
+
+```python
+import pickle
+
+data = {'key': 'value'}
+
+# Use latest protocol (fastest)
+pickled = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
+
+# Use specific protocol
+pickled = pickle.dumps(data, protocol=4)
+```
+
+## Practical Examples
+
+### Cache Expensive Computation
+
+```python
+import pickle
+import os
+
+def expensive_computation():
+    # Simulate expensive operation
+    return [i**2 for i in range(1000000)]
+
+cache_file = 'cache.pkl'
+
+if os.path.exists(cache_file):
+    with open(cache_file, 'rb') as f:
+        result = pickle.load(f)
+    print("Loaded from cache")
+else:
+    result = expensive_computation()
+    with open(cache_file, 'wb') as f:
+        pickle.dump(result, f)
+    print("Computed and cached")
+```
+
+### Save Program State
+
+```python
+import pickle
+
+class GameState:
+    def __init__(self):
+        self.level = 1
+        self.score = 0
+        self.player_pos = (0, 0)
+    
+    def save(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self, f)
+    
+    @staticmethod
+    def load(filename):
+        with open(filename, 'rb') as f:
+            return pickle.load(f)
+
+# Save game state
+state = GameState()
+state.level = 5
+state.score = 1000
+state.save('savegame.pkl')
+
+# Load game state
+restored = GameState.load('savegame.pkl')
+print(f"Level: {restored.level}, Score: {restored.score}")
+```
+
+<Warning>
+  **Security Warning**: Never unpickle data from untrusted sources. Pickle can execute arbitrary code during unpickling.
+</Warning>
+
+<Tip>
+  For data interchange, prefer JSON. Use pickle only for trusted data and Python-to-Python communication.
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="json" href="/library/json">
+    JSON encoding/decoding
+  </Card>
+  <Card title="shelve" icon="database">
+    Python object persistence
+  </Card>
+</CardGroup>

@@ -1,0 +1,408 @@
+---
+title: An Informal Introduction to Python
+description: Get started with Python basics including numbers, strings, and lists
+---
+
+Let's dive into Python by exploring its interactive interpreter as a calculator, working with text, and manipulating lists.
+
+<Note>
+In the examples below, input and output are distinguished by the presence or absence of prompts (`>>>` and `...`). To try these examples, type everything after the prompt.
+</Note>
+
+## Using Python as a Calculator
+
+### Numbers
+
+The interpreter acts as a simple calculator. You can type expressions and get results:
+
+```python
+>>> 2 + 2
+4
+>>> 50 - 5*6
+20
+>>> (50 - 5*6) / 4
+5.0
+>>> 8 / 5  # division always returns a float
+1.6
+```
+
+**Integer division and remainder:**
+
+```python
+>>> 17 / 3   # classic division returns a float
+5.666666666666667
+>>> 17 // 3  # floor division discards the fractional part
+5
+>>> 17 % 3   # the % operator returns the remainder
+2
+>>> 5 * 3 + 2  # floored quotient * divisor + remainder
+17
+```
+
+**Powers:**
+
+```python
+>>> 5 ** 2  # 5 squared
+25
+>>> 2 ** 7  # 2 to the power of 7
+128
+```
+
+### Variables
+
+Use the equal sign (`=`) to assign values:
+
+```python
+>>> width = 20
+>>> height = 5 * 9
+>>> width * height
+900
+```
+
+<Warning>
+Trying to use an undefined variable raises a `NameError`:
+
+```python
+>>> n  # try to access an undefined variable
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'n' is not defined
+```
+</Warning>
+
+### The Special `_` Variable
+
+In interactive mode, the last printed expression is assigned to `_`:
+
+```python
+>>> tax = 12.5 / 100
+>>> price = 100.50
+>>> price * tax
+12.5625
+>>> price + _
+113.0625
+>>> round(_, 2)
+113.06
+```
+
+<Info>
+Treat `_` as read-only. Don't assign to it explicitly, as this creates a new local variable that masks the built-in behavior.
+</Info>
+
+## Text (Strings)
+
+Python can manipulate text using the `str` type. Strings can be enclosed in single or double quotes:
+
+```python
+>>> 'spam eggs'  # single quotes
+'spam eggs'
+>>> "Paris rabbit got your back :)!"  # double quotes
+'Paris rabbit got your back :)!'
+>>> '1975'  # digits in quotes are also strings
+'1975'
+```
+
+### Escaping Quotes
+
+To include quotes in strings, escape them with `\` or use the other quote type:
+
+```python
+>>> 'doesn\'t'  # escape the single quote
+"doesn't"
+>>> "doesn't"  # or use double quotes
+"doesn't"
+>>> '"Yes," they said.'
+'"Yes," they said.'
+```
+
+### Special Characters
+
+The `print()` function produces more readable output:
+
+```python
+>>> s = 'First line.\nSecond line.'  # \n means newline
+>>> s  # without print(), special characters are shown
+'First line.\nSecond line.'
+>>> print(s)  # with print(), \n produces a new line
+First line.
+Second line.
+```
+
+### Raw Strings
+
+Use raw strings (prefix with `r`) to prevent backslash interpretation:
+
+```python
+>>> print('C:\some\name')  # \n creates a newline!
+C:\some
+ame
+>>> print(r'C:\some\name')  # note the r before the quote
+C:\some\name
+```
+
+### Multi-line Strings
+
+Use triple quotes for strings spanning multiple lines:
+
+```python
+>>> print("""\
+... Usage: thingy [OPTIONS]
+...      -h                        Display this usage message
+...      -H hostname               Hostname to connect to
+... """)
+Usage: thingy [OPTIONS]
+     -h                        Display this usage message
+     -H hostname               Hostname to connect to
+```
+
+### String Operations
+
+**Concatenation and repetition:**
+
+```python
+>>> 3 * 'un' + 'ium'
+'unununium'
+```
+
+**Automatic concatenation of literals:**
+
+```python
+>>> 'Py' 'thon'
+'Python'
+>>> text = ('Put several strings within parentheses '
+...         'to have them joined together.')
+>>> text
+'Put several strings within parentheses to have them joined together.'
+```
+
+<Warning>
+This only works with literals, not variables:
+
+```python
+>>> prefix = 'Py'
+>>> prefix 'thon'  # can't concatenate a variable and a literal
+SyntaxError: invalid syntax
+>>> prefix + 'thon'  # use + for variables
+'Python'
+```
+</Warning>
+
+### Indexing and Slicing
+
+Strings can be indexed (subscripted):
+
+```python
+>>> word = 'Python'
+>>> word[0]  # character at position 0
+'P'
+>>> word[5]  # character at position 5
+'n'
+>>> word[-1]  # last character
+'n'
+>>> word[-2]  # second-last character
+'o'
+```
+
+**Slicing to get substrings:**
+
+```python
+>>> word[0:2]  # characters from position 0 (included) to 2 (excluded)
+'Py'
+>>> word[2:5]  # characters from position 2 (included) to 5 (excluded)
+'tho'
+>>> word[:2]   # from the beginning to position 2 (excluded)
+'Py'
+>>> word[4:]   # from position 4 (included) to the end
+'on'
+>>> word[-2:]  # from second-last (included) to the end
+'on'
+```
+
+**Visual representation:**
+
+```
+ +---+---+---+---+---+---+
+ | P | y | t | h | o | n |
+ +---+---+---+---+---+---+
+ 0   1   2   3   4   5   6
+-6  -5  -4  -3  -2  -1
+```
+
+### String Immutability
+
+<Warning>
+Strings cannot be changed (they're immutable):
+
+```python
+>>> word[0] = 'J'
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+TypeError: 'str' object does not support item assignment
+```
+
+Create a new string instead:
+
+```python
+>>> 'J' + word[1:]
+'Jython'
+```
+</Warning>
+
+### String Length
+
+```python
+>>> s = 'supercalifragilisticexpialidocious'
+>>> len(s)
+34
+```
+
+## Lists
+
+Lists are compound data types that group together values:
+
+```python
+>>> squares = [1, 4, 9, 16, 25]
+>>> squares
+[1, 4, 9, 16, 25]
+```
+
+### Indexing and Slicing Lists
+
+Like strings, lists support indexing and slicing:
+
+```python
+>>> squares[0]  # indexing returns the item
+1
+>>> squares[-1]
+25
+>>> squares[-3:]  # slicing returns a new list
+[9, 16, 25]
+```
+
+### List Concatenation
+
+```python
+>>> squares + [36, 49, 64, 81, 100]
+[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+```
+
+### List Mutability
+
+Unlike strings, lists are mutable:
+
+```python
+>>> cubes = [1, 8, 27, 65, 125]  # something's wrong here
+>>> 4 ** 3  # the cube of 4 is 64, not 65!
+64
+>>> cubes[3] = 64  # replace the wrong value
+>>> cubes
+[1, 8, 27, 64, 125]
+```
+
+### Adding Items
+
+```python
+>>> cubes.append(216)  # add the cube of 6
+>>> cubes.append(7 ** 3)  # and the cube of 7
+>>> cubes
+[1, 8, 27, 64, 125, 216, 343]
+```
+
+### Assignment and References
+
+<Warning>
+Assignment doesn't copy data. Multiple variables can refer to the same list. Use slicing to create a copy.
+</Warning>
+
+```python
+>>> rgb = ["Red", "Green", "Blue"]
+>>> rgba = rgb
+>>> rgba.append("Alpha")
+>>> rgb
+["Red", "Green", "Blue", "Alpha"]
+```
+
+Use slicing to create a copy:
+
+```python
+>>> correct_rgba = rgba[:]
+>>> correct_rgba[-1] = "Fixed"
+>>> rgba
+["Red", "Green", "Blue", "Alpha"]
+```
+
+### Modifying Lists
+
+Assignment to slices:
+
+```python
+>>> letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+>>> letters[2:5] = ['C', 'D', 'E']  # replace some values
+>>> letters
+['a', 'b', 'C', 'D', 'E', 'f', 'g']
+>>> letters[2:5] = []  # remove them
+>>> letters
+['a', 'b', 'f', 'g']
+>>> letters[:] = []  # clear the list
+>>> letters
+[]
+```
+
+### Nested Lists
+
+```python
+>>> a = ['a', 'b', 'c']
+>>> n = [1, 2, 3]
+>>> x = [a, n]
+>>> x
+[['a', 'b', 'c'], [1, 2, 3]]
+>>> x[0]
+['a', 'b', 'c']
+>>> x[0][1]
+'b'
+```
+
+## First Steps Towards Programming
+
+Let's write a Fibonacci series using a `while` loop:
+
+```python
+>>> # Fibonacci series:
+>>> # the sum of two elements defines the next
+>>> a, b = 0, 1
+>>> while a < 10:
+...     print(a)
+...     a, b = b, a+b
+...
+0
+1
+1
+2
+3
+5
+8
+```
+
+**Key features demonstrated:**
+
+1. **Multiple assignment**: `a, b = 0, 1` assigns simultaneously
+2. **While loop**: Executes as long as the condition is true
+3. **Indentation**: Python uses indentation to group statements
+4. **Print function**: Writes output to the screen
+
+### Customizing Print Output
+
+Control the line ending with the `end` parameter:
+
+```python
+>>> a, b = 0, 1
+>>> while a < 1000:
+...     print(a, end=',')
+...     a, b = b, a+b
+...
+0,1,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,
+```
+
+## Next Steps
+
+Now that you understand Python basics, explore [Control Flow Tools](/tutorial/control-flow) to learn about if statements, for loops, and functions.

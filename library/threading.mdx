@@ -1,0 +1,169 @@
+---
+title: threading - Thread-Based Parallelism
+description: Thread-based parallelism for concurrent execution
+---
+
+The `threading` module provides thread-based parallelism for concurrent execution.
+
+## Module Import
+
+```python
+import threading
+from threading import Thread, Lock, Event
+```
+
+## Creating Threads
+
+### Basic Thread Creation
+
+```python
+import threading
+import time
+
+def worker(name):
+    print(f"Thread {name} starting")
+    time.sleep(2)
+    print(f"Thread {name} finishing")
+
+# Create and start thread
+thread = threading.Thread(target=worker, args=("A",))
+thread.start()
+
+# Wait for thread to complete
+thread.join()
+print("All threads complete")
+```
+
+### Thread with Class
+
+```python
+import threading
+import time
+
+class WorkerThread(threading.Thread):
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+    
+    def run(self):
+        print(f"{self.name} starting")
+        time.sleep(2)
+        print(f"{self.name} finishing")
+
+thread = WorkerThread("Worker-1")
+thread.start()
+thread.join()
+```
+
+## Synchronization
+
+### Lock - Mutual Exclusion
+
+```python
+import threading
+
+counter = 0
+lock = threading.Lock()
+
+def increment():
+    global counter
+    for _ in range(100000):
+        with lock:  # Acquire lock
+            counter += 1
+
+threads = [threading.Thread(target=increment) for _ in range(10)]
+
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+
+print(f"Counter: {counter}")  # 1000000
+```
+
+### Event - Thread Signaling
+
+```python
+import threading
+import time
+
+event = threading.Event()
+
+def waiter():
+    print("Waiting for event")
+    event.wait()  # Block until set
+    print("Event received")
+
+def setter():
+    time.sleep(2)
+    print("Setting event")
+    event.set()
+
+t1 = threading.Thread(target=waiter)
+t2 = threading.Thread(target=setter)
+
+t1.start()
+t2.start()
+
+t1.join()
+t2.join()
+```
+
+### Semaphore - Limited Access
+
+```python
+import threading
+import time
+
+# Allow max 3 concurrent threads
+semaphore = threading.Semaphore(3)
+
+def worker(name):
+    with semaphore:
+        print(f"{name} acquired semaphore")
+        time.sleep(2)
+        print(f"{name} releasing semaphore")
+
+threads = [threading.Thread(target=worker, args=(f"Thread-{i}",)) 
+           for i in range(10)]
+
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+```
+
+## Thread Pool
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+import time
+
+def task(n):
+    time.sleep(1)
+    return n * n
+
+with ThreadPoolExecutor(max_workers=5) as executor:
+    results = executor.map(task, range(10))
+    print(list(results))
+```
+
+<Tip>
+  Use threading for I/O-bound tasks where threads spend time waiting.
+</Tip>
+
+<Warning>
+  Python's Global Interpreter Lock (GIL) prevents true parallel execution of CPU-bound code. Use multiprocessing for CPU-bound tasks.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="asyncio" href="/library/asyncio">
+    Asynchronous I/O
+  </Card>
+  <Card title="multiprocessing" href="/library/multiprocessing">
+    Process-based parallelism
+  </Card>
+  <Card title="concurrent.futures" href="/library/concurrent-futures">
+    High-level concurrency
+  </Card>
+</CardGroup>

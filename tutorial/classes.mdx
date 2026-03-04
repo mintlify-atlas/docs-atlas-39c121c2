@@ -1,0 +1,489 @@
+---
+title: Classes
+description: Master object-oriented programming in Python with classes, inheritance, and more
+---
+
+Classes provide a way to bundle data and functionality together. Python's class mechanism is powerful yet straightforward, supporting all standard features of object-oriented programming.
+
+## A Word About Names and Objects
+
+In Python, objects have individuality, and multiple names can be bound to the same object (aliasing):
+
+```python
+a = [1, 2, 3]
+b = a  # b is an alias for a
+b.append(4)
+print(a)  # [1, 2, 3, 4]
+```
+
+<Info>
+This is important for mutable objects like lists and dictionaries. For immutable types (numbers, strings, tuples), aliasing doesn't affect program behavior.
+</Info>
+
+## Python Scopes and Namespaces
+
+A **namespace** is a mapping from names to objects. Examples include:
+- Built-in names (functions like `abs()`, exception names)
+- Global names in a module
+- Local names in a function
+- Attributes of an object
+
+A **scope** is a textual region where a namespace is directly accessible.
+
+### Scope Example
+
+```python
+def scope_test():
+    def do_local():
+        spam = "local spam"
+
+    def do_nonlocal():
+        nonlocal spam
+        spam = "nonlocal spam"
+
+    def do_global():
+        global spam
+        spam = "global spam"
+
+    spam = "test spam"
+    do_local()
+    print("After local assignment:", spam)
+    do_nonlocal()
+    print("After nonlocal assignment:", spam)
+    do_global()
+    print("After global assignment:", spam)
+
+scope_test()
+print("In global scope:", spam)
+```
+
+Output:
+```
+After local assignment: test spam
+After nonlocal assignment: nonlocal spam
+After global assignment: nonlocal spam
+In global scope: global spam
+```
+
+## A First Look at Classes
+
+### Class Definition Syntax
+
+The simplest class definition:
+
+```python
+class ClassName:
+    <statement-1>
+    .
+    .
+    .
+    <statement-N>
+```
+
+### Class Objects
+
+Classes support two operations: attribute references and instantiation.
+
+```python
+class MyClass:
+    """A simple example class"""
+    i = 12345
+
+    def f(self):
+        return 'hello world'
+```
+
+**Attribute references:**
+
+```python
+MyClass.i  # returns 12345
+MyClass.f  # returns a function object
+MyClass.__doc__  # returns "A simple example class"
+```
+
+**Instantiation:**
+
+```python
+x = MyClass()  # creates a new instance
+```
+
+### The __init__ Method
+
+Customize instance creation with `__init__()`:
+
+```python
+class Complex:
+    def __init__(self, realpart, imagpart):
+        self.r = realpart
+        self.i = imagpart
+
+x = Complex(3.0, -4.5)
+print(x.r, x.i)  # 3.0 -4.5
+```
+
+## Instance Objects
+
+Instances understand two kinds of attributes:
+
+1. **Data attributes** (instance variables)
+2. **Methods** (functions that belong to the object)
+
+```python
+x.counter = 1
+while x.counter < 10:
+    x.counter = x.counter * 2
+print(x.counter)  # 16
+del x.counter
+```
+
+## Method Objects
+
+Methods are called on instances:
+
+```python
+x = MyClass()
+x.f()  # calls the method
+```
+
+You can also store method references:
+
+```python
+xf = x.f
+while True:
+    print(xf())  # prints 'hello world' forever
+```
+
+**What happens behind the scenes:**
+
+```python
+x.f()  # is equivalent to:
+MyClass.f(x)
+```
+
+The instance is automatically passed as the first argument.
+
+## Class and Instance Variables
+
+**Class variables** are shared by all instances:
+
+```python
+class Dog:
+    kind = 'canine'  # class variable shared by all instances
+
+    def __init__(self, name):
+        self.name = name  # instance variable unique to each instance
+
+d = Dog('Fido')
+e = Dog('Buddy')
+print(d.kind)  # 'canine' (shared)
+print(e.kind)  # 'canine' (shared)
+print(d.name)  # 'Fido' (unique)
+print(e.name)  # 'Buddy' (unique)
+```
+
+<Warning>
+**Shared mutable objects can cause problems:**
+
+```python
+class Dog:
+    tricks = []  # mistaken use of a class variable
+
+    def __init__(self, name):
+        self.name = name
+
+    def add_trick(self, trick):
+        self.tricks.append(trick)
+
+d = Dog('Fido')
+e = Dog('Buddy')
+d.add_trick('roll over')
+e.add_trick('play dead')
+print(d.tricks)  # ['roll over', 'play dead'] - unexpectedly shared!
+```
+
+**Correct design uses instance variables:**
+
+```python
+class Dog:
+    def __init__(self, name):
+        self.name = name
+        self.tricks = []  # creates a new empty list for each dog
+
+    def add_trick(self, trick):
+        self.tricks.append(trick)
+
+d = Dog('Fido')
+e = Dog('Buddy')
+d.add_trick('roll over')
+e.add_trick('play dead')
+print(d.tricks)  # ['roll over']
+print(e.tricks)  # ['play dead']
+```
+</Warning>
+
+## Inheritance
+
+Derive new classes from existing ones:
+
+```python
+class DerivedClassName(BaseClassName):
+    <statement-1>
+    .
+    .
+    .
+    <statement-N>
+```
+
+**Example:**
+
+```python
+class Animal:
+    def __init__(self, name):
+        self.name = name
+    
+    def speak(self):
+        raise NotImplementedError("Subclass must implement abstract method")
+
+class Dog(Animal):
+    def speak(self):
+        return f"{self.name} says Woof!"
+
+class Cat(Animal):
+    def speak(self):
+        return f"{self.name} says Meow!"
+
+dog = Dog("Buddy")
+cat = Cat("Whiskers")
+print(dog.speak())  # Buddy says Woof!
+print(cat.speak())  # Whiskers says Meow!
+```
+
+### Calling Base Class Methods
+
+```python
+class Base:
+    def greet(self):
+        return "Hello from Base"
+
+class Derived(Base):
+    def greet(self):
+        base_greeting = Base.greet(self)
+        return f"{base_greeting} and Derived"
+
+d = Derived()
+print(d.greet())  # Hello from Base and Derived
+```
+
+### Built-in Functions for Inheritance
+
+**isinstance()**: Check an instance's type:
+
+```python
+isinstance(obj, int)  # True if obj is an int or subclass of int
+```
+
+**issubclass()**: Check class inheritance:
+
+```python
+issubclass(bool, int)  # True
+issubclass(float, int)  # False
+```
+
+## Multiple Inheritance
+
+Python supports multiple base classes:
+
+```python
+class DerivedClassName(Base1, Base2, Base3):
+    <statement-1>
+    .
+    .
+    .
+    <statement-N>
+```
+
+Attribute search is depth-first, left-to-right:
+
+```python
+class A:
+    def method(self):
+        return "A"
+
+class B(A):
+    pass
+
+class C(A):
+    def method(self):
+        return "C"
+
+class D(B, C):
+    pass
+
+d = D()
+print(d.method())  # "C" - searches B, then C
+```
+
+## Private Variables
+
+Python has no true private variables, but there's a convention:
+
+**Single underscore** (`_spam`): Internal implementation detail
+
+```python
+class MyClass:
+    def __init__(self):
+        self._internal_var = 42  # "internal use" convention
+```
+
+**Name mangling** (`__spam`): Avoid name clashes in subclasses
+
+```python
+class Mapping:
+    def __init__(self, iterable):
+        self.items_list = []
+        self.__update(iterable)
+
+    def update(self, iterable):
+        for item in iterable:
+            self.items_list.append(item)
+
+    __update = update   # private copy of original update() method
+
+class MappingSubclass(Mapping):
+    def update(self, keys, values):
+        # provides new signature for update()
+        # but does not break __init__()
+        for item in zip(keys, values):
+            self.items_list.append(item)
+```
+
+<Note>
+Name mangling replaces `__spam` with `_classname__spam` to avoid conflicts.
+</Note>
+
+## Iterators
+
+Make your classes iterable:
+
+```python
+class Reverse:
+    """Iterator for looping over a sequence backwards."""
+    def __init__(self, data):
+        self.data = data
+        self.index = len(data)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.index == 0:
+            raise StopIteration
+        self.index = self.index - 1
+        return self.data[self.index]
+```
+
+Usage:
+
+```python
+>>> rev = Reverse('spam')
+>>> for char in rev:
+...     print(char)
+...
+m
+a
+p
+s
+```
+
+## Generators
+
+Generators are a simple way to create iterators:
+
+```python
+def reverse(data):
+    for index in range(len(data)-1, -1, -1):
+        yield data[index]
+
+for char in reverse('golf'):
+    print(char)
+# Output: f, l, o, g
+```
+
+**Key features:**
+- `__iter__()` and `__next__()` are created automatically
+- Local variables and execution state are saved between calls
+- Automatically raise `StopIteration` when done
+
+## Generator Expressions
+
+Like list comprehensions but with parentheses:
+
+```python
+>>> sum(i*i for i in range(10))  # sum of squares
+285
+
+>>> xvec = [10, 20, 30]
+>>> yvec = [7, 5, 3]
+>>> sum(x*y for x,y in zip(xvec, yvec))  # dot product
+260
+
+>>> data = 'golf'
+>>> list(data[i] for i in range(len(data)-1, -1, -1))
+['f', 'l', 'o', 'g']
+```
+
+## Dataclasses
+
+Use `dataclasses` for simple data containers:
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class Employee:
+    name: str
+    dept: str
+    salary: int
+
+john = Employee('john', 'computer lab', 1000)
+print(john.dept)    # 'computer lab'
+print(john.salary)  # 1000
+```
+
+<Tip>
+Dataclasses automatically generate `__init__()`, `__repr__()`, and other methods.
+</Tip>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use self" icon="user">
+    Always use `self` as the first parameter name for instance methods
+  </Card>
+  <Card title="Document Classes" icon="book">
+    Use docstrings to document class purpose and usage
+  </Card>
+  <Card title="Favor Composition" icon="puzzle-piece">
+    Prefer composition over inheritance when possible
+  </Card>
+  <Card title="Keep It Simple" icon="lightbulb">
+    Don't over-engineer - start simple and refactor as needed
+  </Card>
+</CardGroup>
+
+## Summary
+
+You've completed the Python tutorial! You now understand:
+
+- Classes and objects
+- Inheritance and polymorphism
+- Special methods and protocols
+- Iterators and generators
+- Modern Python features like dataclasses
+
+Continue learning by exploring:
+- The [Python Standard Library](https://docs.python.org/3/library/)
+- Advanced topics like decorators, context managers, and metaclasses
+- Real-world projects and contributions to open source
+
+Happy coding!

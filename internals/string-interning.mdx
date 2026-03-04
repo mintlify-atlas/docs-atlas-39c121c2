@@ -1,0 +1,326 @@
+---
+title: String Interning
+description: How CPython optimizes string comparisons through interning
+---
+
+# String Interning
+
+String interning is an optimization that ensures identical strings share the same memory location, enabling fast pointer comparison.
+
+## What is Interning?
+
+**Interned** strings form an interpreter-global set with two properties:
+
+1. No two interned strings have the same content
+2. Two interned strings can be compared using pointer equality (`is`)
+
+This optimizes:
+- Dictionary lookups (attribute access, global variables)
+- String comparisons in hot paths
+- Memory usage (deduplication)
+
+### Example
+
+```python
+>>> a = "hello"
+>>> b = "hello"
+>>> a is b  # May be True due to interning
+True
+>>> id(a) == id(b)
+True
+```
+
+## Two Interning Mechanisms
+
+CPython uses two different mechanisms:
+
+### 1. Singletons
+
+Statically allocated strings that always exist.
+
+### 2. Dynamic Interning
+
+Runtime interning of strings in an interpreter-wide dictionary.
+
+## Singletons
+
+### Latin-1 Single Characters
+
+All 256 single-character latin-1 strings are pre-allocated:
+
+```c
+_PyRuntime.static_objects.strings.ascii     // 0-127
+_PyRuntime.static_objects.strings.latin1    // 128-255
+```
+
+Accessed via:
+```c
+_Py_LATIN1_CHR(c)  // Get single-char string for character c
+```
+
+### Identifier Strings
+
+Common identifiers marked in C source:
+
+```c
+_Py_ID(name)     // Valid C identifier
+_Py_STR(foo)     // Arbitrary string (needs separate C name)
+```
+
+Examples:
+```c
+_Py_ID(__init__)      // Method name
+_Py_ID(__dict__)      // Attribute name  
+_Py_STR(empty)        // Empty string ""
+```
+
+### Singleton Collection
+
+Singletons collected by `make regen-global-objects`:
+
+1. Scan CPython source for `_Py_ID` and `_Py_STR` macros
+2. Generate code in [Tools/build/generate_global_objects.py](https://github.com/python/cpython/blob/main/Tools/build/generate_global_objects.py)
+3. Produce declaration, initialization, and finalization code
+
+### Singleton Storage
+
+Stored in runtime-global table:
+
+```c
+_PyRuntime.cached_objects.interned_strings  // INTERNED_STRINGS
+```
+
+- Initialized at runtime startup
+- Immutable until runtime finalization
+- Shared across threads and interpreters without synchronization
+
+<Note>
+The three singleton sets (latin-1 chars, `_Py_ID`, `_Py_STR`) are disjoint - no overlaps.
+</Note>
+
+## Dynamic Interning
+
+All other interned strings are allocated dynamically.
+
+### Storage
+
+Stored in interpreter-wide dictionary:
+
+```c
+PyInterpreterState.cached_objects.interned_strings
+```
+
+- Key and value reference the same object
+- One dict entry per unique interned string
+
+### Static Allocation Flag
+
+Dynamic strings have:
+
+```c
+_PyUnicode_STATE(s).statically_allocated == 0
+```
+
+Singletons have this flag set to 1.
+
+## Immortality and Reference Counting
+
+**Invariant:** Every immortal string is interned.
+
+<Info>
+Never use `_Py_SetImmortal()` on a string directly! Use `_PyUnicode_InternImmortal()` instead, which handles interning correctly.
+</Info>
+
+### Mortal Interned Strings
+
+The converse is NOT true - interned strings can be mortal.
+
+For mortal interned strings:
+- The 2 references from the dict (key + value) are **excluded** from refcount
+- `unicode_dealloc()` removes string from interned dict
+- At shutdown, dict clearing adds references back before deletion
+
+### When to Immortalize
+
+Immortalize strings that live until interpreter shutdown:
+
+- Strings in [code objects](/internals/code-objects)
+- Strings in `marshal` data
+- Strings in compiler-generated constants
+
+These are "close enough" to immortal:
+- Even with hot reloading or `eval()`, identifier count stays low
+- Immortalizing prevents repeated allocation/deallocation
+
+## Internal API
+
+Three internal interning functions:
+
+### _PyUnicode_InternMortal
+
+```c
+void _PyUnicode_InternMortal(PyInterpreterState *interp, PyObject **p)
+```
+
+Intern string as mortal:
+- Takes ownership of reference (steals)
+- Returns new reference via pointer update
+- "Reference neutral" (refcount unchanged from caller's view)
+
+### _PyUnicode_InternImmortal
+
+```c
+void _PyUnicode_InternImmortal(PyInterpreterState *interp, PyObject **p)
+```
+
+Intern and immortalize:
+- Takes ownership of reference
+- Immortalizes the result
+- Returns new reference
+
+### _PyUnicode_InternStatic
+
+```c  
+void _PyUnicode_InternStatic(PyInterpreterState *interp, PyObject **p)
+```
+
+Intern static singleton:
+- Only for `_Py_STR`, `_Py_ID`, or single-byte strings
+- **Not for general use**
+
+<Note>
+All intern functions take a **pointer** to `PyObject*` and modify it in place. This enables reference ownership transfer.
+</Note>
+
+### Reference Neutrality
+
+```python
+# Before
+Py_INCREF(s);        # refcount = N+1
+_PyUnicode_InternMortal(interp, &s);
+# After: refcount = N (may be different object)
+```
+
+The function:
+1. Steals the incoming reference (consumes it)
+2. Provides a new reference (creates it)
+3. Net effect: caller still has 1 reference
+
+<Info>
+**Critical:** Never call intern functions with a borrowed reference! Always own the reference you pass.
+</Info>
+
+## Interning State
+
+Stored in `_PyUnicode_STATE(s).interned`:
+
+- `SSTATE_NOT_INTERNED` (0)
+- `SSTATE_INTERNED_MORTAL` (1)
+- `SSTATE_INTERNED_IMMORTAL` (2)
+- `SSTATE_INTERNED_IMMORTAL_STATIC` (3)
+
+### State Transitions
+
+For dynamically allocated strings:
+
+```
+0 → 1  (_PyUnicode_InternMortal)
+1 → 2  (_PyUnicode_InternImmortal)  
+0 → 2  (_PyUnicode_InternImmortal)
+```
+
+For singletons:
+
+```
+0 → 3  (at runtime init)
+```
+
+Once state 3, no further changes.
+
+<Note>
+Using `_PyUnicode_InternStatic` on dynamically allocated strings is an error.
+</Note>
+
+## Performance Impact
+
+### Dictionary Lookups
+
+Without interning:
+```c
+// String comparison required
+if (strcmp(key, "__init__") == 0) { ... }
+```
+
+With interning:
+```c
+// Pointer comparison (one instruction)
+if (key == _Py_ID(__init__)) { ... }
+```
+
+### Memory Savings
+
+```python
+# Without interning: 100,000 separate strings
+names = ["value"] * 100_000  # ~700 KB
+
+# With interning: 100,000 references to one string  
+names = [sys.intern("value")] * 100_000  # ~800 KB (refs) + 50 bytes (string)
+```
+
+Actual savings depend on string duplication patterns.
+
+## Explicit Interning
+
+Python exposes interning via `sys.intern()`:
+
+```python
+import sys
+
+a = "hello"
+b = "hello" 
+a is b  # Maybe True (implementation detail)
+
+a = sys.intern("hello")
+b = sys.intern("hello")
+a is b  # Guaranteed True
+```
+
+### When to Use
+
+Explicit interning useful for:
+
+- Many string comparisons
+- Large number of duplicate strings
+- Performance-critical code paths
+
+```python
+# Example: Comparing against many possible values
+VALID_COMMANDS = {
+    sys.intern("GET"),
+    sys.intern("POST"),
+    sys.intern("PUT"),
+    sys.intern("DELETE"),
+}
+
+command = sys.intern(input("Command: "))
+if command in VALID_COMMANDS:  # Fast pointer comparison
+    process(command)
+```
+
+## Implementation Files
+
+### C Implementation
+
+- **Objects/unicodeobject.c** - String object and interning logic
+- **Python/pylifecycle.c** - Runtime initialization (intern singletons)
+
+### Singleton Generation
+
+- **Tools/build/generate_global_objects.py** - Collect and generate singletons
+- **Include/internal/pycore_global_objects.h** - Generated singleton declarations
+
+## Related Topics
+
+- [Source Code Structure](/internals/structure) - Where string implementation lives
+- [Garbage Collector](/internals/garbage-collector) - String memory management
+- [Code Objects](/internals/code-objects) - Interned strings in bytecode

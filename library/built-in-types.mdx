@@ -1,0 +1,502 @@
+---
+title: Built-in Types
+description: Complete reference for Python's fundamental data types
+---
+
+Python has several built-in data types that form the foundation of the language. These types are always available without importing any module.
+
+## Numeric Types
+
+### int - Integer
+
+Integers have unlimited precision in Python.
+
+```python
+# Integer literals
+x = 42
+y = -17
+large = 123456789012345678901234567890
+
+# Different bases
+binary = 0b1010  # 10
+octal = 0o755  # 493
+hex = 0xFF  # 255
+
+# Operations
+a = 10 + 5  # 15
+b = 10 - 5  # 5
+c = 10 * 5  # 50
+d = 10 / 5  # 2.0 (float division)
+e = 10 // 3  # 3 (floor division)
+f = 10 % 3  # 1 (modulo)
+g = 2 ** 8  # 256 (power)
+```
+
+### float - Floating Point
+
+Double precision floating point numbers.
+
+```python
+x = 3.14
+y = -0.5
+scientific = 1.5e-3  # 0.0015
+infinity = float('inf')
+not_a_number = float('nan')
+
+# Operations
+import math
+math.ceil(3.7)  # 4
+math.floor(3.7)  # 3
+math.sqrt(16)  # 4.0
+```
+
+### complex - Complex Numbers
+
+Complex numbers with real and imaginary parts.
+
+```python
+z = 3 + 4j
+w = complex(1, 2)  # 1+2j
+
+# Access parts
+z.real  # 3.0
+z.imag  # 4.0
+
+# Operations
+z + w  # (4+6j)
+abs(z)  # 5.0 (magnitude)
+```
+
+### bool - Boolean
+
+Boolean values: `True` and `False`.
+
+```python
+x = True
+y = False
+
+# Boolean operations
+True and False  # False
+True or False  # True
+not True  # False
+
+# Truthiness
+bool(0)  # False
+bool("")  # False
+bool([])  # False
+bool(None)  # False
+bool(42)  # True
+bool("text")  # True
+```
+
+## Sequence Types
+
+### str - String
+
+Immutable sequence of Unicode characters.
+
+```python
+# String literals
+single = 'hello'
+double = "world"
+triple = '''multi
+line
+string'''
+
+# String operations
+s = "Hello, World!"
+len(s)  # 13
+s.upper()  # "HELLO, WORLD!"
+s.lower()  # "hello, world!"
+s.strip()  # Remove whitespace
+s.replace("World", "Python")  # "Hello, Python!"
+
+# Indexing and slicing
+s[0]  # 'H'
+s[-1]  # '!'
+s[0:5]  # 'Hello'
+s[7:]  # 'World!'
+s[::-1]  # Reverse string
+
+# String methods
+s.split(',')  # ['Hello', ' World!']
+','.join(['a', 'b', 'c'])  # 'a,b,c'
+s.startswith('Hello')  # True
+s.endswith('!')  # True
+s.find('World')  # 7
+
+# Formatting
+name = "Alice"
+age = 30
+f"My name is {name} and I'm {age}"  # f-strings
+"My name is {} and I'm {}".format(name, age)  # format method
+"My name is %s and I'm %d" % (name, age)  # % formatting
+```
+
+### list - List
+
+Mutable sequence, typically used for homogeneous collections.
+
+```python
+# Create lists
+empty = []
+numbers = [1, 2, 3, 4, 5]
+mixed = [1, "two", 3.0, [4, 5]]
+
+# Access elements
+numbers[0]  # 1
+numbers[-1]  # 5
+numbers[1:3]  # [2, 3]
+
+# Modify
+numbers.append(6)  # Add to end
+numbers.insert(0, 0)  # Insert at position
+numbers.extend([7, 8])  # Add multiple items
+numbers.remove(3)  # Remove first occurrence
+popped = numbers.pop()  # Remove and return last item
+popped = numbers.pop(0)  # Remove and return item at index
+
+# Common operations
+len(numbers)  # Length
+numbers.sort()  # Sort in place
+numbers.reverse()  # Reverse in place
+numbers.count(2)  # Count occurrences
+numbers.index(5)  # Find index of value
+
+# List comprehension
+squares = [x**2 for x in range(10)]
+even = [x for x in range(10) if x % 2 == 0]
+```
+
+### tuple - Tuple
+
+Immutable sequence, typically used for heterogeneous collections.
+
+```python
+# Create tuples
+empty = ()
+single = (1,)  # Note the comma
+pair = (1, 2)
+coordinates = (10, 20, 30)
+
+# Unpacking
+x, y = (1, 2)
+a, b, c = (1, 2, 3)
+
+# Access
+coordinates[0]  # 10
+coordinates[1:3]  # (20, 30)
+
+# Named tuples
+from collections import namedtuple
+Point = namedtuple('Point', ['x', 'y'])
+p = Point(10, 20)
+p.x  # 10
+p.y  # 20
+```
+
+### range - Range
+
+Immutable sequence of numbers.
+
+```python
+# Create ranges
+r = range(10)  # 0 to 9
+r = range(5, 10)  # 5 to 9
+r = range(0, 10, 2)  # 0, 2, 4, 6, 8
+
+# Convert to list
+list(range(5))  # [0, 1, 2, 3, 4]
+
+# Common use in loops
+for i in range(10):
+    print(i)
+```
+
+## Mapping Type
+
+### dict - Dictionary
+
+Mutable mapping of keys to values.
+
+```python
+# Create dictionaries
+empty = {}
+person = {'name': 'Alice', 'age': 30, 'city': 'NYC'}
+from_pairs = dict([('a', 1), ('b', 2)])
+from_kwargs = dict(x=1, y=2)
+
+# Access
+person['name']  # 'Alice'
+person.get('email', 'N/A')  # 'N/A' (default value)
+
+# Modify
+person['age'] = 31  # Update
+person['email'] = 'alice@example.com'  # Add
+del person['city']  # Delete
+
+# Methods
+person.keys()  # dict_keys(['name', 'age', 'email'])
+person.values()  # dict_values(['Alice', 31, 'alice@example.com'])
+person.items()  # dict_items([('name', 'Alice'), ...])
+
+# Iteration
+for key in person:
+    print(key, person[key])
+
+for key, value in person.items():
+    print(key, value)
+
+# Dictionary comprehension
+squares = {x: x**2 for x in range(5)}
+# {0: 0, 1: 1, 2: 4, 3: 9, 4: 16}
+
+# Merging (Python 3.9+)
+dict1 = {'a': 1, 'b': 2}
+dict2 = {'b': 3, 'c': 4}
+merged = dict1 | dict2  # {'a': 1, 'b': 3, 'c': 4}
+```
+
+## Set Types
+
+### set - Set
+
+Unordered collection of unique elements.
+
+```python
+# Create sets
+empty = set()  # Note: {} creates empty dict
+numbers = {1, 2, 3, 4, 5}
+from_list = set([1, 2, 2, 3, 3])  # {1, 2, 3}
+
+# Add and remove
+numbers.add(6)
+numbers.remove(1)  # Raises KeyError if not found
+numbers.discard(10)  # No error if not found
+popped = numbers.pop()  # Remove arbitrary element
+
+# Set operations
+a = {1, 2, 3, 4}
+b = {3, 4, 5, 6}
+
+a | b  # Union: {1, 2, 3, 4, 5, 6}
+a & b  # Intersection: {3, 4}
+a - b  # Difference: {1, 2}
+a ^ b  # Symmetric difference: {1, 2, 5, 6}
+
+# Methods
+a.union(b)
+a.intersection(b)
+a.difference(b)
+a.symmetric_difference(b)
+
+# Subset/superset
+a.issubset(b)
+a.issuperset(b)
+
+# Set comprehension
+evens = {x for x in range(10) if x % 2 == 0}
+```
+
+### frozenset - Immutable Set
+
+Immutable version of set.
+
+```python
+fs = frozenset([1, 2, 3, 4])
+# Can be used as dict key or set element
+data = {fs: 'value'}
+```
+
+## Binary Sequence Types
+
+### bytes - Immutable Bytes
+
+```python
+# Create bytes
+b1 = b'hello'
+b2 = bytes([72, 101, 108, 108, 111])
+b3 = 'hello'.encode('utf-8')
+
+# Operations
+len(b1)  # 5
+b1[0]  # 104 (byte value)
+b1.decode('utf-8')  # 'hello'
+```
+
+### bytearray - Mutable Bytes
+
+```python
+ba = bytearray(b'hello')
+ba[0] = 72  # Modify
+ba.append(33)  # Add byte
+```
+
+### memoryview - Memory View
+
+Provides access to internal data of objects without copying.
+
+```python
+data = bytearray(b'hello')
+mv = memoryview(data)
+mv[0] = 72  # Modifies data in place
+```
+
+## None Type
+
+### None - Null Value
+
+Represents absence of a value.
+
+```python
+x = None
+
+if x is None:
+    print("x is None")
+
+def func():
+    return None  # Implicit if no return statement
+
+# Common usage
+result = data.get('key')  # Returns None if key not found
+```
+
+## Type Checking
+
+```python
+# Check type
+type(42)  # <class 'int'>
+type("hello")  # <class 'str'>
+
+# Instance checking
+isinstance(42, int)  # True
+isinstance("hello", (int, str))  # True (checks multiple types)
+
+# Subclass checking
+issubclass(bool, int)  # True
+```
+
+## Type Conversion
+
+```python
+# To integer
+int("42")  # 42
+int(3.14)  # 3
+int("FF", 16)  # 255 (from hex)
+
+# To float
+float("3.14")  # 3.14
+float(42)  # 42.0
+
+# To string
+str(42)  # "42"
+str([1, 2, 3])  # "[1, 2, 3]"
+
+# To list
+list("abc")  # ['a', 'b', 'c']
+list(range(5))  # [0, 1, 2, 3, 4]
+
+# To tuple
+tuple([1, 2, 3])  # (1, 2, 3)
+
+# To set
+set([1, 2, 2, 3])  # {1, 2, 3}
+
+# To dict
+dict([('a', 1), ('b', 2)])  # {'a': 1, 'b': 2}
+```
+
+## Common Type Operations
+
+### Length
+
+```python
+len("hello")  # 5
+len([1, 2, 3])  # 3
+len({'a': 1, 'b': 2})  # 2
+```
+
+### Membership Testing
+
+```python
+'a' in "abc"  # True
+2 in [1, 2, 3]  # True
+'key' in {'key': 'value'}  # True
+```
+
+### Iteration
+
+```python
+for char in "hello":
+    print(char)
+
+for item in [1, 2, 3]:
+    print(item)
+
+for key, value in {'a': 1, 'b': 2}.items():
+    print(key, value)
+```
+
+## Best Practices
+
+<Tip>
+  **Choose the right type:**
+  - Use `list` for ordered, mutable collections
+  - Use `tuple` for immutable sequences
+  - Use `set` for unique, unordered collections
+  - Use `dict` for key-value mappings
+</Tip>
+
+<Warning>
+  **Avoid mutable default arguments:**
+  ```python
+  # Bad
+  def append_to(element, to=[]):
+      to.append(element)
+      return to
+  
+  # Good
+  def append_to(element, to=None):
+      if to is None:
+          to = []
+      to.append(element)
+      return to
+  ```
+</Warning>
+
+## Type Hints
+
+Python 3.5+ supports type hints for better code documentation:
+
+```python
+from typing import List, Dict, Tuple, Set, Optional
+
+def process_items(items: List[int]) -> Dict[str, int]:
+    result: Dict[str, int] = {}
+    for item in items:
+        result[str(item)] = item * 2
+    return result
+
+def find_user(user_id: int) -> Optional[Dict[str, str]]:
+    # May return None
+    if user_id > 0:
+        return {'id': str(user_id), 'name': 'User'}
+    return None
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Built-in Functions" icon="function" href="/library/built-in-functions">
+    Functions that operate on these types
+  </Card>
+  <Card title="collections" icon="box" href="/library/collections">
+    Specialized container types
+  </Card>
+  <Card title="typing" icon="code" href="/library/typing">
+    Type hints and annotations
+  </Card>
+  <Card title="itertools" icon="repeat" href="/library/itertools">
+    Iterator tools
+  </Card>
+</CardGroup>

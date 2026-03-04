@@ -1,0 +1,123 @@
+---
+title: csv - CSV File Reading and Writing
+description: CSV file reading and writing
+---
+
+The `csv` module implements classes to read and write tabular data in CSV format.
+
+## Module Import
+
+```python
+import csv
+```
+
+## Reading CSV Files
+
+### csv.reader()
+
+```python
+import csv
+
+with open('data.csv', 'r') as f:
+    reader = csv.reader(f)
+    for row in reader:
+        print(row)  # List of values
+```
+
+### DictReader
+
+```python
+import csv
+
+with open('data.csv', 'r') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        print(row)  # OrderedDict with column names as keys
+        print(row['name'], row['age'])
+```
+
+## Writing CSV Files
+
+### csv.writer()
+
+```python
+import csv
+
+data = [
+    ['Name', 'Age', 'City'],
+    ['Alice', 30, 'NYC'],
+    ['Bob', 25, 'LA'],
+]
+
+with open('output.csv', 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerows(data)
+```
+
+### DictWriter
+
+```python
+import csv
+
+data = [
+    {'name': 'Alice', 'age': 30, 'city': 'NYC'},
+    {'name': 'Bob', 'age': 25, 'city': 'LA'},
+]
+
+with open('output.csv', 'w', newline='') as f:
+    fieldnames = ['name', 'age', 'city']
+    writer = csv.DictWriter(f, fieldnames=fieldnames)
+    
+    writer.writeheader()
+    writer.writerows(data)
+```
+
+## Dialects and Formatting
+
+```python
+import csv
+
+# Custom delimiter
+with open('data.tsv', 'r') as f:
+    reader = csv.reader(f, delimiter='\t')
+    for row in reader:
+        print(row)
+
+# Quote all fields
+with open('output.csv', 'w', newline='') as f:
+    writer = csv.writer(f, quoting=csv.QUOTE_ALL)
+    writer.writerow(['Name', 'Description'])
+    writer.writerow(['Product', 'This is a "quoted" field'])
+```
+
+## Practical Example
+
+```python
+import csv
+
+# Process CSV data
+with open('sales.csv', 'r') as f:
+    reader = csv.DictReader(f)
+    total = sum(float(row['amount']) for row in reader)
+print(f"Total sales: ${total}")
+
+# Export data to CSV
+data = [
+    {'product': 'Widget', 'price': 10.50, 'quantity': 5},
+    {'product': 'Gadget', 'price': 25.00, 'quantity': 3},
+]
+
+with open('export.csv', 'w', newline='') as f:
+    writer = csv.DictWriter(f, fieldnames=['product', 'price', 'quantity'])
+    writer.writeheader()
+    writer.writerows(data)
+```
+
+<CardGroup cols={2}>
+  <Card title="json" href="/library/json">
+    JSON encoding/decoding
+  </Card>
+  <Card title="io" href="/library/io">
+    Core I/O operations
+  </Card>
+</CardGroup>

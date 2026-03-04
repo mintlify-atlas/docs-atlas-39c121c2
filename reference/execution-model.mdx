@@ -1,0 +1,196 @@
+---
+title: Execution Model
+description: Specification of program structure, naming, binding, and exception handling semantics
+---
+
+# Execution Model
+
+## Structure of a Program
+
+A Python program is constructed from code blocks. A *block* is a piece of Python program text that is executed as a unit. The following are blocks:
+
+- A module
+- A function body
+- A class definition
+- Each command typed interactively
+- A script file
+- A script command (specified with the `-c` option)
+- A module run as a top level script (with the `-m` option)
+- The string argument passed to `eval()` and `exec()`
+
+A code block is executed in an *execution frame*. A frame contains some administrative information (used for debugging) and determines where and how execution continues after the code block's execution has completed.
+
+## Naming and Binding
+
+### Binding of Names
+
+*Names* refer to objects. Names are introduced by name binding operations.
+
+The following constructs bind names:
+
+- Formal parameters to functions
+- Class definitions
+- Function definitions
+- Assignment expressions
+- Targets that are identifiers if occurring in an assignment:
+  - `for` loop header
+  - After `as` in a `with` statement, `except` clause, `except*` clause, or in the as-pattern in structural pattern matching
+  - In a capture pattern in structural pattern matching
+- `import` statements
+- `type` statements
+- Type parameter lists
+
+The `import` statement of the form `from ... import *` binds all names defined in the imported module, except those beginning with an underscore. This form may only be used at the module level.
+
+If a name is bound in a block, it is a local variable of that block, unless declared as `nonlocal` or `global`. If a name is bound at the module level, it is a global variable. If a variable is used in a code block but not defined there, it is a *free variable*.
+
+### Resolution of Names
+
+A *scope* defines the visibility of a name within a block. If a local variable is defined in a block, its scope includes that block. If the definition occurs in a function block, the scope extends to any blocks contained within the defining one, unless a contained block introduces a different binding for the name.
+
+When a name is used in a code block, it is resolved using the nearest enclosing scope. The set of all such scopes visible to a code block is called the block's *environment*.
+
+When a name is not found at all, a `NameError` exception is raised. If the current scope is a function scope, and the name refers to a local variable that has not yet been bound to a value at the point where the name is used, an `UnboundLocalError` exception is raised.
+
+#### The `global` Statement
+
+The `global` statement causes the listed identifiers to be interpreted as globals:
+
+```python
+x = 10
+
+def func():
+    global x
+    x = 20  # Modifies the global x
+
+func()
+print(x)  # Output: 20
+```
+
+The `global` statement applies to the entire current scope. If a name occurs in a `global` statement within a block, all uses of the name within the block are treated as references to the global binding of that name.
+
+#### The `nonlocal` Statement
+
+The `nonlocal` statement causes corresponding names to refer to previously bound variables in the nearest enclosing function scope:
+
+```python
+def outer():
+    x = 10
+    def inner():
+        nonlocal x
+        x = 20  # Modifies outer's x
+    inner()
+    print(x)  # Output: 20
+
+outer()
+```
+
+`SyntaxError` is raised at compile time if the given name does not exist in any enclosing function scope.
+
+### Annotation Scopes
+
+Annotations, type parameter lists and `type` statements introduce *annotation scopes*, which behave mostly like function scopes, but with some exceptions.
+
+Annotation scopes are used in the following contexts:
+
+- Function annotations
+- Variable annotations
+- Type parameter lists for generic type aliases
+- Type parameter lists for generic functions
+- Type parameter lists for generic classes
+- The bounds, constraints, and default values for type parameters (lazily evaluated)
+- The value of type aliases (lazily evaluated)
+
+Annotation scopes differ from function scopes in the following ways:
+
+- Annotation scopes have access to their enclosing class namespace
+- Expressions in annotation scopes cannot contain `yield`, `yield from`, `await`, or `:=` expressions
+- Names defined in annotation scopes cannot be rebound with `nonlocal` statements in inner scopes
+- The internal name is not reflected in the qualified name of objects defined within the scope
+
+### Lazy Evaluation
+
+Most annotation scopes are *lazily evaluated*. This includes annotations, the values of type aliases created through the `type` statement, and the bounds, constraints, and default values of type variables created through the type parameter syntax.
+
+This means that they are not evaluated when the type alias or type variable is created, but only when necessary:
+
+```python
+type Alias = 1/0
+Alias.__value__  # Raises ZeroDivisionError here
+```
+
+This behavior is primarily useful for references to types that have not yet been defined when the type alias or type variable is created:
+
+```python
+from typing import Literal
+
+type SimpleExpr = int | Parenthesized
+type Parenthesized = tuple[Literal["("], Expr, Literal[")"]]
+type Expr = SimpleExpr | tuple[SimpleExpr, Literal["+", "-"], Expr]
+```
+
+### Builtins and Restricted Execution
+
+The builtins namespace associated with the execution of a code block is actually found by looking up the name `__builtins__` in its global namespace; this should be a dictionary or a module (in the latter case the module's dictionary is used).
+
+By default, when in the `__main__` module, `__builtins__` is the built-in module `builtins`; when in any other module, `__builtins__` is an alias for the dictionary of the `builtins` module itself.
+
+## Exceptions
+
+Exceptions are a means of breaking out of the normal flow of control of a code block in order to handle errors or other exceptional conditions. An exception is *raised* at the point where the error is detected; it may be *handled* by the surrounding code block or by any code block that directly or indirectly invoked the code block where the error occurred.
+
+The Python interpreter raises an exception when it detects a run-time error (such as division by zero). A Python program can also explicitly raise an exception with the `raise` statement. Exception handlers are specified with the `try ... except` statement.
+
+```python
+try:
+    result = 10 / 0
+except ZeroDivisionError:
+    print("Cannot divide by zero")
+```
+
+Python uses the "termination" model of error handling: an exception handler can find out what happened and continue execution at an outer level, but it cannot repair the cause of the error and retry the failing operation (except by re-entering the offending piece of code from the top).
+
+When an exception is not handled at all, the interpreter terminates execution of the program, or returns to its interactive main loop. In either case, it prints a stack traceback, except when the exception is `SystemExit`.
+
+Exceptions are identified by class instances. The `except` clause is selected depending on the class of the instance: it must reference the class of the instance or a non-virtual base class thereof. The instance can be received by the handler and can carry additional information about the exceptional condition.
+
+<Note>
+  Exception messages are not part of the Python API. Their contents may change from one version of Python to the next without warning and should not be relied on by code which will run under multiple versions of the interpreter.
+</Note>
+
+## Runtime Components
+
+### General Computing Model
+
+Python's execution model does not operate in a vacuum. It runs on a host machine and through that host's runtime environment, including its operating system. When a program runs, the conceptual layers look like this:
+
+```
+host machine
+  process (global resources)
+    thread (runs machine code)
+```
+
+Each process represents a program running on the host. The process is the data part of the program. The process' threads are the execution part of the program.
+
+### Python Runtime Model
+
+The same conceptual layers apply to each Python program, with some extra data layers specific to Python:
+
+```
+host machine
+  process (global resources)
+    Python global runtime (state)
+      Python interpreter (state)
+        thread (runs Python bytecode and "C-API")
+          Python thread state
+```
+
+When a Python program starts, it looks exactly like that diagram, with one of each. The runtime may grow to include multiple interpreters, and each interpreter may grow to include multiple thread states.
+
+The global runtime, at the conceptual level, is just a set of interpreters. While those interpreters are otherwise isolated and independent from one another, they may share some data or other resources.
+
+An "interpreter" is conceptually what we would normally think of as the (full-featured) "Python runtime". Each interpreter completely encapsulates all of the non-process-global, non-thread-specific state needed for the Python runtime to work. Notably, the interpreter's state persists between uses. It includes fundamental data like `sys.modules`.
+
+For thread-specific runtime state, each interpreter has a set of thread states, which it manages. Each thread state has all the thread-specific runtime data an interpreter needs to operate in one host thread. The thread state includes the current raised exception and the thread's Python call stack.
+
+Each thread state, over its lifetime, is always tied to exactly one interpreter and exactly one host thread. It will only ever be used in that thread and with that interpreter.

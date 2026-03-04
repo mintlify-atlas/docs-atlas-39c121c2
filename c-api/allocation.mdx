@@ -1,0 +1,439 @@
+---
+title: Memory Allocation
+description: Allocating memory for Python objects
+---
+
+## Overview
+
+Python provides specialized allocators for different types of memory:
+
+1. **Raw Memory** - System allocator wrappers
+2. **Object Memory** - Python object allocator
+3. **Type-Specific** - Per-type allocation
+
+<Warning>
+  Never mix allocators! Memory allocated with `PyMem_Malloc` must be freed with `PyMem_Free`, not `free()` or `PyObject_Free`.
+</Warning>
+
+## Allocation Domains
+
+### Raw Domain
+
+For general-purpose buffers, no thread state required:
+
+```c
+void* PyMem_RawMalloc(size_t size)
+void* PyMem_RawCalloc(size_t nelem, size_t elsize)
+void* PyMem_RawRealloc(void *ptr, size_t new_size)
+void PyMem_RawFree(void *ptr)
+```
+
+**Example:**
+
+```c
+char *buffer = (char*)PyMem_RawMalloc(1024);
+if (buffer == NULL) {
+    return PyErr_NoMemory();
+}
+
+// Use buffer...
+
+PyMem_RawFree(buffer);
+```
+
+### Mem Domain
+
+For Python buffers and general-purpose memory:
+
+```c
+void* PyMem_Malloc(size_t size)
+void* PyMem_Calloc(size_t nelem, size_t elsize)
+void* PyMem_Realloc(void *ptr, size_t new_size)
+void PyMem_Free(void *ptr)
+```
+
+**Example:**
+
+```c
+int *data = (int*)PyMem_Malloc(100 * sizeof(int));
+if (data == NULL) {
+    return PyErr_NoMemory();
+}
+
+memset(data, 0, 100 * sizeof(int));
+
+// Or use PyMem_Calloc for zeroed memory:
+int *data2 = (int*)PyMem_Calloc(100, sizeof(int));
+
+PyMem_Free(data);
+PyMem_Free(data2);
+```
+
+### Object Domain
+
+For Python objects only:
+
+```c
+void* PyObject_Malloc(size_t size)
+void* PyObject_Calloc(size_t nelem, size_t elsize)
+void* PyObject_Realloc(void *ptr, size_t new_size)
+void PyObject_Free(void *ptr)
+```
+
+<Warning>
+  **Free-Threaded Builds:** Only use `PyObject_*` functions for Python objects. Use `PyMem_*` or standard C allocators for buffers.
+</Warning>
+
+**Example:**
+
+```c
+MyObject *obj = (MyObject*)PyObject_Malloc(sizeof(MyObject));
+if (obj == NULL) {
+    return PyErr_NoMemory();
+}
+
+// Initialize object...
+PyObject_Init((PyObject*)obj, &MyType);
+
+// Later, in deallocation:
+PyObject_Free(obj);
+```
+
+## Type Allocators
+
+### PyType_GenericAlloc
+
+```c
+PyObject* PyType_GenericAlloc(PyTypeObject *type, Py_ssize_t nitems)
+```
+
+Allocate memory for a type instance.
+
+<ParamField path="type" type="PyTypeObject*" required>
+  Type object
+</ParamField>
+
+<ParamField path="nitems" type="Py_ssize_t" required>
+  Number of items (0 for fixed-size types)
+</ParamField>
+
+**Returns:** Allocated object, or `NULL` on error
+
+**Example:**
+
+```c
+static PyObject* MyObject_new(
+    PyTypeObject *type,
+    PyObject *args,
+    PyObject *kwds
+) {
+    MyObject *self;
+    self = (MyObject*)type->tp_alloc(type, 0);
+    if (self != NULL) {
+        // Initialize members
+        self->value = 0;
+        self->name = PyUnicode_FromString("");
+        if (self->name == NULL) {
+            Py_DECREF(self);
+            return NULL;
+        }
+    }
+    return (PyObject*)self;
+}
+
+// In type definition:
+static PyTypeObject MyType = {
+    // ...
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_free = PyObject_Del,
+};
+```
+
+### PyObject_Init
+
+```c
+PyObject* PyObject_Init(PyObject *op, PyTypeObject *type)
+```
+
+Initialize an allocated object.
+
+**Example:**
+
+```c
+MyObject *obj = (MyObject*)PyObject_Malloc(sizeof(MyObject));
+if (obj == NULL)
+    return PyErr_NoMemory();
+
+PyObject_Init((PyObject*)obj, &MyType);
+```
+
+### PyObject_InitVar
+
+```c
+PyVarObject* PyObject_InitVar(
+    PyVarObject *op,
+    PyTypeObject *type,
+    Py_ssize_t size
+)
+```
+
+Initialize variable-sized object.
+
+### PyObject_New / PyObject_NewVar
+
+```c
+TYPE* PyObject_New(TYPE, PyTypeObject *type)
+TYPE* PyObject_NewVar(TYPE, PyTypeObject *type, Py_ssize_t size)
+```
+
+Macros combining allocation and initialization.
+
+**Example:**
+
+```c
+MyObject *obj = PyObject_New(MyObject, &MyType);
+if (obj == NULL)
+    return NULL;
+
+// Initialize obj members...
+```
+
+## Garbage Collector Allocators
+
+For types participating in garbage collection:
+
+### PyObject_GC_New
+
+```c
+TYPE* PyObject_GC_New(TYPE, PyTypeObject *type)
+TYPE* PyObject_GC_NewVar(TYPE, PyTypeObject *type, Py_ssize_t size)
+```
+
+Allocate GC-tracked object.
+
+**Example:**
+
+```c
+static PyObject* MyObject_new(
+    PyTypeObject *type,
+    PyObject *args,
+    PyObject *kwds
+) {
+    MyObject *self;
+    self = (MyObject*)PyObject_GC_New(MyObject, type);
+    if (self != NULL) {
+        self->list = NULL;
+        self->dict = NULL;
+    }
+    return (PyObject*)self;
+}
+
+static int MyObject_init(
+    MyObject *self,
+    PyObject *args,
+    PyObject *kwds
+) {
+    // Initialize object
+    self->list = PyList_New(0);
+    if (self->list == NULL)
+        return -1;
+    
+    // Track after initialization complete
+    PyObject_GC_Track(self);
+    return 0;
+}
+```
+
+### PyObject_GC_Track
+
+```c
+void PyObject_GC_Track(PyObject *op)
+```
+
+Start tracking object for garbage collection. Call after object is fully initialized.
+
+### PyObject_GC_UnTrack
+
+```c
+void PyObject_GC_UnTrack(PyObject *op)
+```
+
+Stop tracking object. Call in deallocation before clearing references.
+
+### PyObject_GC_Del
+
+```c
+void PyObject_GC_Del(void *op)
+```
+
+Deallocate GC-tracked object.
+
+**Complete GC Example:**
+
+```c
+typedef struct {
+    PyObject_HEAD
+    PyObject *children;  // May create cycles
+} TreeNode;
+
+static int TreeNode_traverse(TreeNode *self, visitproc visit, void *arg) {
+    Py_VISIT(self->children);
+    return 0;
+}
+
+static int TreeNode_clear(TreeNode *self) {
+    Py_CLEAR(self->children);
+    return 0;
+}
+
+static void TreeNode_dealloc(TreeNode *self) {
+    PyObject_GC_UnTrack(self);
+    TreeNode_clear(self);
+    Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+static PyObject* TreeNode_new(
+    PyTypeObject *type,
+    PyObject *args,
+    PyObject *kwds
+) {
+    TreeNode *self;
+    self = (TreeNode*)PyObject_GC_New(TreeNode, type);
+    if (self != NULL) {
+        self->children = PyList_New(0);
+        if (self->children == NULL) {
+            Py_DECREF(self);
+            return NULL;
+        }
+        PyObject_GC_Track(self);
+    }
+    return (PyObject*)self;
+}
+
+static PyTypeObject TreeNodeType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "tree.TreeNode",
+    .tp_basicsize = sizeof(TreeNode),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_new = TreeNode_new,
+    .tp_dealloc = (destructor)TreeNode_dealloc,
+    .tp_traverse = (traverseproc)TreeNode_traverse,
+    .tp_clear = (inquiry)TreeNode_clear,
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_free = PyObject_GC_Del,
+};
+```
+
+## Memory Errors
+
+### PyErr_NoMemory
+
+```c
+PyObject* PyErr_NoMemory(void)
+```
+
+Set `MemoryError` exception. Always returns `NULL` for convenience.
+
+**Example:**
+
+```c
+void *buffer = PyMem_Malloc(size);
+if (buffer == NULL) {
+    return PyErr_NoMemory();
+}
+```
+
+## Best Practices
+
+<Note>
+  **Match Allocators and Deallocators**
+  
+  | Allocate | Deallocate |
+  |----------|------------|
+  | `PyMem_Malloc` | `PyMem_Free` |
+  | `PyMem_RawMalloc` | `PyMem_RawFree` |
+  | `PyObject_Malloc` | `PyObject_Free` |
+  | `PyObject_GC_New` | `PyObject_GC_Del` |
+  | `type->tp_alloc` | `type->tp_free` |
+</Note>
+
+<Warning>
+  **Never use standard C library functions directly on Python objects:**
+  
+  ```c
+  // WRONG:
+  MyObject *obj = (MyObject*)malloc(sizeof(MyObject));
+  free(obj);
+  
+  // RIGHT:
+  MyObject *obj = PyObject_New(MyObject, &MyType);
+  PyObject_Del(obj);
+  ```
+</Warning>
+
+<Note>
+  **Check all allocations:**
+  
+  ```c
+  void *ptr = PyMem_Malloc(size);
+  if (ptr == NULL) {
+      return PyErr_NoMemory();
+  }
+  ```
+</Note>
+
+<Note>
+  **Clean up on error:**
+  
+  ```c
+  PyObject *a = PyList_New(0);
+  if (a == NULL)
+      return NULL;
+  
+  PyObject *b = PyDict_New();
+  if (b == NULL) {
+      Py_DECREF(a);  // Clean up previously allocated
+      return NULL;
+  }
+  ```
+</Note>
+
+## Allocation Customization
+
+### Custom Allocators
+
+You can override Python's allocators:
+
+```c
+typedef struct {
+    void* (*malloc)(void *ctx, size_t size);
+    void* (*calloc)(void *ctx, size_t nelem, size_t elsize);
+    void* (*realloc)(void *ctx, void *ptr, size_t new_size);
+    void (*free)(void *ctx, void *ptr);
+} PyMemAllocatorEx;
+
+void PyMem_GetAllocator(PyMemAllocatorDomain domain, PyMemAllocatorEx *allocator);
+void PyMem_SetAllocator(PyMemAllocatorDomain domain, PyMemAllocatorEx *allocator);
+```
+
+Domains:
+- `PYMEM_DOMAIN_RAW` - Raw memory
+- `PYMEM_DOMAIN_MEM` - Python memory
+- `PYMEM_DOMAIN_OBJ` - Python objects
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Type Objects" icon="cube" href="/c-api/type">
+    Defining custom types
+  </Card>
+  <Card title="Reference Counting" icon="counter" href="/c-api/refcounting">
+    Managing object lifetimes
+  </Card>
+  <Card title="Memory Management" icon="memory" href="/c-api/memory">
+    Advanced memory management
+  </Card>
+  <Card title="Exception Handling" icon="triangle-exclamation" href="/c-api/exceptions">
+    Handling memory errors
+  </Card>
+</CardGroup>

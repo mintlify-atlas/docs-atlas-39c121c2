@@ -1,0 +1,128 @@
+---
+title: io - Core I/O Operations
+description: Core tools for working with streams
+---
+
+The `io` module provides Python's main facilities for dealing with various types of I/O.
+
+## Module Import
+
+```python
+import io
+```
+
+## Text I/O
+
+### StringIO - In-Memory Text Stream
+
+```python
+import io
+
+# Write to string buffer
+output = io.StringIO()
+output.write('Hello, ')
+output.write('World!')
+print(output.getvalue())  # 'Hello, World!'
+output.close()
+
+# Read from string buffer
+input_stream = io.StringIO('Line 1\nLine 2\nLine 3')
+for line in input_stream:
+    print(line.strip())
+```
+
+## Binary I/O
+
+### BytesIO - In-Memory Binary Stream
+
+```python
+import io
+
+# Write binary data
+output = io.BytesIO()
+output.write(b'Hello, ')
+output.write(b'World!')
+print(output.getvalue())  # b'Hello, World!'
+output.close()
+
+# Read binary data
+input_stream = io.BytesIO(b'\x00\x01\x02\x03')
+data = input_stream.read(2)
+print(data)  # b'\x00\x01'
+```
+
+## File Objects
+
+```python
+import io
+
+# Open file in text mode
+with io.open('file.txt', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# Open file in binary mode
+with io.open('file.bin', 'rb') as f:
+    data = f.read()
+```
+
+## Buffered I/O
+
+```python
+import io
+
+# Buffered reader
+with io.open('large_file.txt', 'rb') as f:
+    buffered = io.BufferedReader(f)
+    chunk = buffered.read(1024)  # Read 1KB
+
+# Buffered writer
+with io.open('output.txt', 'wb') as f:
+    buffered = io.BufferedWriter(f)
+    buffered.write(b'Data to write')
+    buffered.flush()
+```
+
+## Practical Examples
+
+### Capture Print Output
+
+```python
+import io
+import sys
+
+# Capture stdout
+old_stdout = sys.stdout
+sys.stdout = io.StringIO()
+
+print("This goes to StringIO")
+print("Another line")
+
+output = sys.stdout.getvalue()
+sys.stdout = old_stdout
+
+print(f"Captured: {output}")
+```
+
+### Create File-Like Object from String
+
+```python
+import io
+import csv
+
+# Use StringIO with csv module
+csv_data = "name,age\nAlice,30\nBob,25"
+string_io = io.StringIO(csv_data)
+
+reader = csv.DictReader(string_io)
+for row in reader:
+    print(row)
+```
+
+<CardGroup cols={2}>
+  <Card title="os" href="/library/os">
+    Operating system interfaces
+  </Card>
+  <Card title="pathlib" href="/library/pathlib">
+    Object-oriented filesystem paths
+  </Card>
+</CardGroup>

@@ -1,0 +1,498 @@
+---
+title: Compound Statements
+description: Specification of if, while, for, try, with, match, function, and class definitions
+---
+
+# Compound Statements
+
+Compound statements contain (groups of) other statements; they affect or control the execution of those other statements in some way. In general, compound statements span multiple lines, although in simple incarnations a whole compound statement may be contained in one line.
+
+The `if`, `while` and `for` statements implement traditional control flow constructs. `try` specifies exception handlers and/or cleanup code for a group of statements, while the `with` statement allows the execution of initialization and finalization code around a block of code. Function and class definitions are also syntactically compound statements.
+
+A compound statement consists of one or more 'clauses.' A clause consists of a header and a 'suite.' The clause headers of a particular compound statement are all at the same indentation level. Each clause header begins with a uniquely identifying keyword and ends with a colon. A suite is a group of statements controlled by a clause.
+
+```
+compound_stmt: if_stmt
+             | while_stmt
+             | for_stmt
+             | try_stmt
+             | with_stmt
+             | match_stmt
+             | funcdef
+             | classdef
+             | async_with_stmt
+             | async_for_stmt
+             | async_funcdef
+```
+
+## The `if` Statement
+
+The `if` statement is used for conditional execution:
+
+```
+if_stmt: "if" assignment_expression ":" suite
+       ("elif" assignment_expression ":" suite)*
+       ["else" ":" suite]
+```
+
+It selects exactly one of the suites by evaluating the expressions one by one until one is found to be true; then that suite is executed. If all expressions are false, the suite of the `else` clause, if present, is executed:
+
+```python
+if x < 0:
+    print("Negative")
+elif x == 0:
+    print("Zero")
+else:
+    print("Positive")
+```
+
+## The `while` Statement
+
+The `while` statement is used for repeated execution as long as an expression is true:
+
+```
+while_stmt: "while" assignment_expression ":" suite
+          ["else" ":" suite]
+```
+
+This repeatedly tests the expression and, if it is true, executes the first suite; if the expression is false (which may be the first time it is tested) the suite of the `else` clause, if present, is executed and the loop terminates:
+
+```python
+count = 0
+while count < 5:
+    print(count)
+    count += 1
+else:
+    print("Loop completed")
+```
+
+A `break` statement executed in the first suite terminates the loop without executing the `else` clause's suite. A `continue` statement executed in the first suite skips the rest of the suite and goes back to testing the expression.
+
+## The `for` Statement
+
+The `for` statement is used to iterate over the elements of a sequence (such as a string, tuple or list) or other iterable object:
+
+```
+for_stmt: "for" target_list "in" starred_expression_list ":" suite
+        ["else" ":" suite]
+```
+
+The expression list is evaluated once; it should yield an iterable object. An iterator is created for that iterable. The first item provided by the iterator is then assigned to the target list using the standard rules for assignments, and the suite is executed:
+
+```python
+for item in [1, 2, 3, 4, 5]:
+    print(item)
+
+for key, value in dict_obj.items():
+    print(f"{key}: {value}")
+
+for i, char in enumerate("Python"):
+    print(f"{i}: {char}")
+```
+
+A `break` statement executed in the first suite terminates the loop without executing the `else` clause's suite. A `continue` statement executed in the first suite skips the rest of the suite and continues with the next item.
+
+## The `try` Statement
+
+The `try` statement specifies exception handlers and/or cleanup code for a group of statements:
+
+```
+try_stmt: try1_stmt | try2_stmt | try3_stmt
+try1_stmt: "try" ":" suite
+         ("except" [expression ["as" identifier]] ":" suite)+
+         ["else" ":" suite]
+         ["finally" ":" suite]
+try2_stmt: "try" ":" suite
+         ("except" "*" expression ["as" identifier] ":" suite)+
+         ["else" ":" suite]
+         ["finally" ":" suite]
+try3_stmt: "try" ":" suite
+         "finally" ":" suite
+```
+
+### `except` Clause
+
+The `except` clause(s) specify one or more exception handlers. When no exception occurs in the `try` clause, no exception handler is executed. When an exception occurs in the `try` suite, a search for an exception handler is started:
+
+```python
+try:
+    result = 10 / 0
+except ZeroDivisionError:
+    print("Cannot divide by zero")
+except ValueError as e:
+    print(f"Value error: {e}")
+else:
+    print("No exception occurred")
+finally:
+    print("Cleanup code")
+```
+
+For an `except` clause with an expression, the expression must evaluate to an exception type or a tuple of exception types. Parentheses can be dropped if multiple exception types are provided and the `as` clause is not used:
+
+```python
+except ValueError, TypeError:  # Valid
+    pass
+
+except (ValueError, TypeError) as e:  # Also valid
+    pass
+```
+
+### `except*` Clause
+
+The `except*` clause(s) specify one or more handlers for groups of exceptions (BaseExceptionGroup instances):
+
+```python
+try:
+    raise ExceptionGroup("eg",
+        [ValueError(1), TypeError(2), OSError(3), OSError(4)])
+except* TypeError as e:
+    print(f'caught {type(e)} with nested {e.exceptions}')
+except* OSError as e:
+    print(f'caught {type(e)} with nested {e.exceptions}')
+```
+
+<Note>
+  A `try` statement can have either `except` or `except*` clauses, but not both.
+</Note>
+
+### `finally` Clause
+
+If `finally` is present, it specifies a 'cleanup' handler. The `try` clause is executed, including any `except` and `else` clauses. If an exception occurs in any of the clauses and is not handled, the exception is temporarily saved. The `finally` clause is executed. If there is a saved exception it is re-raised at the end of the `finally` clause:
+
+```python
+def cleanup_example():
+    try:
+        file = open("data.txt")
+        return process_file(file)
+    finally:
+        file.close()  # Always executed
+```
+
+## The `with` Statement
+
+The `with` statement is used to wrap the execution of a block with methods defined by a context manager:
+
+```
+with_stmt: "with" ( "(" with_stmt_contents ","? ")" | with_stmt_contents ) ":" suite
+with_stmt_contents: with_item ("," with_item)*
+with_item: expression ["as" target]
+```
+
+The execution of the `with` statement proceeds as follows:
+
+1. The context expression is evaluated to obtain a context manager
+2. The context manager's `__enter__()` method is invoked
+3. If a target was included, the return value from `__enter__()` is assigned to it
+4. The suite is executed
+5. The context manager's `__exit__()` method is invoked
+
+```python
+with open("file.txt") as f:
+    data = f.read()
+# File is automatically closed
+
+with lock:
+    # Critical section
+    pass
+
+# Multiple context managers
+with open("input.txt") as infile, open("output.txt", "w") as outfile:
+    outfile.write(infile.read())
+```
+
+## The `match` Statement
+
+The match statement is used for pattern matching:
+
+```
+match_stmt: 'match' subject_expr ":" NEWLINE INDENT case_block+ DEDENT
+subject_expr: star_named_expression "," star_named_expressions?
+            | named_expression
+case_block: 'case' patterns [guard] ":" block
+```
+
+Pattern matching takes a pattern as input (following `case`) and a subject value (following `match`). The pattern is matched against the subject value:
+
+```python
+match status:
+    case 200:
+        print("OK")
+    case 404:
+        print("Not Found")
+    case 500:
+        print("Internal Server Error")
+    case _:
+        print("Unknown status")
+```
+
+### Patterns
+
+#### Literal Patterns
+
+A literal pattern corresponds to most literals in Python:
+
+```python
+match value:
+    case 0:
+        print("Zero")
+    case "hello":
+        print("Greeting")
+    case True:
+        print("Boolean true")
+```
+
+#### Capture Patterns
+
+A capture pattern binds the subject value to a name:
+
+```python
+match point:
+    case x:
+        print(f"Single value: {x}")
+```
+
+#### Wildcard Pattern
+
+The wildcard pattern (`_`) always succeeds and binds no name:
+
+```python
+match value:
+    case _:
+        print("Matches anything")
+```
+
+#### Sequence Patterns
+
+A sequence pattern contains several subpatterns to be matched against sequence elements:
+
+```python
+match point:
+    case [0, 0]:
+        print("Origin")
+    case [x, 0]:
+        print(f"On X-axis at {x}")
+    case [0, y]:
+        print(f"On Y-axis at {y}")
+    case [x, y]:
+        print(f"Point at ({x}, {y})")
+```
+
+#### Mapping Patterns
+
+A mapping pattern contains one or more key-value patterns:
+
+```python
+match config:
+    case {"host": host, "port": port}:
+        print(f"Connecting to {host}:{port}")
+    case {"host": host}:
+        print(f"Using default port for {host}")
+```
+
+#### Class Patterns
+
+A class pattern represents a class and its positional and keyword arguments:
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int
+
+match point:
+    case Point(x=0, y=0):
+        print("Origin")
+    case Point(x=0, y=y):
+        print(f"Y-axis at {y}")
+    case Point(x=x, y=0):
+        print(f"X-axis at {x}")
+    case Point(x=x, y=y):
+        print(f"Point at ({x}, {y})")
+```
+
+#### OR Patterns
+
+An OR pattern is two or more patterns separated by vertical bars:
+
+```python
+match response:
+    case 200 | 201 | 204:
+        print("Success")
+    case 400 | 401 | 403 | 404:
+        print("Client error")
+    case 500 | 502 | 503:
+        print("Server error")
+```
+
+### Guards
+
+A guard is an additional condition that must succeed for code inside the case block to execute:
+
+```python
+match point:
+    case [x, y] if x == y:
+        print(f"Point on diagonal: ({x}, {y})")
+    case [x, y]:
+        print(f"Point not on diagonal: ({x}, {y})")
+```
+
+## Function Definitions
+
+A function definition defines a user-defined function object:
+
+```
+funcdef: [decorators] "def" funcname [type_params] "(" [parameter_list] ")"
+       ["-" expression] ":" suite
+decorators: decorator+
+decorator: "@" assignment_expression NEWLINE
+```
+
+A function definition is an executable statement. Its execution binds the function name in the current local namespace to a function object:
+
+```python
+def greet(name: str) -> str:
+    """Return a greeting message."""
+    return f"Hello, {name}!"
+
+@decorator
+def decorated_func():
+    pass
+
+def func_with_defaults(a, b=10, *args, **kwargs):
+    pass
+```
+
+### Parameters
+
+<ParamField path="parameter" type="identifier">
+  A simple parameter name.
+</ParamField>
+
+<ParamField path="parameter = expression" type="default">
+  A parameter with a default value.
+</ParamField>
+
+<ParamField path="*parameter" type="varargs">
+  A parameter that receives excess positional arguments as a tuple.
+</ParamField>
+
+<ParamField path="**parameter" type="kwargs">
+  A parameter that receives excess keyword arguments as a dictionary.
+</ParamField>
+
+Example with all parameter types:
+
+```python
+def example(pos_only, /, standard, *args, kw_only, **kwargs):
+    """
+    pos_only: positional-only parameter
+    standard: standard parameter (positional or keyword)
+    *args: variable positional arguments
+    kw_only: keyword-only parameter
+    **kwargs: variable keyword arguments
+    """
+    pass
+```
+
+### Annotations
+
+Parameters may have an annotation of the form `: expression` following the parameter name. Functions may have "return" annotation of the form `-> expression` after the parameter list:
+
+```python
+def add(a: int, b: int) -> int:
+    return a + b
+
+def process(items: list[str]) -> dict[str, int]:
+    return {item: len(item) for item in items}
+```
+
+### Decorators
+
+A function definition may be wrapped by one or more decorator expressions:
+
+```python
+@staticmethod
+def static_method():
+    pass
+
+@classmethod
+def class_method(cls):
+    pass
+
+@property
+def readonly_property(self):
+    return self._value
+
+@decorator_with_args(arg1, arg2)
+def decorated():
+    pass
+```
+
+## Class Definitions
+
+A class definition defines a class object:
+
+```
+classdef: [decorators] "class" classname [type_params]
+        ["(" [argument_list] ")"] ":" suite
+```
+
+A class definition is an executable statement. The inheritance list usually gives a list of base classes:
+
+```python
+class MyClass:
+    """A simple class."""
+    pass
+
+class DerivedClass(BaseClass):
+    pass
+
+class MultipleInheritance(Base1, Base2):
+    pass
+
+@dataclass
+class DecoratedClass:
+    name: str
+    value: int
+```
+
+### Class Attributes
+
+The class's suite is then executed in a new execution frame. When the class's suite finishes execution, its execution frame is discarded but its local namespace is saved. A class object is then created using the inheritance list for the base classes and the saved local namespace for the attribute dictionary:
+
+```python
+class Example:
+    class_variable = 10
+    
+    def __init__(self, value):
+        self.instance_variable = value
+    
+    def method(self):
+        return self.instance_variable
+    
+    @staticmethod
+    def static_method():
+        return "Static"
+    
+    @classmethod
+    def class_method(cls):
+        return cls.class_variable
+```
+
+### Generic Classes
+
+A list of type parameters may be given in square brackets between the class's name and its base classes:
+
+```python
+class Stack[T]:
+    def __init__(self):
+        self.items: list[T] = []
+    
+    def push(self, item: T) -> None:
+        self.items.append(item)
+    
+    def pop(self) -> T:
+        return self.items.pop()
+```

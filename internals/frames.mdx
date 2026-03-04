@@ -1,0 +1,257 @@
+---
+title: Frame Objects
+description: Structure and management of Python execution frames
+---
+
+# Frame Objects
+
+Each call to a Python function has an activation record called a **frame**. Frames contain the dynamic state needed to execute a function.
+
+## Frame Structure
+
+A frame consists of three conceptual sections:
+
+1. **Specials** - Per-frame VM state (globals, code, instruction pointer, etc.)
+2. **Local variables** - Arguments, locals, cells, free variables
+3. **Evaluation stack** - Operand stack for bytecode execution
+
+### Internal Structure
+
+The internal frame structure is `_PyInterpreterFrame`, defined in [Include/internal/pycore_interpframe_structs.h](https://github.com/python/cpython/blob/main/Include/internal/pycore_interpframe_structs.h).
+
+```
++----------------------+
+|      Specials        |  <- Fixed size
++----------------------+
+|       Locals         |  <- co_nlocals slots
++----------------------+  
+|        Stack         |  <- co_stacksize slots
++----------------------+
+```
+
+## Allocation
+
+Python semantics allow frames to outlive the function call, so they cannot be allocated on the C call stack.
+
+### Per-Thread Stack
+
+Most frames are allocated contiguously in a **per-thread stack**:
+
+- Function: `_PyThreadState_PushFrame()` in [Python/pystate.c](https://github.com/python/cpython/blob/main/Python/pystate.c)
+- Fast path: `_PyFrame_PushUnchecked()` when space is available
+- Benefits: Reduced overhead, improved cache locality
+
+### Generator/Coroutine Frames
+
+Frames for generators and coroutines are **embedded** in the generator object:
+
+```c
+typedef struct {
+    PyObject_HEAD
+    _PyInterpreterFrame gi_iframe;  // Embedded frame
+    // ... other fields ...
+} PyGenObject;
+```
+
+Defined in [Include/internal/pycore_interpframe_structs.h](https://github.com/python/cpython/blob/main/Include/internal/pycore_interpframe_structs.h:26).
+
+## The Specials Section
+
+The specials section contains pointers to:
+
+- **Globals dict** - Module globals
+- **Builtins dict** - Built-in namespace  
+- **Locals dict** - For eval/class (not "fast" locals)
+- **Code object** - The `PyCodeObject` being executed
+- **Frame object** - Heap-allocated `PyFrameObject` (if exposed to Python)
+- **Function** - The `PyFunctionObject` (holds strong refs to globals/builtins)
+
+<Info>
+Storing a reference to the function is cheaper than storing strong references to both globals and builtins separately.
+</Info>
+
+## Frame Objects vs. Interpreter Frames
+
+### Interpreter Frames
+
+`_PyInterpreterFrame` is a lightweight internal structure:
+- Stack-allocated or embedded in generators
+- Not directly visible to Python code
+- Used during execution
+
+### Frame Objects
+
+`PyFrameObject` is a full Python object:
+- Heap-allocated only when needed
+- Exposed via `sys._getframe()` or tracebacks
+- Created lazily from `_PyInterpreterFrame`
+
+### Lazy Creation
+
+When Python code accesses a frame:
+
+1. Check if `frame_obj` field is `NULL`
+2. If so, allocate `PyFrameObject` and link it
+3. Store strong reference in `frame_obj` field
+
+### Frame Object Lifetime
+
+If a `PyFrameObject` outlives its `_PyInterpreterFrame`:
+
+1. The `_PyInterpreterFrame` is copied into the `PyFrameObject`
+2. Previous frame link is updated
+3. Evaluation stack must be empty at this point
+
+This provides the illusion of persistent frame objects with low overhead.
+
+## Generator and Coroutine Frames
+
+Generators (`PyGen_Type`, `PyCoro_Type`, `PyAsyncGen_Type`) have embedded frames:
+
+```python
+def my_generator():
+    yield 1
+    yield 2
+
+g = my_generator()  # RETURN_GENERATOR creates gen with embedded frame
+next(g)             # Frame is linked to thread's frame stack
+```
+
+### Frame Ownership
+
+If a frame object for a generator outlives the generator:
+
+1. Detected by `refcount > 1` on `frame_obj`  
+2. `take_ownership()` copies `_PyInterpreterFrame` to `PyFrameObject`
+3. Ownership transfers from generator to frame object
+
+Defined in [Python/frame.c](https://github.com/python/cpython/blob/main/Python/frame.c).
+
+## Field Names
+
+Many `_PyInterpreterFrame` fields were copied from Python 3.10's `PyFrameObject`, so they retain the `f_` prefix:
+
+- `f_globals` - Globals dict
+- `f_builtins` - Builtins dict
+- `f_locals` - Locals dict (for eval/class)
+- `f_code` - Code object
+
+<Note>
+These names may be rationalized in a future version to remove the `f_` prefix.
+</Note>
+
+## Shim Frames
+
+On entry to `_PyEval_EvalFrameDefault()`, a **shim frame** is pushed on the C stack:
+
+- Temporary frame for interpreter entry
+- Points to special code with `INTERPRETER_EXIT` instruction
+- Popped when `_PyEval_EvalFrameDefault()` returns
+- Eliminates need for `RETURN_VALUE`/`YIELD_VALUE` to check for entry frame
+
+## Base Frame
+
+Each thread state has an embedded **base frame** that serves as a sentinel:
+
+- Located in `_PyThreadStateImpl` (internal thread state)
+- `owner` field set to `FRAME_OWNED_BY_INTERPRETER`  
+- Accessible via `PyThreadState.base_frame` pointer
+- Initialized in `new_threadstate()` ([Python/pystate.c](https://github.com/python/cpython/blob/main/Python/pystate.c))
+
+### Purpose
+
+External profilers can validate complete stack unwinding:
+
+1. Read `tstate->base_frame` before walking stack
+2. Walk from `tstate->current_frame` following `frame->previous`
+3. Stop when `owner == FRAME_OWNED_BY_INTERPRETER`
+4. Verify last frame address matches `base_frame`
+5. Discard sample if mismatch (incomplete due to race)
+
+## Remote Profiling Frame Cache
+
+The `last_profiled_frame` field optimizes remote profilers:
+
+### How It Works
+
+1. Remote profiler samples call stack
+2. Writes current frame address to `last_profiled_frame`  
+3. Eval loop updates pointer to parent when frame returns
+4. Next sample walks from `current_frame` until reaching `last_profiled_frame`
+5. Frames below are unchanged and retrieved from cache
+
+### Update Guard
+
+In `_PyEval_FrameClearAndPop()`:
+
+```c
+if (last_profiled_frame != NULL && 
+    last_profiled_frame == current_frame) {
+    last_profiled_frame = current_frame->previous;
+}
+```
+
+This prevents transient frames from corrupting the cache pointer.
+
+## The Instruction Pointer
+
+Two fields maintain the instruction pointer:
+
+### `instr_ptr`
+
+Points to the current/next instruction:
+- **Executing frame:** Current instruction
+- **Suspended frame:** Next instruction on resume
+- **After `f_lineno` set:** Next instruction to execute
+- **During call:** Call instruction (for tracebacks)
+
+### `return_offset`
+
+Where to return in the caller:
+- Offset relative to caller's `instr_ptr`
+- Set by call instructions (`CALL`, `SEND`, `BINARY_OP_SUBSCR_GETITEM`)
+- Necessary because:
+  - Applying offset during `RETURN` is too early
+  - `SEND` needs two offsets (one for `RETURN`, one for `YIELD`)
+
+## Example: Accessing Frame Information
+
+```python
+import sys
+
+def examine_frame():
+    frame = sys._getframe()
+    print(f"Function: {frame.f_code.co_name}")
+    print(f"Filename: {frame.f_code.co_filename}")
+    print(f"Line: {frame.f_lineno}")
+    print(f"Locals: {frame.f_locals}")
+    print(f"Globals: {list(frame.f_globals.keys())[:5]}")
+
+examine_frame()
+```
+
+## Performance Considerations
+
+### Pre-3.11 vs. 3.11+
+
+**Pre-3.11:**
+- Full `PyFrameObject` allocated for each call
+- Heap allocation overhead
+- Poor cache locality
+
+**3.11+:**
+- Lightweight `_PyInterpreterFrame` stack-allocated
+- Contiguous per-thread stack
+- `PyFrameObject` only when needed
+- Significant performance improvement
+
+### Benchmark Results
+
+Python 3.11 function call overhead reduced by ~15-20% compared to 3.10.
+
+## Related Topics
+
+- [Bytecode Interpreter](/internals/interpreter) - How frames are executed
+- [Code Objects](/internals/code-objects) - Code executed by frames  
+- [Generators](/internals/generators) - Generator frame lifecycle
+- [Exception Handling](/internals/exception-handling) - Frame unwinding

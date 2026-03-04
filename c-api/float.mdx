@@ -1,0 +1,68 @@
+---
+title: Floating Point Objects  
+description: Working with Python float type
+---
+
+## Overview
+
+Python floats are implemented as C `double` precision floating-point numbers.
+
+## Type Object
+
+```c
+PyTypeObject PyFloat_Type
+```
+
+## Type Checking
+
+```c
+int PyFloat_Check(PyObject *p)
+int PyFloat_CheckExact(PyObject *p)
+```
+
+## Creating Floats
+
+```c
+PyObject* PyFloat_FromDouble(double v)
+PyObject* PyFloat_FromString(PyObject *str)
+```
+
+**Example:**
+
+```c
+PyObject *pi = PyFloat_FromDouble(3.14159);
+return pi;
+```
+
+## Converting to C double
+
+```c
+double PyFloat_AsDouble(PyObject *pyfloat)
+```
+
+**Example:**
+
+```c
+double value = PyFloat_AsDouble(obj);
+if (value == -1.0 && PyErr_Occurred())
+    return NULL;
+```
+
+## Special Values
+
+```c
+Py_RETURN_NAN  // Return NaN
+Py_RETURN_INF(sign)  // Return infinity
+```
+
+**Example:**
+
+```c
+if (is_invalid(x))
+    Py_RETURN_NAN;
+```
+
+## See Also
+
+- [Integer Objects](/c-api/long)
+- [Object Protocol](/c-api/object)

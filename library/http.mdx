@@ -1,0 +1,126 @@
+---
+title: http - HTTP Modules
+description: HTTP protocol handling modules
+---
+
+The `http` package provides modules for working with the HTTP protocol.
+
+## Module Import
+
+```python
+from http import HTTPStatus
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.client import HTTPConnection
+```
+
+## HTTP Status Codes
+
+```python
+from http import HTTPStatus
+
+# Access status codes
+print(HTTPStatus.OK)  # 200
+print(HTTPStatus.NOT_FOUND)  # 404
+print(HTTPStatus.INTERNAL_SERVER_ERROR)  # 500
+
+# Get description
+status = HTTPStatus.OK
+print(status.phrase)  # 'OK'
+print(status.description)  # 'Request fulfilled, document follows'
+
+# Common status codes
+HTTPStatus.OK  # 200
+HTTPStatus.CREATED  # 201
+HTTPStatus.BAD_REQUEST  # 400
+HTTPStatus.UNAUTHORIZED  # 401
+HTTPStatus.FORBIDDEN  # 403
+HTTPStatus.NOT_FOUND  # 404
+HTTPStatus.INTERNAL_SERVER_ERROR  # 500
+```
+
+## HTTP Server
+
+```python
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class MyHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # Send response status
+        self.send_response(200)
+        
+        # Send headers
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        
+        # Send response body
+        self.wfile.write(b'<html><body><h1>Hello, World!</h1></body></html>')
+    
+    def do_POST(self):
+        # Get content length
+        content_length = int(self.headers['Content-Length'])
+        
+        # Read POST data
+        post_data = self.rfile.read(content_length)
+        
+        # Send response
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b'Data received')
+
+# Run server
+server = HTTPServer(('localhost', 8000), MyHandler)
+print('Server running on http://localhost:8000')
+server.serve_forever()
+```
+
+## HTTP Client
+
+```python
+from http.client import HTTPConnection
+
+# Create connection
+conn = HTTPConnection('example.com')
+
+# Send GET request
+conn.request('GET', '/')
+
+# Get response
+response = conn.getresponse()
+print(f"Status: {response.status}")
+print(f"Reason: {response.reason}")
+
+# Read response body
+data = response.read()
+print(data.decode())
+
+conn.close()
+```
+
+## Simple File Server
+
+```python
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+import os
+
+# Change to directory to serve
+os.chdir('/path/to/serve')
+
+# Start server
+server = HTTPServer(('localhost', 8000), SimpleHTTPRequestHandler)
+print('Serving files at http://localhost:8000')
+server.serve_forever()
+```
+
+<Tip>
+  For production HTTP servers, use frameworks like Flask, FastAPI, or Django instead of http.server.
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="urllib" href="/library/urllib">
+    URL handling modules
+  </Card>
+  <Card title="socket" href="/library/socket">
+    Low-level networking
+  </Card>
+</CardGroup>

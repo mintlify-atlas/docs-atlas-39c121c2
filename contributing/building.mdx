@@ -1,0 +1,310 @@
+---
+title: Building CPython from Source
+description: Learn how to build CPython from source code
+---
+
+This guide covers building CPython from source code for development purposes. Building from source allows you to test changes, debug issues, and contribute to CPython development.
+
+## Basic Build Process
+
+<Steps>
+  <Step title="Configure the build">
+    From the top-level directory:
+    ```bash
+    ./configure
+    ```
+    This prepares the build system for your platform.
+  </Step>
+
+  <Step title="Build CPython">
+    ```bash
+    make
+    ```
+    This compiles the Python interpreter and standard library.
+  </Step>
+
+  <Step title="Test the build">
+    ```bash
+    make test
+    ```
+    This runs the test suite to verify your build.
+  </Step>
+
+  <Step title="Install (optional)">
+    ```bash
+    sudo make install
+    ```
+    This installs Python as `python3`. For development, you typically don't need to install.
+  </Step>
+</Steps>
+
+<Note>
+The executable is called `python.exe` on macOS case-insensitive file systems and Cygwin; elsewhere it's just `python`.
+</Note>
+
+## Development Builds
+
+### Debug Build
+
+For development work, use a debug build with additional checks:
+
+```bash
+./configure --with-pydebug
+make
+```
+
+A debug build:
+- Enables assertions and extra debugging code
+- Includes reference count tracking
+- Adds memory debugging features
+- Makes debugging with gdb easier
+
+### Out-of-Tree Build
+
+To keep your source directory clean, use an out-of-tree build:
+
+```bash
+mkdir debug
+cd debug
+../configure --with-pydebug
+make
+```
+
+<Warning>
+If you've already built in the top-level directory, run `make clean` there first to avoid conflicts.
+</Warning>
+
+## Build Options
+
+### Optimized Build
+
+For performance testing or benchmarking:
+
+```bash
+./configure --enable-optimizations
+make
+```
+
+This enables:
+- **Profile Guided Optimization (PGO)**: Optimizes based on runtime profiling
+- **Link Time Optimization (LTO)**: Cross-module optimization (on supported platforms)
+
+<Note>
+Optimized builds take significantly longer due to the profiling step. Use them only when performance matters.
+</Note>
+
+### Common Configure Options
+
+```bash
+# View all options
+./configure --help
+
+# Debug build with additional checks
+./configure --with-pydebug
+
+# Optimized build
+./configure --enable-optimizations
+
+# Link Time Optimization
+./configure --with-lto
+
+# Specify OpenSSL location (macOS)
+./configure --with-openssl=/usr/local/opt/openssl
+
+# Install to custom prefix
+./configure --prefix=/opt/python3.15
+```
+
+## Profile Guided Optimization (PGO)
+
+When you use `--enable-optimizations` or run `make profile-opt`, the build process:
+
+<Steps>
+  <Step title="Clean">
+    Removes temporary files from previous builds.
+  </Step>
+
+  <Step title="Build instrumented interpreter">
+    Creates an instrumented version with profiling code embedded.
+  </Step>
+
+  <Step title="Run training workload">
+    Executes the test suite to collect profiling data. Output is suppressed during this step.
+  </Step>
+
+  <Step title="Build optimized interpreter">
+    Builds the final interpreter using the profiling data for optimization.
+  </Step>
+</Steps>
+
+## Platform-Specific Builds
+
+### macOS Framework Build
+
+macOS has special framework build options:
+
+```bash
+./configure --enable-framework
+make
+```
+
+See [Mac/README.rst](https://github.com/python/cpython/blob/main/Mac/README.rst) for details on:
+- Framework builds
+- Universal builds
+- Code signing requirements
+
+### Windows
+
+Windows uses a different build system:
+
+```bash
+cd PCbuild
+build.bat
+```
+
+See [PCbuild/readme.txt](https://github.com/python/cpython/blob/main/PCbuild/readme.txt) for:
+- Visual Studio requirements
+- Build configurations
+- Creating Windows installers
+
+## Build Targets
+
+```bash
+# Standard build
+make
+
+# Run tests
+make test
+
+# Run tests with resource usage enabled
+make buildbottest
+
+# Profile-guided optimization
+make profile-opt
+
+# Clean build artifacts
+make clean
+
+# Remove all generated files
+make distclean
+
+# Install multiple versions side-by-side
+make altinstall
+```
+
+## Parallel Builds
+
+Speed up compilation with parallel jobs:
+
+```bash
+# Use all CPU cores
+make -j
+
+# Use specific number of jobs
+make -j4
+```
+
+## Installing Multiple Versions
+
+To install multiple Python versions using the same prefix:
+
+<Steps>
+  <Step title="Decide on primary version">
+    Choose which version will be your "primary" Python (e.g., 3.15).
+  </Step>
+
+  <Step title="Install primary version">
+    ```bash
+    # In Python 3.15 directory
+    ./configure --prefix=/usr/local
+    make
+    make install
+    ```
+  </Step>
+
+  <Step title="Install other versions with altinstall">
+    ```bash
+    # In Python 3.14 directory
+    ./configure --prefix=/usr/local
+    make
+    make altinstall
+    ```
+  </Step>
+</Steps>
+
+`make altinstall` prevents overwriting the `python3` symlink.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Build fails with missing dependencies">
+    Some standard library modules require external libraries. The build will succeed but those modules will be unavailable. Check:
+    ```bash
+    # After build, check for missing modules
+    ./python -c "import ssl"  # Test SSL
+    ./python -c "import tkinter"  # Test Tk
+    ```
+    Install missing dependencies and rebuild.
+  </Accordion>
+
+  <Accordion title="make test fails on optional modules">
+    Messages about skipped tests for optional features are normal:
+    ```
+    test_ssl skipped -- No module named '_ssl'
+    ```
+    Only worry about actual failures or tracebacks.
+  </Accordion>
+
+  <Accordion title="Stale build artifacts">
+    If you're seeing weird behavior:
+    ```bash
+    make clean
+    ./configure
+    make
+    ```
+  </Accordion>
+
+  <Accordion title="Permission errors during install">
+    For system-wide installation:
+    ```bash
+    sudo make install
+    ```
+    For development, consider installing to a user directory:
+    ```bash
+    ./configure --prefix=$HOME/.local
+    make
+    make install
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Verifying Your Build
+
+After building, verify it works:
+
+```bash
+# Run the interpreter
+./python
+
+# Check version
+./python --version
+
+# Test import
+./python -c "import sys; print(sys.version)"
+
+# Run a simple test
+./python -m test.test_grammar
+```
+
+## Next Steps
+
+- [Run the test suite](/contributing/testing)
+- [Learn the development workflow](/contributing/workflow)
+- [Understand code style guidelines](/contributing/code-style)
+
+## Additional Resources
+
+- [CPython Developer Guide](https://devguide.python.org/)
+- [Special Build Types](/contributing/building#special-builds) (Misc/SpecialBuilds.txt)
+- [GitHub Actions CI](https://github.com/python/cpython/actions)
+- [Azure Pipelines CI](https://dev.azure.com/python/cpython)

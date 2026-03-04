@@ -1,0 +1,465 @@
+---
+title: collections - Specialized Container Datatypes
+description: High-performance container datatypes beyond built-in types
+---
+
+The `collections` module provides specialized container datatypes that extend or provide alternatives to Python's built-in containers (dict, list, set, tuple).
+
+## Module Import
+
+```python
+from collections import Counter, defaultdict, deque, namedtuple, OrderedDict, ChainMap
+```
+
+## Counter - Count Hashable Objects
+
+Dictionary subclass for counting hashable objects.
+
+### Creating Counter
+
+```python
+from collections import Counter
+
+# From iterable
+fruits = ['apple', 'banana', 'apple', 'orange', 'banana', 'apple']
+counter = Counter(fruits)
+print(counter)  # Counter({'apple': 3, 'banana': 2, 'orange': 1})
+
+# From string
+counter = Counter('abracadabra')
+print(counter)  # Counter({'a': 5, 'b': 2, 'r': 2, 'c': 1, 'd': 1})
+
+# From dictionary
+counter = Counter({'red': 4, 'blue': 2})
+
+# From keyword arguments
+counter = Counter(cats=4, dogs=8)
+```
+
+### Counter Operations
+
+```python
+from collections import Counter
+
+counter = Counter(['apple', 'banana', 'apple', 'orange', 'banana', 'apple'])
+
+# Get count
+print(counter['apple'])    # 3
+print(counter['grape'])    # 0 (no KeyError)
+
+# Most common
+print(counter.most_common(2))  # [('apple', 3), ('banana', 2)]
+
+# All elements
+print(list(counter.elements()))  # ['apple', 'apple', 'apple', 'banana', 'banana', 'orange']
+
+# Update counts
+counter.update(['banana', 'grape'])
+
+# Subtract counts
+counter.subtract(['apple', 'banana'])
+```
+
+### Counter Arithmetic
+
+```python
+from collections import Counter
+
+c1 = Counter(['a', 'b', 'c', 'a'])
+c2 = Counter(['a', 'b', 'd'])
+
+# Addition
+print(c1 + c2)  # Counter({'a': 3, 'b': 2, 'c': 1, 'd': 1})
+
+# Subtraction (keep only positive counts)
+print(c1 - c2)  # Counter({'a': 1, 'c': 1})
+
+# Intersection (minimum)
+print(c1 & c2)  # Counter({'a': 1, 'b': 1})
+
+# Union (maximum)
+print(c1 | c2)  # Counter({'a': 2, 'b': 1, 'c': 1, 'd': 1})
+```
+
+## defaultdict - Dict with Default Values
+
+Dictionary subclass that provides default values for missing keys.
+
+### Creating defaultdict
+
+```python
+from collections import defaultdict
+
+# With list as default
+dd = defaultdict(list)
+dd['colors'].append('red')
+dd['colors'].append('blue')
+print(dd)  # defaultdict(<class 'list'>, {'colors': ['red', 'blue']})
+
+# With int as default (useful for counting)
+dd = defaultdict(int)
+for word in ['apple', 'banana', 'apple']:
+    dd[word] += 1
+print(dd)  # defaultdict(<class 'int'>, {'apple': 2, 'banana': 1})
+
+# With set as default
+dd = defaultdict(set)
+dd['tags'].add('python')
+dd['tags'].add('coding')
+
+# With custom default
+def default_value():
+    return 'N/A'
+
+dd = defaultdict(default_value)
+print(dd['missing'])  # 'N/A'
+```
+
+### Practical Uses
+
+```python
+from collections import defaultdict
+
+# Group by key
+data = [('fruit', 'apple'), ('veg', 'carrot'), ('fruit', 'banana')]
+grouped = defaultdict(list)
+for category, item in data:
+    grouped[category].append(item)
+print(dict(grouped))  # {'fruit': ['apple', 'banana'], 'veg': ['carrot']}
+
+# Count by category
+words = ['apple', 'banana', 'apple', 'cherry', 'banana']
+count = defaultdict(int)
+for word in words:
+    count[word] += 1
+
+# Nested defaultdict
+tree = lambda: defaultdict(tree)
+users = tree()
+users['john']['age'] = 30
+users['john']['city'] = 'NYC'
+```
+
+## deque - Double-Ended Queue
+
+List-like container with fast appends and pops on both ends.
+
+### Creating deque
+
+```python
+from collections import deque
+
+# Empty deque
+d = deque()
+
+# From iterable
+d = deque([1, 2, 3, 4, 5])
+
+# With maximum length
+d = deque([1, 2, 3], maxlen=5)
+```
+
+### deque Operations
+
+```python
+from collections import deque
+
+d = deque([1, 2, 3])
+
+# Append to right
+d.append(4)  # deque([1, 2, 3, 4])
+
+# Append to left
+d.appendleft(0)  # deque([0, 1, 2, 3, 4])
+
+# Pop from right
+right = d.pop()  # 4, deque([0, 1, 2, 3])
+
+# Pop from left
+left = d.popleft()  # 0, deque([1, 2, 3])
+
+# Extend
+d.extend([4, 5])  # deque([1, 2, 3, 4, 5])
+d.extendleft([0, -1])  # deque([-1, 0, 1, 2, 3, 4, 5])
+
+# Rotate
+d.rotate(2)  # Rotate right
+d.rotate(-2)  # Rotate left
+```
+
+### deque Use Cases
+
+```python
+from collections import deque
+
+# Fixed-size rolling window
+window = deque(maxlen=3)
+for i in range(10):
+    window.append(i)
+    print(list(window))  # Always max 3 items
+
+# Queue (FIFO)
+queue = deque()
+queue.append('first')
+queue.append('second')
+item = queue.popleft()  # 'first'
+
+# Stack (LIFO)
+stack = deque()
+stack.append('first')
+stack.append('second')
+item = stack.pop()  # 'second'
+```
+
+## namedtuple - Tuple with Named Fields
+
+Factory function for creating tuple subclasses with named fields.
+
+### Creating namedtuple
+
+```python
+from collections import namedtuple
+
+# Define a namedtuple class
+Point = namedtuple('Point', ['x', 'y'])
+
+# Create instances
+p1 = Point(10, 20)
+p2 = Point(x=5, y=15)
+
+# Access fields
+print(p1.x)  # 10
+print(p1.y)  # 20
+
+# Also works with indexing
+print(p1[0])  # 10
+
+# Unpack like regular tuple
+x, y = p1
+```
+
+### namedtuple Features
+
+```python
+from collections import namedtuple
+
+Person = namedtuple('Person', ['name', 'age', 'city'])
+person = Person('Alice', 30, 'NYC')
+
+# Convert to dict
+print(person._asdict())  # {'name': 'Alice', 'age': 30, 'city': 'NYC'}
+
+# Replace fields (returns new instance)
+updated = person._replace(age=31)
+print(updated)  # Person(name='Alice', age=31, city='NYC')
+
+# Get field names
+print(Person._fields)  # ('name', 'age', 'city')
+
+# Create from iterable
+data = ['Bob', 25, 'LA']
+person = Person._make(data)
+
+# With defaults (Python 3.7+)
+Person = namedtuple('Person', ['name', 'age', 'city'], defaults=['Unknown', 0, 'Unknown'])
+```
+
+## OrderedDict - Dictionary That Remembers Order
+
+<Note>
+  As of Python 3.7+, regular dicts maintain insertion order. OrderedDict is mainly useful for its additional methods.
+</Note>
+
+```python
+from collections import OrderedDict
+
+# Create ordered dictionary
+od = OrderedDict()
+od['first'] = 1
+od['second'] = 2
+od['third'] = 3
+
+# Move to end
+od.move_to_end('first')  # Moves 'first' to the end
+od.move_to_end('third', last=False)  # Moves 'third' to the beginning
+
+# Pop items
+od.popitem(last=True)  # Pop from end (LIFO)
+od.popitem(last=False)  # Pop from beginning (FIFO)
+```
+
+## ChainMap - Combine Multiple Dicts
+
+Groups multiple dictionaries into a single view.
+
+```python
+from collections import ChainMap
+
+# Combine dictionaries
+defaults = {'color': 'red', 'user': 'guest'}
+config = {'user': 'admin'}
+
+combined = ChainMap(config, defaults)
+print(combined['user'])   # 'admin' (from config)
+print(combined['color'])  # 'red' (from defaults)
+
+# Update only affects first mapping
+combined['user'] = 'root'
+print(config)  # {'user': 'root'}
+print(defaults)  # {'color': 'red', 'user': 'guest'}
+
+# Add new mapping
+new_config = {'theme': 'dark'}
+combined = combined.new_child(new_config)
+```
+
+## Practical Examples
+
+### Word Frequency Analysis
+
+```python
+from collections import Counter
+import re
+
+def analyze_text(text):
+    """Analyze word frequencies in text"""
+    words = re.findall(r'\w+', text.lower())
+    counter = Counter(words)
+    
+    print(f"Total words: {len(words)}")
+    print(f"Unique words: {len(counter)}")
+    print("\nTop 10 most common:")
+    for word, count in counter.most_common(10):
+        print(f"  {word}: {count}")
+
+# Usage
+text = "Python is great. Python is powerful. Python is easy to learn."
+analyze_text(text)
+```
+
+### LRU Cache Implementation
+
+```python
+from collections import OrderedDict
+
+class LRUCache:
+    def __init__(self, capacity):
+        self.cache = OrderedDict()
+        self.capacity = capacity
+    
+    def get(self, key):
+        if key not in self.cache:
+            return None
+        # Move to end (most recently used)
+        self.cache.move_to_end(key)
+        return self.cache[key]
+    
+    def put(self, key, value):
+        if key in self.cache:
+            self.cache.move_to_end(key)
+        self.cache[key] = value
+        if len(self.cache) > self.capacity:
+            # Remove least recently used
+            self.cache.popitem(last=False)
+
+# Usage
+cache = LRUCache(3)
+cache.put('a', 1)
+cache.put('b', 2)
+cache.put('c', 3)
+cache.put('d', 4)  # 'a' is evicted
+```
+
+### Group Items by Property
+
+```python
+from collections import defaultdict
+
+data = [
+    {'name': 'Alice', 'dept': 'Engineering'},
+    {'name': 'Bob', 'dept': 'Sales'},
+    {'name': 'Charlie', 'dept': 'Engineering'},
+]
+
+# Group by department
+by_dept = defaultdict(list)
+for person in data:
+    by_dept[person['dept']].append(person['name'])
+
+print(dict(by_dept))
+# {'Engineering': ['Alice', 'Charlie'], 'Sales': ['Bob']}
+```
+
+### Sliding Window Average
+
+```python
+from collections import deque
+
+def moving_average(data, window_size):
+    """Calculate moving average with sliding window"""
+    window = deque(maxlen=window_size)
+    averages = []
+    
+    for value in data:
+        window.append(value)
+        if len(window) == window_size:
+            avg = sum(window) / window_size
+            averages.append(avg)
+    
+    return averages
+
+# Usage
+data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+averages = moving_average(data, 3)
+print(averages)  # [2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+```
+
+## Best Practices
+
+<Tip>
+  **Use Counter for frequency analysis:**
+  Counter is optimized for counting and provides useful methods like `most_common()`.
+  ```python
+  from collections import Counter
+  
+  # Fast and readable
+  counts = Counter(items)
+  
+  # Instead of
+  counts = {}
+  for item in items:
+      counts[item] = counts.get(item, 0) + 1
+  ```
+</Tip>
+
+<Tip>
+  **Use deque for queues and stacks:**
+  deque has O(1) append and pop from both ends, unlike lists.
+  ```python
+  from collections import deque
+  
+  # Efficient queue
+  queue = deque()
+  queue.append(item)  # O(1)
+  queue.popleft()     # O(1)
+  
+  # List is slower for queues
+  queue = []
+  queue.append(item)  # O(1)
+  queue.pop(0)        # O(n)
+  ```
+</Tip>
+
+## Related Modules
+
+<CardGroup cols={2}>
+  <Card title="Built-in Types" icon="shapes" href="/library/built-in-types">
+    Standard container types
+  </Card>
+  <Card title="itertools" icon="repeat" href="/library/itertools">
+    Iterator building blocks
+  </Card>
+  <Card title="heapq" icon="layer-group">
+    Heap queue algorithm
+  </Card>
+</CardGroup>

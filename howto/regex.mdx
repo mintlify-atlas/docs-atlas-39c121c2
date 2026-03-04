@@ -1,0 +1,319 @@
+---
+title: Regular Expressions
+description: Practical guide to using regular expressions in Python
+---
+
+Regular expressions (called REs, regexes, or regex patterns) are a powerful tool for matching text patterns in Python using the `re` module.
+
+## Getting Started
+
+### Compiling Patterns
+
+Compile a regular expression pattern into a pattern object for reuse:
+
+```python
+import re
+
+p = re.compile('[a-z]+')
+result = p.match('tempo')
+```
+
+### Basic Matching
+
+Match patterns at the beginning of strings:
+
+```python
+import re
+
+p = re.compile('[a-z]+')
+m = p.match('tempo')
+if m:
+    print('Match found:', m.group())
+else:
+    print('No match')
+```
+
+## Pattern Syntax
+
+### Character Classes
+
+Match specific sets of characters:
+
+- `[abc]` - matches 'a', 'b', or 'c'
+- `[a-z]` - matches any lowercase letter
+- `[^5]` - matches any character except '5'
+
+```python
+p = re.compile('[a-z]+')
+p.match('abc')  # Matches
+p.match('123')  # Doesn't match
+```
+
+### Special Sequences
+
+Pre-defined character sets:
+
+- `\d` - any decimal digit `[0-9]`
+- `\D` - any non-digit `[^0-9]`
+- `\s` - any whitespace character
+- `\S` - any non-whitespace character
+- `\w` - any alphanumeric character `[a-zA-Z0-9_]`
+- `\W` - any non-alphanumeric character
+
+```python
+# Extract all digits from a string
+p = re.compile(r'\d+')
+p.findall('12 drummers drumming, 11 pipers piping')
+# Returns: ['12', '11']
+```
+
+<Warning>
+Always use raw strings (prefix with `r`) for regex patterns to avoid backslash issues:
+```python
+# Good
+re.compile(r'\bclass\b')
+
+# Bad - backslash gets interpreted by Python first
+re.compile('\bclass\b')
+```
+</Warning>
+
+## Repetition
+
+Specify how many times to match:
+
+- `*` - 0 or more times
+- `+` - 1 or more times
+- `?` - 0 or 1 time
+- `{m,n}` - at least m, at most n times
+
+```python
+# Match 'a' followed by zero or more 'b's
+p = re.compile('ab*')
+p.match('a')     # Matches
+p.match('ab')    # Matches
+p.match('abb')   # Matches
+```
+
+## Searching and Finding
+
+<Steps>
+
+### Choose the Right Method
+
+Different methods for different needs:
+
+```python
+import re
+
+p = re.compile(r'\d+')
+text = 'There are 12 drummers and 11 pipers'
+
+# match() - checks beginning only
+p.match(text)  # Returns None
+
+# search() - finds first match anywhere
+m = p.search(text)
+m.group()  # Returns '12'
+
+# findall() - returns all matches as list
+p.findall(text)  # Returns ['12', '11']
+
+# finditer() - returns iterator of match objects
+for match in p.finditer(text):
+    print(match.group(), 'at position', match.start())
+```
+
+### Extract Match Details
+
+Get information about matches:
+
+```python
+m = p.search('::: message')
+if m:
+    print(m.group())   # The matched string
+    print(m.start())   # Starting position
+    print(m.end())     # Ending position
+    print(m.span())    # Tuple of (start, end)
+```
+
+</Steps>
+
+## Grouping
+
+Capture parts of the pattern:
+
+```python
+# Parse RFC-822 header
+p = re.compile(r'(\w+):\s*(.+)')
+m = p.match('From: author@example.com')
+
+if m:
+    print(m.group(0))  # Entire match
+    print(m.group(1))  # First group: 'From'
+    print(m.group(2))  # Second group: 'author@example.com'
+```
+
+### Named Groups
+
+Use names instead of numbers:
+
+```python
+p = re.compile(r'(?P<word>\b\w+\b)')
+m = p.search('(((( Lots of punctuation ))))')
+
+print(m.group('word'))  # 'Lots'
+print(m.group(1))       # Also 'Lots'
+```
+
+### Backreferences
+
+Match repeated patterns:
+
+```python
+# Find doubled words
+p = re.compile(r'\b(\w+)\s+\1\b')
+p.search('Paris in the the spring').group()
+# Returns: 'the the'
+```
+
+## String Modification
+
+### Splitting
+
+Split strings on pattern matches:
+
+```python
+p = re.compile(r'\W+')
+p.split('This is a test, short and sweet.')
+# Returns: ['This', 'is', 'a', 'test', 'short', 'and', 'sweet', '']
+```
+
+### Substitution
+
+Replace pattern matches:
+
+```python
+p = re.compile(r'section{\s*(\w+)\s*}')
+p.sub(r'subsection{\1}', 'section{ Intro }')
+# Returns: 'subsection{Intro}'
+```
+
+## Compilation Flags
+
+Modify pattern behavior:
+
+```python
+# Case-insensitive matching
+p = re.compile('[a-z]+', re.IGNORECASE)
+p.match('SPAM')  # Matches
+
+# Multi-line mode
+p = re.compile('^From', re.MULTILINE)
+
+# Dot matches newlines
+p = re.compile('a.*b', re.DOTALL)
+
+# Verbose mode for readable patterns
+charref = re.compile(r"""
+ &[#]                # Start of numeric entity
+ (
+     0[0-7]+         # Octal form
+   | [0-9]+          # Decimal form  
+   | x[0-9a-fA-F]+   # Hexadecimal form
+ )
+ ;                   # Trailing semicolon
+""", re.VERBOSE)
+```
+
+## Common Patterns
+
+### Email Validation
+
+```python
+email_pattern = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
+email_pattern.match('user@example.com')
+```
+
+### Phone Numbers
+
+```python
+phone_pattern = re.compile(r'\d{3}[-.]?\d{3}[-.]?\d{4}')
+phone_pattern.findall('Call 555-123-4567 or 555.987.6543')
+# Returns: ['555-123-4567', '555.987.6543']
+```
+
+### URL Extraction
+
+```python
+url_pattern = re.compile(r'https?://[^\s]+')
+url_pattern.findall('Visit https://python.org and http://docs.python.org')
+```
+
+## Best Practices
+
+<Warning>
+**Performance Tip:** Compile patterns that are used multiple times:
+
+```python
+# Good - compile once
+pattern = re.compile(r'\d+')
+for line in large_file:
+    pattern.search(line)
+
+# Bad - recompiles every iteration
+for line in large_file:
+    re.search(r'\d+', line)
+```
+</Warning>
+
+<Note>
+**When NOT to Use Regex:** For simple string operations, use string methods:
+
+```python
+# Use this
+if 'python' in text.lower():
+    ...
+
+# Not this  
+if re.search(r'python', text, re.IGNORECASE):
+    ...
+```
+</Note>
+
+## Common Gotchas
+
+### Greedy vs Non-Greedy
+
+By default, repetition is greedy:
+
+```python
+# Greedy (matches as much as possible)
+re.match(r'<.*>', '<h1>Title</h1>').group()
+# Returns: '<h1>Title</h1>'
+
+# Non-greedy (matches as little as possible)
+re.match(r'<.*?>', '<h1>Title</h1>').group()
+# Returns: '<h1>'
+```
+
+### Anchors Matter
+
+```python
+# Match at beginning only
+re.match(r'\d+', 'abc 123')  # None
+
+# Search anywhere
+re.search(r'\d+', 'abc 123')  # Matches '123'
+```
+
+## Reference
+
+Key `re` module functions:
+
+- `compile(pattern, flags=0)` - Compile a pattern
+- `match(pattern, string, flags=0)` - Match at string start
+- `search(pattern, string, flags=0)` - Search anywhere
+- `findall(pattern, string, flags=0)` - Find all matches
+- `sub(pattern, repl, string, count=0, flags=0)` - Replace matches
+- `split(pattern, string, maxsplit=0, flags=0)` - Split on pattern

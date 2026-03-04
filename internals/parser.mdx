@@ -1,0 +1,419 @@
+---
+title: Parser Guide
+description: Comprehensive guide to CPython's PEG parser and grammar
+---
+
+# Guide to the Parser
+
+CPython uses a PEG (Parsing Expression Grammar) parser introduced in Python 3.9 to replace the original LL(1) parser.
+
+## PEG Parser Overview
+
+The parser is **generated** from a grammar file by a parser generator, not hand-written.
+
+### Key Files
+
+- **Grammar/python.gram** - Python grammar specification
+- **Parser/parser.c** - Generated C parser code
+- **Tools/peg_generator/** - Parser generator (Pegen)
+
+<Info>
+To change Python's syntax, modify [Grammar/python.gram](https://github.com/python/cpython/blob/main/Grammar/python.gram), then run `make regen-pegen`.
+</Info>
+
+## How PEG Parsers Work
+
+PEG differs fundamentally from context-free grammars.
+
+### Ordered Choice
+
+The choice operator (`|`) is **ordered**:
+
+```
+rule: A | B | C
+```
+
+- PEG: Try A first. If succeeds, done. Otherwise try B, then C.
+- CFG: Deduce which alternative applies based on lookahead.
+
+<Note>
+**Critical Difference:** In PEG, `A | B` is NOT the same as `B | A`!
+</Note>
+
+### Example: Order Matters
+
+```
+first_rule:  ('a' | 'aa') 'a'
+second_rule: ('aa' | 'a') 'a'
+```
+
+- `first_rule` accepts `aa` but not `aaa`
+  - `'a'` matches first char, leaving `'aa'` for the final `'a'` (fails)
+- `second_rule` accepts `aaa` but not `aa`  
+  - `'aa'` matches first two chars, leaving one for final `'a'`
+
+### Eagerness
+
+PEG parsers are **eager**: Once an alternative succeeds, no backtracking to try other alternatives even if the overall parse fails.
+
+### Common Mistake
+
+This grammar is **wrong**:
+
+```
+my_rule:
+  | 'if' expression 'then' block
+  | 'if' expression 'then' block 'else' block
+```
+
+Second alternative never tried! First alternative always matches and consumes the input, leaving no chance for second.
+
+**Fix:** Reorder alternatives (longest first):
+
+```
+my_rule:
+  | 'if' expression 'then' block 'else' block
+  | 'if' expression 'then' block
+```
+
+## Grammar Syntax
+
+### Basic Rule Format
+
+```
+rule_name: expression
+```
+
+With return type:
+
+```
+rule_name[return_type]: expression
+```
+
+### Grammar Expressions
+
+| Expression | Description | Example |
+|------------|-------------|----------|
+| `# comment` | Python-style comments | `# This is a comment` |
+| `e1 e2` | Sequence | `'if' expression ':'` |
+| `e1 \| e2` | Ordered choice | `'(' expr ')' \| atom` |
+| `(e)` | Grouping | `('a' 'b')*` |
+| `[e]` or `e?` | Optional | `[',']` or `','?` |
+| `e*` | Zero or more | `statement*` |
+| `e+` | One or more | `'a'+` |
+| `s.e+` | Sep-separated | `','.expression+` |
+| `&e` | Positive lookahead | `&'('` |
+| `!e` | Negative lookahead | `!')'` |
+| `~` | Commit/cut | `'(' ~ expr ')'` |
+
+### Variables
+
+Name sub-expressions for use in actions:
+
+```
+rule_name[return_type]: '(' a=some_other_rule ')' { a }
+```
+
+### Actions
+
+Specify return value in curly braces:
+
+```
+rule[expr_ty]:
+    | l=expr '+' r=term { _PyAST_BinOp(l, Add, r, EXTRA) }
+    | l=expr '-' r=term { _PyAST_BinOp(l, Sub, r, EXTRA) }
+    | term
+```
+
+<Note>
+**Critical:** Actions must NOT mutate AST nodes passed via variables. Nodes are cached by memoization and might be reused. Create new copies if modification needed.
+</Note>
+
+## Left Recursion
+
+PEG parsers typically don't support left recursion, but CPython's does!
+
+### Examples
+
+**Simple:**
+```
+expr: expr '+' term | term
+```
+
+**Indirect:**
+```
+rule1: rule2 | 'a'
+rule2: rule3 | 'b'  
+rule3: rule1 | 'c'
+```
+
+**Hidden:**
+```
+rule: 'optional'? rule '@' other
+```
+
+All work in CPython's parser!
+
+## Memoization
+
+Memoization caches parse results to avoid exponential time.
+
+### Selective Memoization
+
+CPython **disables** memoization by default except for rules marked `(memo)`:
+
+```
+rule_name[type] (memo):
+    | alternative1
+    | alternative2
+```
+
+<Note>
+Left-recursive rules always use memoization (required for the algorithm).
+</Note>
+
+### Why Selective?
+
+Full memoization:
+- Uses significant memory
+- Has execution overhead (cache lookups)
+- Often slower than re-parsing for simple rules
+
+Benchmark each rule to determine if memoization helps.
+
+## Keywords
+
+### Hard Keywords
+
+Always reserved (single quotes in grammar):
+
+```python
+'class' | 'def' | 'if' | 'for' | ...
+```
+
+Cannot be used as identifiers:
+
+```python
+>>> class = 5
+SyntaxError: invalid syntax
+```
+
+### Soft Keywords
+
+Contextual (double quotes in grammar):
+
+```python
+"match" | "case" | "type"
+```
+
+Only keywords in specific contexts:
+
+```python
+>>> match = 5  # OK, not in match statement context
+>>> match 5:   # Now it's a keyword
+...     case 1: pass
+```
+
+### Listing Keywords
+
+```python
+import keyword
+
+print(keyword.kwlist)      # Hard keywords
+print(keyword.softkwlist)  # Soft keywords  
+```
+
+## Error Handling
+
+### Generic Errors
+
+PEG's error heuristic: Report error at **furthest token** that failed to match.
+
+<Info>
+This heuristic works well for Python's grammar but isn't perfect. Lookaheads can affect error location.
+</Info>
+
+### Custom Errors
+
+Use `invalid_` rules for better error messages:
+
+```
+invalid_print_statement:
+    | "print" expression { 
+        RAISE_SYNTAX_ERROR("Missing parentheses in call to 'print'") 
+      }
+```
+
+### Two-Phase Parsing
+
+**Phase 1:** Parse without `invalid_` rules
+- If succeeds: Return AST, skip phase 2
+
+**Phase 2:** Parse with `invalid_` rules (only if phase 1 failed)
+- Try to match specific error patterns
+- Raise custom `SyntaxError` with helpful message
+
+<Note>
+All `invalid_` rules **must** start with `invalid_` prefix to avoid impacting phase 1 performance.
+</Note>
+
+### Testing Invalid Rules
+
+Add syntax error after valid code:
+
+```python
+valid_code() $ illegal_token
+```
+
+If your `invalid_` rule works, error reports at `$`. If not, it reports elsewhere.
+
+## Automatic Variables
+
+Pegen injects variables into action scope:
+
+- `p` - Parser structure
+- `EXTRA` - Expands to `(_start_lineno, _start_col_offset, _end_lineno, _end_col_offset, p->arena)`
+
+Used in AST node constructors:
+
+```c
+_PyAST_BinOp(left, op, right, EXTRA)
+```
+
+## Regenerating the Parser
+
+### After Grammar Changes
+
+```bash
+make regen-pegen
+```
+
+Windows:
+```dos
+PCbuild/build.bat --regen
+```
+
+### Regenerating Meta-Parser
+
+If you modify [Tools/peg_generator/pegen/metagrammar.gram](https://github.com/python/cpython/blob/main/Tools/peg_generator/pegen/metagrammar.gram):
+
+```bash
+make regen-pegen-metaparser
+```
+
+## Tokenization
+
+CPython's tokenizer is separate from the parser (unlike many PEG implementations).
+
+### Token List
+
+Defined in [Grammar/Tokens](https://github.com/python/cpython/blob/main/Grammar/Tokens).
+
+After modifying:
+
+```bash
+make regen-token
+```
+
+### Why Separate Tokenizer?
+
+Python needs custom tokenization for:
+- Indentation handling (INDENT/DEDENT tokens)
+- Soft keywords (`async`, `await` compatibility)
+- Interactive mode
+- Encoding detection
+- Better error messages
+
+## Debugging
+
+### Python Parser (Experimentation)
+
+Generate Python parser for testing:
+
+```bash
+cd Tools/peg_generator
+python -m pegen python grammar_file.gram
+```
+
+Test it:
+
+```bash
+python parse.py test_file.py
+```
+
+Python parser easier to debug than C version.
+
+### Verbose Mode
+
+Compile Python in debug mode:
+
+```bash
+./configure --with-pydebug
+make
+```
+
+Run with verbose parsing:
+
+```bash  
+python -d script.py 2> trace.txt
+```
+
+Output format:
+
+```
+<indent> ('>'|'-'|'+'|'!') rule_name[token_location]: alternative ...
+```
+
+- `>` - Trying to parse rule
+- `+` - Rule parsed successfully
+- `-` - Rule failed  
+- `!` - Exception/error detected
+
+## Example Grammar
+
+Simple arithmetic parser:
+
+```
+start[mod_ty]: a=expr_stmt* ENDMARKER { _PyAST_Module(a, NULL, p->arena) }
+expr_stmt[stmt_ty]: a=expr NEWLINE { _PyAST_Expr(a, EXTRA) }
+
+expr[expr_ty]:
+    | l=expr '+' r=term { _PyAST_BinOp(l, Add, r, EXTRA) }
+    | l=expr '-' r=term { _PyAST_BinOp(l, Sub, r, EXTRA) }
+    | term
+
+term[expr_ty]:
+    | l=term '*' r=factor { _PyAST_BinOp(l, Mult, r, EXTRA) }
+    | l=term '/' r=factor { _PyAST_BinOp(l, Div, r, EXTRA) }
+    | factor
+
+factor[expr_ty]:
+    | '(' e=expr ')' { e }
+    | atom
+
+atom[expr_ty]:
+    | NAME
+    | NUMBER
+```
+
+This grammar:
+- Parses expressions with `+`, `-`, `*`, `/`
+- Handles parentheses
+- Respects operator precedence (multiplication before addition)
+- Uses left recursion for left associativity
+
+## Testing
+
+Grammar tests in:
+- [Lib/test/test_grammar.py](https://github.com/python/cpython/blob/main/Lib/test/test_grammar.py)
+- [Lib/test/test_syntax.py](https://github.com/python/cpython/blob/main/Lib/test/test_syntax.py)
+- [Lib/test/test_exceptions.py](https://github.com/python/cpython/blob/main/Lib/test/test_exceptions.py)
+
+Parser generator tests:
+- [Lib/test/test_peg_generator/](https://github.com/python/cpython/tree/main/Lib/test/test_peg_generator)
+
+## Related Topics
+
+- [Compiler Design](/internals/compiler) - What happens after parsing
+- [Source Code Structure](/internals/structure) - Where parser files live
+- [PEP 617](https://peps.python.org/pep-0617/) - New PEG parser specification

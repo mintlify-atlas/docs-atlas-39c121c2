@@ -1,0 +1,523 @@
+---
+title: Logging
+description: Practical guide to using Python's logging module for debugging and monitoring
+---
+
+Logging is a means of tracking events that happen when software runs. It's essential for debugging, monitoring, and understanding application behavior.
+
+## When to Use Logging
+
+| Task | Tool |
+|------|------|
+| Display console output for CLI scripts | `print()` |
+| Report events during normal operation | `logger.info()` or `logger.debug()` |
+| Issue a warning about a runtime event | `logger.warning()` |
+| Report an error but continue running | `logger.error()` or `logger.exception()` |
+| Report a critical error | `logger.critical()` |
+| Suppress an error without raising exception | `logger.error()` |
+
+## Quick Start
+
+<Steps>
+
+### Import and Configure
+
+Simplest setup:
+
+```python
+import logging
+
+# Configure basic logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Create a logger
+logger = logging.getLogger(__name__)
+```
+
+### Use the Logger
+
+```python
+logger.debug('This is a debug message')
+logger.info('This is an info message')
+logger.warning('This is a warning message')
+logger.error('This is an error message')
+logger.critical('This is a critical message')
+```
+
+### Output
+
+```
+DEBUG:__main__:This is a debug message
+INFO:__main__:This is an info message
+WARNING:__main__:This is a warning message
+ERROR:__main__:This is an error message
+CRITAL:__main__:This is a critical message
+```
+
+</Steps>
+
+## Logging Levels
+
+Levels in order of severity:
+
+| Level | Value | When to Use |
+|-------|-------|-------------|
+| `DEBUG` | 10 | Detailed diagnostic information |
+| `INFO` | 20 | Confirmation that things are working |
+| `WARNING` | 30 | Something unexpected happened |
+| `ERROR` | 40 | Serious problem, function couldn't complete |
+| `CRITICAL` | 50 | Program may be unable to continue |
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Only INFO and above will be logged
+
+logger.debug('Not shown')      # Below threshold
+logger.info('Shown')           # At or above threshold
+logger.warning('Shown')        # At or above threshold
+```
+
+## Logging to Files
+
+### Basic File Logging
+
+```python
+import logging
+
+logging.basicConfig(
+    filename='app.log',
+    encoding='utf-8',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+logger = logging.getLogger(__name__)
+logger.info('Application started')
+```
+
+### File Modes
+
+```python
+# Append mode (default)
+logging.basicConfig(filename='app.log', filemode='a')
+
+# Overwrite mode
+logging.basicConfig(filename='app.log', filemode='w')
+```
+
+## Format Strings
+
+### Common Format Attributes
+
+```python
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+```
+
+Useful attributes:
+- `%(name)s` - Logger name
+- `%(levelname)s` - Logging level
+- `%(message)s` - Log message
+- `%(asctime)s` - Timestamp
+- `%(filename)s` - Source filename
+- `%(lineno)d` - Line number
+- `%(funcName)s` - Function name
+- `%(process)d` - Process ID
+- `%(thread)d` - Thread ID
+
+### Custom Formatting
+
+```python
+logging.basicConfig(
+    format='[%(levelname)s] %(asctime)s | %(name)s:%(lineno)d | %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+```
+
+Output:
+```
+[INFO] 2024-03-04 14:30:15 | __main__:42 | User logged in
+```
+
+## Variable Data
+
+### Using Format Strings
+
+```python
+logger.info('User %s logged in from %s', username, ip_address)
+logger.warning('%d failed login attempts', attempt_count)
+```
+
+<Warning>
+**Don't format strings manually:**
+
+```python
+# Bad - formats even if not logged
+logger.debug('User: ' + str(user) + ' data: ' + str(data))
+
+# Good - only formats if logged
+logger.debug('User: %s data: %s', user, data)
+```
+</Warning>
+
+## Advanced Configuration
+
+<Steps>
+
+### Create Logger with Handlers
+
+```python
+import logging
+
+# Create logger
+logger = logging.getLogger('my_app')
+logger.setLevel(logging.DEBUG)
+
+# Create console handler
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+
+# Create formatter
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Add formatter to handler
+ch.setFormatter(formatter)
+
+# Add handler to logger
+logger.addHandler(ch)
+```
+
+### Multiple Handlers
+
+Log to both file and console:
+
+```python
+import logging
+
+logger = logging.getLogger('my_app')
+logger.setLevel(logging.DEBUG)
+
+# Console handler - only warnings and above
+console = logging.StreamHandler()
+console.setLevel(logging.WARNING)
+
+# File handler - everything
+file_handler = logging.FileHandler('app.log')
+file_handler.setLevel(logging.DEBUG)
+
+# Format both
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+console.setFormatter(formatter)
+file_handler.setFormatter(formatter)
+
+# Add both handlers
+logger.addHandler(console)
+logger.addHandler(file_handler)
+```
+
+### Rotating Log Files
+
+Prevent log files from growing too large:
+
+```python
+from logging.handlers import RotatingFileHandler
+
+logger = logging.getLogger('my_app')
+
+# Rotate after 10MB, keep 5 backup files
+handler = RotatingFileHandler(
+    'app.log',
+    maxBytes=10*1024*1024,  # 10MB
+    backupCount=5
+)
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+```
+
+### Time-Based Rotation
+
+```python
+from logging.handlers import TimedRotatingFileHandler
+
+# Rotate daily at midnight, keep 30 days
+handler = TimedRotatingFileHandler(
+    'app.log',
+    when='midnight',
+    interval=1,
+    backupCount=30
+)
+```
+
+</Steps>
+
+## Exception Logging
+
+### Log Exceptions with Traceback
+
+```python
+try:
+    result = divide(10, 0)
+except Exception:
+    logger.exception('An error occurred')
+    # This automatically includes the traceback
+```
+
+Output:
+```
+ERROR:__main__:An error occurred
+Traceback (most recent call last):
+  File "app.py", line 42, in <module>
+    result = divide(10, 0)
+ZeroDivisionError: division by zero
+```
+
+### Log Without Traceback
+
+```python
+try:
+    result = divide(10, 0)
+except Exception as e:
+    logger.error('Division failed: %s', e)
+```
+
+## Logger Hierarchy
+
+### Parent-Child Relationships
+
+```python
+import logging
+
+# Parent logger
+parent = logging.getLogger('myapp')
+parent.setLevel(logging.INFO)
+
+# Child loggers inherit from parent
+child1 = logging.getLogger('myapp.module1')
+child2 = logging.getLogger('myapp.module2')
+
+# Configure parent affects children
+handler = logging.StreamHandler()
+parent.addHandler(handler)
+
+# Both children will use parent's handler
+child1.info('From module 1')  # Logged
+child2.info('From module 2')  # Logged
+```
+
+### Best Practice: Module-Level Loggers
+
+```python
+# my_module.py
+import logging
+
+logger = logging.getLogger(__name__)
+
+def my_function():
+    logger.info('Function called')
+```
+
+## Configuration Files
+
+### INI Format
+
+```ini
+# logging.conf
+[loggers]
+keys=root,simpleExample
+
+[handlers]
+keys=consoleHandler,fileHandler
+
+[formatters]
+keys=simpleFormatter
+
+[logger_root]
+level=DEBUG
+handlers=consoleHandler
+
+[logger_simpleExample]
+level=DEBUG
+handlers=consoleHandler,fileHandler
+qualname=simpleExample
+propagate=0
+
+[handler_consoleHandler]
+class=StreamHandler
+level=DEBUG
+formatter=simpleFormatter
+args=(sys.stdout,)
+
+[handler_fileHandler]
+class=FileHandler
+level=DEBUG
+formatter=simpleFormatter
+args=('app.log', 'a')
+
+[formatter_simpleFormatter]
+format=%(asctime)s - %(name)s - %(levelname)s - %(message)s
+```
+
+Load configuration:
+
+```python
+import logging.config
+
+logging.config.fileConfig('logging.conf')
+logger = logging.getLogger('simpleExample')
+```
+
+### Dictionary Configuration
+
+```python
+import logging.config
+
+config = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        }
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'DEBUG',
+            'formatter': 'simple',
+            'stream': 'ext://sys.stdout'
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'level': 'INFO',
+            'formatter': 'simple',
+            'filename': 'app.log'
+        }
+    },
+    'loggers': {
+        'my_app': {
+            'level': 'DEBUG',
+            'handlers': ['console', 'file'],
+            'propagate': False
+        }
+    },
+    'root': {
+        'level': 'INFO',
+        'handlers': ['console']
+    }
+}
+
+logging.config.dictConfig(config)
+logger = logging.getLogger('my_app')
+```
+
+## Library Logging
+
+### For Library Authors
+
+```python
+import logging
+
+# Create a logger for your library
+logger = logging.getLogger('mylib')
+
+# Add a NullHandler to prevent "No handlers" warnings
+logger.addHandler(logging.NullHandler())
+
+def process_data(data):
+    logger.info('Processing %d items', len(data))
+    # Your code here
+```
+
+<Note>
+**Library Best Practices:**
+
+- Use `logging.getLogger(__name__)` in each module
+- Add `NullHandler()` to prevent warnings
+- Never configure handlers in library code
+- Document what loggers your library uses
+</Note>
+
+## Common Patterns
+
+### Conditional Expensive Operations
+
+```python
+if logger.isEnabledFor(logging.DEBUG):
+    logger.debug('Expensive operation result: %s', expensive_operation())
+```
+
+### Context Information
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+def process_user(user_id):
+    # Add context to all log messages in this function
+    logger = logging.LoggerAdapter(logger, {'user_id': user_id})
+    logger.info('Processing user')
+    # Output: INFO - Processing user - user_id=12345
+```
+
+### Web Request Logging
+
+```python
+import logging
+from flask import request
+
+logger = logging.getLogger(__name__)
+
+@app.route('/api/endpoint')
+def endpoint():
+    logger.info(
+        'Request from %s to %s',
+        request.remote_addr,
+        request.path
+    )
+    # Handle request
+```
+
+## Troubleshooting
+
+<Warning>
+**Common Issues:**
+
+1. **Duplicate logs:** Check if multiple handlers are added
+2. **No output:** Verify logger level and handler level
+3. **Wrong format:** Check both handler and logger formatters
+4. **File not created:** Check permissions and path
+</Warning>
+
+### Debug Logging Setup
+
+```python
+import logging
+
+# Enable debugging for logging module itself
+logging.basicConfig(level=logging.DEBUG)
+logging.debug('Debug enabled')
+
+# List all loggers
+for name in logging.Logger.manager.loggerDict:
+    print(name)
+```
+
+## Summary
+
+Key takeaways:
+
+1. Use `logger = logging.getLogger(__name__)` in each module
+2. Configure logging once at application entry point
+3. Use appropriate log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+4. Never add handlers in library code
+5. Use `logger.exception()` in except blocks
+6. Format messages with placeholders, not string concatenation

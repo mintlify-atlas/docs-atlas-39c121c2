@@ -1,0 +1,183 @@
+---
+title: Source Code Structure
+description: Overview of CPython's source code organization and file layout
+---
+
+# Source Code Structure
+
+This document provides an overview of CPython's source code organization and the typical layout for modules, built-in types, and built-in functions.
+
+## Source Code Layout
+
+CPython organizes its source code into logical directories based on functionality. Understanding this structure is essential for navigating the codebase and contributing to CPython.
+
+### Python Module Layout
+
+For a Python module, the typical layout is:
+
+- `Lib/<module>.py` - Pure Python implementation
+- `Modules/_<module>.c` - C accelerator module (optional)
+- `Lib/test/test_<module>.py` - Test suite
+- `Doc/library/<module>.rst` - Documentation
+
+### Extension Module Layout
+
+For an extension module written in C:
+
+- `Modules/<module>module.c` - C implementation
+- `Lib/test/test_<module>.py` - Test suite
+- `Doc/library/<module>.rst` - Documentation
+
+### Built-in Type Layout
+
+For built-in types (like `list`, `dict`, `str`):
+
+- `Objects/<builtin>object.c` - C implementation
+- `Lib/test/test_<builtin>.py` - Test suite
+- `Doc/library/stdtypes.rst` - Documentation
+
+### Built-in Function Layout
+
+For built-in functions:
+
+- `Python/bltinmodule.c` - Implementation
+- `Lib/test/test_builtin.py` - Test suite
+- `Doc/library/functions.rst` - Documentation
+
+## Key Directories
+
+### Python/
+
+The `Python/` directory contains the core interpreter implementation:
+
+- **Python/ceval.c** - The bytecode interpreter (evaluation loop)
+- **Python/compile.c** - AST to bytecode compiler
+- **Python/symtable.c** - Symbol table generation
+- **Python/bytecodes.c** - Bytecode instruction definitions
+- **Python/gc.c** - Garbage collector implementation
+- **Python/import.c** - Import machinery
+
+### Objects/
+
+The `Objects/` directory contains implementations of Python's built-in types:
+
+- **Objects/longobject.c** - `int` type implementation
+- **Objects/unicodeobject.c** - `str` type implementation
+- **Objects/listobject.c** - `list` type implementation
+- **Objects/dictobject.c** - `dict` type implementation
+- **Objects/codeobject.c** - Code objects
+- **Objects/frameobject.c** - Frame objects
+- **Objects/genobject.c** - Generator objects
+
+### Parser/
+
+The `Parser/` directory contains the PEG parser implementation:
+
+- **Parser/parser.c** - Generated PEG parser (from python.gram)
+- **Parser/peg_api.c** - High-level parser API
+- **Parser/tokenizer/** - Tokenizer implementation
+- **Parser/Python.asdl** - AST definition in ASDL
+
+### Include/
+
+The `Include/` directory contains C API header files:
+
+- **Include/cpython/** - Public CPython API headers
+- **Include/internal/** - Internal (private) API headers
+- **Include/opcode.h** - Bytecode opcode definitions
+
+### Modules/
+
+The `Modules/` directory contains C implementations of standard library modules:
+
+- **Modules/_json.c** - JSON encoder/decoder
+- **Modules/_struct.c** - Binary data packing
+- **Modules/mathmodule.c** - Math functions
+
+### Grammar/
+
+The `Grammar/` directory contains the Python grammar specification:
+
+- **Grammar/python.gram** - PEG grammar for Python
+- **Grammar/Tokens** - Token definitions
+
+## Notable Exceptions
+
+Some modules deviate from the standard layout:
+
+<Info>
+**Special Cases:**
+
+- Built-in type `int` is at `Objects/longobject.c`
+- Built-in type `str` is at `Objects/unicodeobject.c`
+- Built-in module `sys` is at `Python/sysmodule.c`
+- Built-in module `marshal` is at `Python/marshal.c`
+- Windows-only module `winreg` is at `PC/winreg.c`
+</Info>
+
+## Source File Naming Conventions
+
+### C Source Files
+
+- `*object.c` - Object type implementations
+- `*module.c` - Extension module implementations
+- `_*.c` - Internal/private implementations
+
+### Header Files
+
+- `*.h` - Public API headers
+- `pycore_*.h` - Internal API headers (in `Include/internal/`)
+
+## Directory Structure Overview
+
+```
+CPython/
+├── Doc/              # Documentation (reStructuredText)
+├── Grammar/          # Grammar specification files
+├── Include/          # C API headers
+│   ├── cpython/      # Public CPython-specific API
+│   └── internal/     # Internal (private) API
+├── Lib/              # Standard library (Python)
+│   └── test/         # Standard library tests
+├── Mac/              # macOS-specific files
+├── Misc/             # Miscellaneous files
+├── Modules/          # C extension modules
+├── Objects/          # Built-in object types
+├── Parser/           # Parser and tokenizer
+├── PC/               # Windows-specific files
+├── PCbuild/          # Windows build files
+├── Programs/         # Main programs (python.c)
+├── Python/           # Core interpreter
+└── Tools/            # Development tools
+```
+
+## Finding Code
+
+### Locating Object Implementations
+
+To find the implementation of a built-in type:
+
+1. Check `Objects/<type>object.c` (e.g., `Objects/listobject.c` for `list`)
+2. Notable exceptions: `int` → `longobject.c`, `str` → `unicodeobject.c`
+
+### Locating Module Implementations
+
+To find a module implementation:
+
+1. Pure Python: `Lib/<module>.py`
+2. C extension: `Modules/<module>module.c` or `Modules/_<module>.c`
+3. Built-in: May be in `Python/<module>module.c` (e.g., `sysmodule.c`)
+
+### Locating Bytecode Operations
+
+Bytecode instruction implementations are defined in:
+
+- `Python/bytecodes.c` - Source definitions
+- `Python/generated_cases.c.h` - Generated switch cases
+- `Python/ceval.c` - Main interpreter loop
+
+## Related Topics
+
+- [Compiler Design](/internals/compiler) - How source code becomes bytecode
+- [Bytecode Interpreter](/internals/interpreter) - How bytecode is executed
+- [Code Objects](/internals/code-objects) - Representation of compiled code

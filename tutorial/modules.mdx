@@ -1,0 +1,302 @@
+---
+title: Modules
+description: Learn how to organize Python code into reusable modules and packages
+---
+
+As programs grow larger, you'll want to split them into multiple files for easier maintenance. Python's module system lets you organize and reuse code effectively.
+
+## What is a Module?
+
+A module is a file containing Python definitions and statements. The filename is the module name with the suffix `.py` added.
+
+### Creating a Module
+
+Create a file called `fibo.py`:
+
+```python fibo.py
+# Fibonacci numbers module
+
+def fib(n):
+    """Write Fibonacci series up to n."""
+    a, b = 0, 1
+    while a < n:
+        print(a, end=' ')
+        a, b = b, a+b
+    print()
+
+def fib2(n):
+    """Return Fibonacci series up to n."""
+    result = []
+    a, b = 0, 1
+    while a < n:
+        result.append(a)
+        a, b = b, a+b
+    return result
+```
+
+### Using a Module
+
+Import and use the module:
+
+```python
+>>> import fibo
+>>> fibo.fib(1000)
+0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987
+>>> fibo.fib2(100)
+[0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
+>>> fibo.__name__
+'fibo'
+```
+
+Assign functions to local names:
+
+```python
+>>> fib = fibo.fib
+>>> fib(500)
+0 1 1 2 3 5 8 13 21 34 55 89 144 233 377
+```
+
+## More on Modules
+
+Modules can contain executable statements as well as function definitions. These statements initialize the module and run only the **first time** the module is imported.
+
+### Import Variants
+
+Import specific names:
+
+```python
+>>> from fibo import fib, fib2
+>>> fib(500)
+0 1 1 2 3 5 8 13 21 34 55 89 144 233 377
+```
+
+Import all names (not recommended):
+
+```python
+>>> from fibo import *
+>>> fib(500)
+0 1 1 2 3 5 8 13 21 34 55 89 144 233 377
+```
+
+<Warning>
+Using `from module import *` is generally frowned upon as it can introduce an unknown set of names into your namespace and hide definitions you've already made.
+</Warning>
+
+Import with an alias:
+
+```python
+>>> import fibo as fib
+>>> fib.fib(500)
+0 1 1 2 3 5 8 13 21 34 55 89 144 233 377
+
+>>> from fibo import fib as fibonacci
+>>> fibonacci(500)
+0 1 1 2 3 5 8 13 21 34 55 89 144 233 377
+```
+
+## Executing Modules as Scripts
+
+Add this code to make your module executable:
+
+```python fibo.py
+if __name__ == "__main__":
+    import sys
+    fib(int(sys.argv[1]))
+```
+
+Now you can run it:
+
+```bash
+$ python fibo.py 50
+0 1 1 2 3 5 8 13 21 34
+```
+
+When imported, the code doesn't run:
+
+```python
+>>> import fibo
+>>>
+```
+
+<Info>
+This pattern is commonly used to provide a convenient interface for testing purposes or to make modules usable both as scripts and importable libraries.
+</Info>
+
+## The Module Search Path
+
+When importing a module named `spam`, Python searches:
+
+1. Built-in modules (listed in `sys.builtin_module_names`)
+2. Directories in `sys.path`, which includes:
+   - The directory containing the input script (or current directory)
+   - `PYTHONPATH` (environment variable)
+   - Installation-dependent defaults (including `site-packages`)
+
+You can modify `sys.path` at runtime:
+
+```python
+>>> import sys
+>>> sys.path.append('/ufs/guido/lib/python')
+```
+
+## Compiled Python Files
+
+Python caches compiled modules in the `__pycache__` directory as `module.{version}.pyc` files to speed up loading.
+
+**Key points:**
+- Python checks if the source is newer than the compiled version
+- `.pyc` files are platform-independent
+- Programs don't run faster from `.pyc` files; they just load faster
+
+## Standard Modules
+
+Python comes with a library of standard modules. For example, the `sys` module:
+
+```python
+>>> import sys
+>>> sys.ps1
+'>>> '
+>>> sys.ps2
+'... '
+>>> sys.ps1 = 'C> '
+C> print('Yuck!')
+Yuck!
+C>
+```
+
+Modify the module search path:
+
+```python
+>>> import sys
+>>> sys.path.append('/ufs/guido/lib/python')
+```
+
+## The dir() Function
+
+Find out which names a module defines:
+
+```python
+>>> import fibo, sys
+>>> dir(fibo)
+['__name__', 'fib', 'fib2']
+>>> dir(sys)
+['__breakpointhook__', '__displayhook__', '__doc__', ...]
+```
+
+Without arguments, list currently defined names:
+
+```python
+>>> a = [1, 2, 3, 4, 5]
+>>> import fibo
+>>> fib = fibo.fib
+>>> dir()
+['__builtins__', '__name__', 'a', 'fib', 'fibo', 'sys']
+```
+
+List built-in functions and variables:
+
+```python
+>>> import builtins
+>>> dir(builtins)
+['ArithmeticError', 'AssertionError', 'AttributeError', ...]
+```
+
+## Packages
+
+Packages are a way of structuring Python's module namespace using "dotted module names".
+
+### Package Structure Example
+
+```
+sound/                          Top-level package
+      __init__.py               Initialize the sound package
+      formats/                  Subpackage for file format conversions
+              __init__.py
+              wavread.py
+              wavwrite.py
+              aiffread.py
+              aiffwrite.py
+      effects/                  Subpackage for sound effects
+              __init__.py
+              echo.py
+              surround.py
+              reverse.py
+      filters/                  Subpackage for filters
+              __init__.py
+              equalizer.py
+              vocoder.py
+              karaoke.py
+```
+
+### Importing from Packages
+
+Import individual modules:
+
+```python
+import sound.effects.echo
+```
+
+Use the full name:
+
+```python
+sound.effects.echo.echofilter(input, output, delay=0.7, atten=4)
+```
+
+Import the module directly:
+
+```python
+from sound.effects import echo
+echo.echofilter(input, output, delay=0.7, atten=4)
+```
+
+Import a specific function:
+
+```python
+from sound.effects.echo import echofilter
+echofilter(input, output, delay=0.7, atten=4)
+```
+
+## Importing * From a Package
+
+To control what `from package import *` imports, define `__all__` in `__init__.py`:
+
+```python sound/effects/__init__.py
+__all__ = ["echo", "surround", "reverse"]
+```
+
+Now:
+
+```python
+from sound.effects import *  # imports echo, surround, and reverse
+```
+
+<Warning>
+If `__all__` is not defined, `from sound.effects import *` does **not** import all submodules. It only ensures the package is imported and then imports any names defined in `__init__.py`.
+</Warning>
+
+## Intra-package References
+
+Use relative imports within packages:
+
+```python
+# In the surround module
+from . import echo
+from .. import formats
+from ..filters import equalizer
+```
+
+**Explanation:**
+- `.` refers to the current package
+- `..` refers to the parent package
+
+<Note>
+Relative imports are based on the current module's name. The main module must always use absolute imports.
+</Note>
+
+## Packages in Multiple Directories
+
+Packages support the `__path__` attribute, which can be modified to extend the set of modules found in a package. This feature is rarely needed but can be used to extend packages.
+
+## Next Steps
+
+Now that you understand modules and packages, learn about [Input and Output](/tutorial/input-output) including file handling and data serialization.

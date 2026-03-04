@@ -1,0 +1,429 @@
+---
+title: Errors and Exceptions
+description: Learn to handle syntax errors and exceptions in Python
+---
+
+Errors in Python come in two main types: syntax errors and exceptions. This guide shows you how to handle them properly.
+
+## Syntax Errors
+
+Syntax errors (parsing errors) occur when Python can't understand your code:
+
+```python
+>>> while True print('Hello world')
+  File "<stdin>", line 1
+    while True print('Hello world')
+               ^^^^^
+SyntaxError: invalid syntax
+```
+
+The parser shows the offending line and points to the error location with arrows. In this case, the error is at `print()` because a colon (`:`) is missing.
+
+## Exceptions
+
+Even syntactically correct code can cause errors during execution:
+
+```python
+>>> 10 * (1/0)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+    10 * (1/0)
+          ~^~
+ZeroDivisionError: division by zero
+
+>>> 4 + spam*3
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+    4 + spam*3
+        ^^^^
+NameError: name 'spam' is not defined
+
+>>> '2' + 2
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+    '2' + 2
+    ~~~~^~~
+TypeError: can only concatenate str (not "int") to str
+```
+
+The last line shows the exception type (`ZeroDivisionError`, `NameError`, `TypeError`) and a description of what went wrong.
+
+## Handling Exceptions
+
+Use `try...except` to handle exceptions:
+
+```python
+>>> while True:
+...     try:
+...         x = int(input("Please enter a number: "))
+...         break
+...     except ValueError:
+...         print("Oops! That was no valid number. Try again...")
+```
+
+**How it works:**
+
+1. The `try` clause is executed
+2. If no exception occurs, the `except` clause is skipped
+3. If an exception occurs, the rest of the `try` clause is skipped
+4. If the exception matches the type in `except`, that clause is executed
+5. If the exception doesn't match, it's passed to outer `try` statements
+
+### Multiple Except Clauses
+
+Handle different exceptions differently:
+
+```python
+try:
+    # risky operation
+    pass
+except ValueError:
+    print("Invalid value")
+except TypeError:
+    print("Type mismatch")
+except (RuntimeError, KeyError, NameError):
+    print("One of several errors occurred")
+```
+
+### Exception Hierarchy
+
+Exceptions inherit from base classes:
+
+```python
+class B(Exception):
+    pass
+
+class C(B):
+    pass
+
+class D(C):
+    pass
+
+for cls in [B, C, D]:
+    try:
+        raise cls()
+    except D:
+        print("D")
+    except C:
+        print("C")
+    except B:
+        print("B")
+```
+
+Output: `B`, `C`, `D`
+
+<Warning>
+Order matters! If you reversed the except clauses (with `except B` first), it would print `B`, `B`, `B`.
+</Warning>
+
+### Accessing Exception Details
+
+```python
+>>> try:
+...     raise Exception('spam', 'eggs')
+... except Exception as inst:
+...     print(type(inst))    # the exception type
+...     print(inst.args)     # arguments stored in .args
+...     print(inst)          # __str__ allows args to be printed directly
+...     x, y = inst.args     # unpack args
+...     print('x =', x)
+...     print('y =', y)
+...
+<class 'Exception'>
+('spam', 'eggs')
+('spam', 'eggs')
+x = spam
+y = eggs
+```
+
+### The else Clause
+
+Code in the `else` clause runs if no exception occurs:
+
+```python
+import sys
+
+for arg in sys.argv[1:]:
+    try:
+        f = open(arg, 'r')
+    except OSError:
+        print('cannot open', arg)
+    else:
+        print(arg, 'has', len(f.readlines()), 'lines')
+        f.close()
+```
+
+<Info>
+The `else` clause is better than adding code to the `try` clause because it avoids catching exceptions that weren't raised by the protected code.
+</Info>
+
+## Raising Exceptions
+
+Use `raise` to trigger an exception:
+
+```python
+>>> raise NameError('HiThere')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+    raise NameError('HiThere')
+NameError: HiThere
+```
+
+**Shorthand for exception classes:**
+
+```python
+raise ValueError  # equivalent to raise ValueError()
+```
+
+**Re-raising exceptions:**
+
+```python
+>>> try:
+...     raise NameError('HiThere')
+... except NameError:
+...     print('An exception flew by!')
+...     raise
+...
+An exception flew by!
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+    raise NameError('HiThere')
+NameError: HiThere
+```
+
+## Exception Chaining
+
+When handling an exception, you can raise another exception and preserve the context:
+
+```python
+>>> try:
+...     open("database.sqlite")
+... except OSError:
+...     raise RuntimeError("unable to handle error")
+...
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+    open("database.sqlite")
+FileNotFoundError: [Errno 2] No such file or directory: 'database.sqlite'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+    raise RuntimeError("unable to handle error")
+RuntimeError: unable to handle error
+```
+
+**Explicit chaining:**
+
+```python
+>>> def func():
+...     raise ConnectionError
+...
+>>> try:
+...     func()
+... except ConnectionError as exc:
+...     raise RuntimeError('Failed to open database') from exc
+...
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+    func()
+ConnectionError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+    raise RuntimeError('Failed to open database') from exc
+RuntimeError: Failed to open database
+```
+
+**Disable chaining:**
+
+```python
+>>> try:
+...     open('database.sqlite')
+... except OSError:
+...     raise RuntimeError from None
+...
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+    raise RuntimeError from None
+RuntimeError
+```
+
+## User-defined Exceptions
+
+Create custom exceptions by deriving from `Exception`:
+
+```python
+class InputError(Exception):
+    """Exception raised for errors in the input.
+    
+    Attributes:
+        expression -- input expression in which the error occurred
+        message -- explanation of the error
+    """
+
+    def __init__(self, expression, message):
+        self.expression = expression
+        self.message = message
+```
+
+<Tip>
+Most exceptions are named with names ending in "Error", similar to standard exceptions.
+</Tip>
+
+## Defining Clean-up Actions
+
+The `finally` clause always executes, whether an exception occurred or not:
+
+```python
+>>> try:
+...     raise KeyboardInterrupt
+... finally:
+...     print('Goodbye, world!')
+...
+Goodbye, world!
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+    raise KeyboardInterrupt
+KeyboardInterrupt
+```
+
+**Complex example:**
+
+```python
+>>> def divide(x, y):
+...     try:
+...         result = x / y
+...     except ZeroDivisionError:
+...         print("division by zero!")
+...     else:
+...         print("result is", result)
+...     finally:
+...         print("executing finally clause")
+...
+>>> divide(2, 1)
+result is 2.0
+executing finally clause
+>>> divide(2, 0)
+division by zero!
+executing finally clause
+>>> divide("2", "1")
+executing finally clause
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "<stdin>", line 3, in divide
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+```
+
+<Info>
+The `finally` clause is useful for releasing external resources (files, network connections) regardless of whether the operation was successful.
+</Info>
+
+## Predefined Clean-up Actions
+
+The `with` statement ensures objects are properly cleaned up:
+
+```python
+with open("myfile.txt") as f:
+    for line in f:
+        print(line, end="")
+```
+
+The file is always closed after the block, even if an error occurs.
+
+## Exception Groups
+
+Raise multiple unrelated exceptions together:
+
+```python
+>>> def f():
+...     excs = [OSError('error 1'), SystemError('error 2')]
+...     raise ExceptionGroup('there were problems', excs)
+...
+>>> f()
+  + Exception Group Traceback (most recent call last):
+  |   File "<stdin>", line 1, in <module>
+  |   File "<stdin>", line 3, in f
+  | ExceptionGroup: there were problems (2 sub-exceptions)
+  +-+---------------- 1 ----------------
+    | OSError: error 1
+    +---------------- 2 ----------------
+    | SystemError: error 2
+```
+
+### Handling Exception Groups
+
+Use `except*` to handle specific exception types in a group:
+
+```python
+>>> try:
+...     f()
+... except* OSError as e:
+...     print("There were OSErrors")
+... except* SystemError as e:
+...     print("There were SystemErrors")
+...
+There were OSErrors
+There were SystemErrors
+```
+
+## Enriching Exceptions with Notes
+
+Add contextual information to exceptions:
+
+```python
+>>> try:
+...     raise TypeError('bad type')
+... except Exception as e:
+...     e.add_note('Add some information')
+...     e.add_note('Add some more information')
+...     raise
+...
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+    raise TypeError('bad type')
+TypeError: bad type
+Add some information
+Add some more information
+```
+
+**Practical example:**
+
+```python
+>>> def f():
+...     raise OSError('operation failed')
+...
+>>> excs = []
+>>> for i in range(3):
+...     try:
+...         f()
+...     except Exception as e:
+...         e.add_note(f'Happened in Iteration {i+1}')
+...         excs.append(e)
+...
+>>> raise ExceptionGroup('We have some problems', excs)
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Be Specific" icon="crosshairs">
+    Catch specific exceptions rather than using bare `except:`
+  </Card>
+  <Card title="Use finally" icon="broom">
+    Clean up resources in `finally` clauses or use `with` statements
+  </Card>
+  <Card title="Document Exceptions" icon="book">
+    Document which exceptions your functions might raise
+  </Card>
+  <Card title="Don't Silence Errors" icon="volume">
+    Avoid empty `except` blocks that hide problems
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+You now understand how to handle errors gracefully. Finally, learn about [Classes](/tutorial/classes) to create your own custom types and objects.

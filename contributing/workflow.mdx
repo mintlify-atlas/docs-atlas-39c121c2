@@ -1,0 +1,431 @@
+---
+title: Development Workflow
+description: Learn the standard workflow for contributing to CPython
+---
+
+This guide covers the typical workflow for contributing code to CPython, from creating a branch to submitting a pull request.
+
+## Overview
+
+The CPython development workflow follows standard GitHub practices:
+
+1. Create an issue (for non-trivial changes)
+2. Create a feature branch
+3. Make your changes
+4. Test your changes
+5. Commit your changes
+6. Push and create a pull request
+7. Address review feedback
+8. Merge when approved
+
+## Before You Start
+
+Ensure you have:
+- [Set up your development environment](/contributing/setup)
+- [Built CPython successfully](/contributing/building)
+- Familiarized yourself with the [Developer Guide](https://devguide.python.org/)
+
+## Creating an Issue
+
+For most changes, create an issue first:
+
+<Steps>
+  <Step title="Check for existing issues">
+    Search [github.com/python/cpython/issues](https://github.com/python/cpython/issues) to avoid duplicates.
+  </Step>
+
+  <Step title="Create a new issue">
+    If none exists, create a new issue describing:
+    - The problem or feature request
+    - Expected behavior
+    - Current behavior (for bugs)
+    - Python version
+    - Platform information
+  </Step>
+
+  <Step title="Discuss the approach">
+    For significant changes, discuss the implementation approach before writing code.
+  </Step>
+</Steps>
+
+<Note>
+Trivial changes like fixing typos don't require an issue.
+</Note>
+
+## Creating a Branch
+
+Create a feature branch for your work:
+
+```bash
+# Update your main branch
+git checkout main
+git pull upstream main
+
+# Create and checkout a new branch
+git checkout -b gh-NNNNN-fix-description
+```
+
+Branch naming convention:
+- Use `gh-NNNNN` prefix (where NNNNN is the issue number)
+- Add a descriptive name
+- Use hyphens, not underscores
+
+Examples:
+- `gh-12345-fix-dict-memory-leak`
+- `gh-67890-add-frozenset-optimization`
+
+## Making Changes
+
+### Edit Code
+
+Make your changes following the [code style guide](/contributing/code-style):
+
+```bash
+# Edit files
+vim Lib/os.py
+vim Modules/posixmodule.c
+```
+
+### Build and Test
+
+After making changes, build and test:
+
+```bash
+# For development, build without optimizations
+make
+
+# Run relevant tests
+./python -m test test_os
+
+# Run the full test suite
+make test
+```
+
+### Add Tests
+
+Always add tests for new features or bug fixes:
+
+```python
+# In Lib/test/test_os.py
+def test_new_feature(self):
+    result = os.new_function()
+    self.assertEqual(result, expected_value)
+```
+
+### Update Documentation
+
+Update documentation for new features:
+
+```bash
+# Edit relevant .rst files in Doc/
+vim Doc/library/os.rst
+
+# Build documentation
+cd Doc
+make html
+```
+
+See [Contributing to Documentation](/contributing/documentation) for details.
+
+## Committing Changes
+
+### Commit Message Format
+
+Follow the commit message format:
+
+```
+gh-NNNNN: Brief summary (50 chars or less)
+
+More detailed explanation if needed. Wrap at 72 characters.
+Explain what changed and why, not how.
+
+- Can use bullet points
+- For multiple changes
+
+Co-authored-by: Name <email@example.com>
+```
+
+### Making the Commit
+
+```bash
+# Stage your changes
+git add Lib/os.py Modules/posixmodule.c Lib/test/test_os.py
+
+# Commit with a descriptive message
+git commit
+```
+
+Example commit message:
+
+```
+gh-12345: Fix memory leak in dict implementation
+
+The dict resize operation was not properly releasing references
+to old entries, causing memory leaks in long-running applications.
+
+This fix ensures all old entries are properly deallocated during
+the resize operation.
+```
+
+### Commit Guidelines
+
+- Make atomic commits (one logical change per commit)
+- Write clear, concise commit messages
+- Reference the issue number (gh-NNNNN)
+- Explain why, not just what
+- Sign your commits if required
+
+## Pushing and Creating a Pull Request
+
+<Steps>
+  <Step title="Push your branch">
+    ```bash
+    git push origin gh-12345-fix-description
+    ```
+  </Step>
+
+  <Step title="Create pull request">
+    Visit GitHub and click "Create pull request" or use the GitHub CLI:
+    ```bash
+    gh pr create --title "gh-12345: Fix memory leak in dict" \
+                 --body "Fixes #12345"
+    ```
+  </Step>
+
+  <Step title="Fill out PR template">
+    Your PR description should include:
+    - Summary of changes
+    - Link to the issue ("Fixes #12345")
+    - Testing done
+    - Any breaking changes
+  </Step>
+</Steps>
+
+### Pull Request Title Format
+
+```
+gh-NNNNN: Summary of the changes made
+```
+
+For backport PRs to maintenance branches:
+
+```
+[3.13] gh-NNNNN: Summary (GH-MMMMM)
+```
+
+Where:
+- `[3.13]` is the branch name
+- `gh-NNNNN` is the issue number
+- `GH-MMMMM` is the original PR number from main
+
+## Code Review Process
+
+### Responding to Reviews
+
+<Steps>
+  <Step title="Read feedback carefully">
+    Review all comments from maintainers and other contributors.
+  </Step>
+
+  <Step title="Make requested changes">
+    ```bash
+    # Make changes
+    vim Lib/os.py
+
+    # Commit changes
+    git add Lib/os.py
+    git commit -m "Address review feedback"
+
+    # Push updates
+    git push origin gh-12345-fix-description
+    ```
+  </Step>
+
+  <Step title="Reply to comments">
+    Respond to review comments, especially if you disagree or need clarification.
+  </Step>
+
+  <Step title="Request re-review">
+    After addressing feedback, request a re-review from the reviewer.
+  </Step>
+</Steps>
+
+### CI/CD Checks
+
+Your PR must pass all CI checks:
+
+- **GitHub Actions**: Linux, macOS, Windows builds
+- **Azure Pipelines**: Additional platform coverage
+- **Tests**: All test suites must pass
+- **Documentation**: Doc builds must succeed
+
+Check CI results and fix any failures:
+
+```bash
+# Pull latest changes from upstream
+git fetch upstream
+git rebase upstream/main
+
+# Fix issues and push
+git push origin gh-12345-fix-description --force-with-lease
+```
+
+## Keeping Your Branch Updated
+
+### Rebasing on Main
+
+Keep your branch up to date with main:
+
+```bash
+# Fetch latest changes
+git fetch upstream
+
+# Rebase your branch
+git rebase upstream/main
+
+# If conflicts occur, resolve them
+git status
+vim conflicted_file.py
+git add conflicted_file.py
+git rebase --continue
+
+# Force push (use with caution)
+git push origin gh-12345-fix-description --force-with-lease
+```
+
+<Warning>
+Never use `--force` without `--with-lease`. It's safer and prevents accidentally overwriting others' work.
+</Warning>
+
+## After Your PR is Merged
+
+<Steps>
+  <Step title="Update your local repository">
+    ```bash
+    git checkout main
+    git pull upstream main
+    ```
+  </Step>
+
+  <Step title="Delete your feature branch">
+    ```bash
+    # Delete local branch
+    git branch -d gh-12345-fix-description
+
+    # Delete remote branch
+    git push origin --delete gh-12345-fix-description
+    ```
+  </Step>
+
+  <Step title="Close related issues">
+    If not automatically closed, manually close the issue with a comment linking to the merged PR.
+  </Step>
+</Steps>
+
+## Backporting Changes
+
+For bug fixes that need to be backported to maintenance branches:
+
+1. Wait for the PR to be merged to main
+2. A core developer will typically handle backports
+3. If asked to backport yourself:
+
+```bash
+# Cherry-pick to maintenance branch
+git fetch upstream
+git checkout -b backport-3.13 upstream/3.13
+git cherry-pick <commit-hash>
+
+# Create backport PR
+git push origin backport-3.13
+gh pr create --base 3.13 --title "[3.13] gh-12345: Fix (GH-67890)"
+```
+
+## Working with Multiple PRs
+
+If you're working on multiple issues:
+
+```bash
+# Keep branches separate
+git checkout main
+git checkout -b gh-11111-feature-a
+# work on feature A...
+
+git checkout main
+git checkout -b gh-22222-feature-b
+# work on feature B...
+
+# Switch between branches
+git checkout gh-11111-feature-a
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Merge conflicts">
+    When rebasing causes conflicts:
+    ```bash
+    # View conflicts
+    git status
+
+    # Edit files to resolve conflicts
+    vim conflicted_file.py
+
+    # Mark as resolved
+    git add conflicted_file.py
+
+    # Continue rebase
+    git rebase --continue
+    ```
+  </Accordion>
+
+  <Accordion title="Failed CI checks">
+    Common CI failures:
+    - **Test failures**: Run tests locally and fix
+    - **Linting errors**: Follow code style guide
+    - **Doc build failures**: Check .rst syntax
+    - **Platform-specific**: May need maintainer help
+  </Accordion>
+
+  <Accordion title="PR is stale">
+    If your PR has been open for a while:
+    ```bash
+    # Rebase on latest main
+    git fetch upstream
+    git rebase upstream/main
+    git push origin branch-name --force-with-lease
+
+    # Add a comment asking for review
+    ```
+  </Accordion>
+
+  <Accordion title="Need to update PR description">
+    Edit the PR description on GitHub to:
+    - Update status
+    - Add more context
+    - Link related issues
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+- **Small PRs**: Keep changes focused and reviewable
+- **Test thoroughly**: Don't rely only on CI
+- **Be patient**: Reviews can take time
+- **Be responsive**: Address feedback promptly
+- **Be respectful**: Follow the [Code of Conduct](https://www.python.org/psf/conduct/)
+- **Communicate**: Ask questions if unclear
+
+## Next Steps
+
+- [Review code style guidelines](/contributing/code-style)
+- [Learn about documentation](/contributing/documentation)
+- Join [Python Discourse](https://discuss.python.org/)
+- Read the [full Developer Guide](https://devguide.python.org/)
+
+## Additional Resources
+
+- [CPython Developer Guide](https://devguide.python.org/)
+- [GitHub Flow Guide](https://guides.github.com/introduction/flow/)
+- [Python Discourse - Core Development](https://discuss.python.org/c/core-dev/)
+- [Python Issue Tracker](https://github.com/python/cpython/issues)

@@ -1,0 +1,261 @@
+---
+title: Data Model
+description: Specification of Python's object model, type hierarchy, and fundamental semantics
+---
+
+# Data Model
+
+## Objects, Values and Types
+
+*Objects* are Python's abstraction for data. All data in a Python program is represented by objects or by relations between objects. Even code is represented by objects.
+
+Every object has an identity, a type and a value:
+
+- An object's *identity* never changes once it has been created; you may think of it as the object's address in memory. The `is` operator compares the identity of two objects; the `id()` function returns an integer representing its identity.
+
+- An object's type determines the operations that the object supports (e.g., "does it have a length?") and also defines the possible values for objects of that type. The `type()` function returns an object's type (which is an object itself). Like its identity, an object's *type* is also unchangeable.
+
+- The *value* of some objects can change. Objects whose value can change are said to be *mutable*; objects whose value is unchangeable once they are created are called *immutable*.
+
+<Note>
+  For CPython, `id(x)` is the memory address where `x` is stored.
+</Note>
+
+### Garbage Collection
+
+Objects are never explicitly destroyed; however, when they become unreachable they may be garbage-collected. An implementation is allowed to postpone garbage collection or omit it altogether.
+
+<Note>
+  CPython currently uses a reference-counting scheme with (optional) delayed detection of cyclically linked garbage, which collects most objects as soon as they become unreachable, but is not guaranteed to collect garbage containing circular references.
+</Note>
+
+Some objects contain references to "external" resources such as open files or windows. It is understood that these resources are freed when the object is garbage-collected, but since garbage collection is not guaranteed to happen, such objects also provide an explicit way to release the external resource, usually a `close()` method.
+
+### Containers
+
+Some objects contain references to other objects; these are called *containers*. Examples of containers are tuples, lists and dictionaries. The references are part of a container's value.
+
+Types affect almost all aspects of object behavior. Even the importance of object identity is affected in some sense: for immutable types, operations that compute new values may actually return a reference to any existing object with the same type and value, while for mutable objects this is not allowed.
+
+## The Standard Type Hierarchy
+
+Below is a list of the types that are built into Python. Extension modules can define additional types.
+
+### None
+
+This type has a single value. There is a single object with this value. This object is accessed through the built-in name `None`. It is used to signify the absence of a value in many situations, e.g., it is returned from functions that don't explicitly return anything. Its truth value is false.
+
+### NotImplemented
+
+This type has a single value. There is a single object with this value. This object is accessed through the built-in name `NotImplemented`. Numeric methods and rich comparison methods should return this value if they do not implement the operation for the operands provided. It should not be evaluated in a boolean context.
+
+### Ellipsis
+
+This type has a single value. There is a single object with this value. This object is accessed through the literal `...` or the built-in name `Ellipsis`. Its truth value is true.
+
+### Numbers
+
+These are created by numeric literals and returned as results by arithmetic operators and arithmetic built-in functions. Numeric objects are immutable; once created their value never changes.
+
+#### Integers (`int`)
+
+These represent numbers in an unlimited range, subject to available (virtual) memory only. For the purpose of shift and mask operations, a binary representation is assumed, and negative numbers are represented in a variant of 2's complement which gives the illusion of an infinite string of sign bits extending to the left.
+
+#### Booleans (`bool`)
+
+These represent the truth values False and True. The two objects representing the values `False` and `True` are the only Boolean objects. The Boolean type is a subtype of the integer type, and Boolean values behave like the values 0 and 1, respectively, in almost all contexts.
+
+#### Floating Point Numbers (`float`)
+
+These represent machine-level double precision floating-point numbers. You are at the mercy of the underlying machine architecture for the accepted range and handling of overflow. Python does not support single-precision floating-point numbers.
+
+#### Complex Numbers (`complex`)
+
+These represent complex numbers as a pair of machine-level double precision floating-point numbers. The same caveats apply as for floating-point numbers. The real and imaginary parts of a complex number `z` can be retrieved through the read-only attributes `z.real` and `z.imag`.
+
+### Sequences
+
+These represent finite ordered sets indexed by non-negative numbers. The built-in function `len()` returns the number of items of a sequence. When the length of a sequence is *n*, the index set contains the numbers 0, 1, ..., *n*-1. Item *i* of sequence *a* is selected by `a[i]`.
+
+Sequences also support slicing: `a[i:j]` selects all items with index *k* such that *i* `<=` *k* `<` *j*. When used as an expression, a slice is a sequence of the same type.
+
+Sequences are distinguished according to their mutability:
+
+#### Immutable Sequences
+
+<ParamField path="str" type="type">
+  A string is a sequence of values that represent Unicode code points. All the code points in the range `U+0000` to `U+10FFFF` can be represented in a string.
+</ParamField>
+
+<ParamField path="tuple" type="type">
+  The items of a tuple are arbitrary Python objects. Tuples of two or more items are formed by comma-separated lists of expressions. A tuple of one item (a 'singleton') can be formed by affixing a comma to an expression.
+</ParamField>
+
+<ParamField path="bytes" type="type">
+  A bytes object is an immutable array. The items are 8-bit bytes, represented by integers in the range 0 &lt;= x &lt; 256.
+</ParamField>
+
+#### Mutable Sequences
+
+Mutable sequences can be changed after they are created. The subscription and slicing notations can be used as the target of assignment and `del` (delete) statements.
+
+<ParamField path="list" type="type">
+  The items of a list are arbitrary Python objects. Lists are formed by placing a comma-separated list of expressions in square brackets.
+</ParamField>
+
+<ParamField path="bytearray" type="type">
+  A bytearray object is a mutable array. They are created by the built-in `bytearray()` constructor.
+</ParamField>
+
+### Set Types
+
+These represent unordered, finite sets of unique, immutable objects. They cannot be indexed by any subscript. However, they can be iterated over, and the built-in function `len()` returns the number of items in a set.
+
+<ParamField path="set" type="type">
+  These represent a mutable set. They are created by the built-in `set()` constructor and can be modified afterwards by several methods, such as `add()`.
+</ParamField>
+
+<ParamField path="frozenset" type="type">
+  These represent an immutable set. They are created by the built-in `frozenset()` constructor. As a frozenset is immutable and hashable, it can be used again as an element of another set, or as a dictionary key.
+</ParamField>
+
+### Mappings
+
+These represent finite sets of objects indexed by arbitrary index sets. The subscript notation `a[k]` selects the item indexed by `k` from the mapping `a`.
+
+#### Dictionaries
+
+These represent finite sets of objects indexed by nearly arbitrary values. The only types of values not acceptable as keys are values containing lists or dictionaries or other mutable types that are compared by value rather than by object identity.
+
+Dictionaries preserve insertion order, meaning that keys will be produced in the same order they were added sequentially over the dictionary.
+
+```python
+d = {'a': 1, 'b': 2, 'c': 3}
+for key in d:
+    print(key, d[key])
+# Output: a 1, b 2, c 3
+```
+
+### Callable Types
+
+These are the types to which the function call operation can be applied:
+
+#### User-Defined Functions
+
+A user-defined function object is created by a function definition. It should be called with an argument list containing the same number of items as the function's formal parameter list.
+
+**Special attributes:**
+
+<ParamField path="__name__" type="str">
+  The function's name.
+</ParamField>
+
+<ParamField path="__code__" type="code">
+  The code object representing the compiled function body.
+</ParamField>
+
+<ParamField path="__globals__" type="dict">
+  A reference to the dictionary that holds the function's global variables — the global namespace of the module in which the function was defined.
+</ParamField>
+
+<ParamField path="__defaults__" type="tuple">
+  A tuple containing default parameter values for those parameters that have defaults, or `None` if no parameters have a default value.
+</ParamField>
+
+<ParamField path="__closure__" type="tuple">
+  `None` or a tuple of cells that contain bindings for the function's free variables.
+</ParamField>
+
+#### Instance Methods
+
+An instance method object combines a class, a class instance and any callable object (normally a user-defined function).
+
+**Special read-only attributes:**
+
+<ParamField path="__self__" type="object">
+  Refers to the class instance object to which the method is bound.
+</ParamField>
+
+<ParamField path="__func__" type="function">
+  Refers to the original function object.
+</ParamField>
+
+#### Built-in Functions
+
+A built-in function object is a wrapper around a C function. Examples of built-in functions are `len()` and `math.sin()`. The number and type of the arguments are determined by the C function.
+
+#### Classes
+
+Classes are callable. These objects normally act as factories for new instances of themselves, but variations are possible for class types that override `__new__()`. The arguments of the call are passed to `__new__()` and, in the typical case, to `__init__()` to initialize the new instance.
+
+### Modules
+
+Modules are a basic organizational unit of Python code, and are created by the import system as invoked either by the `import` statement, or by calling functions such as `importlib.import_module()` and built-in `__import__()`.
+
+A module object has a namespace implemented by a dictionary object (this is the dictionary referenced by the `__globals__` attribute of functions defined in the module).
+
+**Import-related module attributes:**
+
+<ParamField path="__name__" type="str">
+  The name used to uniquely identify the module in the import system.
+</ParamField>
+
+<ParamField path="__file__" type="str">
+  The pathname of the file from which the module was loaded (if loaded from a file).
+</ParamField>
+
+<ParamField path="__package__" type="str">
+  The package a module belongs to.
+</ParamField>
+
+<ParamField path="__doc__" type="str">
+  The module's documentation string, or `None` if unavailable.
+</ParamField>
+
+### Custom Classes
+
+Custom class types are typically created by class definitions. A class has a namespace implemented by a dictionary object. Class attribute references are translated to lookups in this dictionary.
+
+When a class attribute reference would yield a class method object, it is transformed into an instance method object whose `__self__` attribute is the class.
+
+**Special attributes:**
+
+<ParamField path="__name__" type="str">
+  The class's name.
+</ParamField>
+
+<ParamField path="__module__" type="str">
+  The name of the module in which the class was defined.
+</ParamField>
+
+<ParamField path="__dict__" type="mappingproxy">
+  A mapping proxy providing a read-only view of the class's namespace.
+</ParamField>
+
+<ParamField path="__bases__" type="tuple">
+  A tuple containing the class's bases.
+</ParamField>
+
+<ParamField path="__doc__" type="str">
+  The class's documentation string, or `None` if undefined.
+</ParamField>
+
+<ParamField path="__annotations__" type="dict">
+  A dictionary containing variable annotations collected during class body execution.
+</ParamField>
+
+### Class Instances
+
+A class instance is created by calling a class object. A class instance has a namespace implemented as a dictionary which is the first place in which attribute references are searched.
+
+When an attribute is not found there, and the instance's class has an attribute by that name, the search continues with the class attributes. If a class attribute is found that is a user-defined function object, it is transformed into an instance method object whose `__self__` attribute is the instance.
+
+**Special attributes:**
+
+<ParamField path="__class__" type="type">
+  The class to which a class instance belongs.
+</ParamField>
+
+<ParamField path="__dict__" type="dict">
+  A dictionary or other mapping object used to store an object's (writable) attributes.
+</ParamField>

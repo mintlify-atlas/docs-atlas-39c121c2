@@ -1,0 +1,167 @@
+---
+title: Importing Modules
+description: Importing and using Python modules from C
+---
+
+## Overview
+
+C extensions can import and use Python modules using the import API.
+
+## Import Functions
+
+### PyImport_ImportModule
+
+```c
+PyObject* PyImport_ImportModule(const char *name)
+```
+
+Import module by name.
+
+<ParamField path="name" type="const char*" required>
+  Module name (e.g., "sys", "os.path")
+</ParamField>
+
+**Returns:** New reference to module, or `NULL` on error
+
+**Example:**
+```c
+PyObject *sys = PyImport_ImportModule("sys");
+if (sys == NULL)
+    return NULL;
+
+PyObject *version = PyObject_GetAttrString(sys, "version");
+Py_DECREF(sys);
+
+if (version != NULL) {
+    const char *ver = PyUnicode_AsUTF8(version);
+    printf("Python version: %s\n", ver);
+    Py_DECREF(version);
+}
+```
+
+### PyImport_Import
+
+```c
+PyObject* PyImport_Import(PyObject *name)
+```
+
+Import module using Python string.
+
+### PyImport_AddModule
+
+```c
+PyObject* PyImport_AddModule(const char *name)
+```
+
+Return existing module or create new empty module. Returns **borrowed reference**.
+
+**Example:**
+```c
+PyObject *main_module = PyImport_AddModule("__main__");
+PyObject *main_dict = PyModule_GetDict(main_module);  // Borrowed
+```
+
+## Using Imported Modules
+
+```c
+// Import module
+PyObject *datetime = PyImport_ImportModule("datetime");
+if (datetime == NULL)
+    return NULL;
+
+// Get class
+PyObject *date_class = PyObject_GetAttrString(datetime, "date");
+Py_DECREF(datetime);
+if (date_class == NULL)
+    return NULL;
+
+// Call constructor
+PyObject *today = PyObject_CallMethod(date_class, "today", NULL);
+Py_DECREF(date_class);
+
+if (today != NULL) {
+    // Use today object
+    Py_DECREF(today);
+}
+```
+
+## Module Objects
+
+### PyModule_New
+
+```c
+PyObject* PyModule_New(const char *name)
+```
+
+Create new module object.
+
+### PyModule_GetDict
+
+```c
+PyObject* PyModule_GetDict(PyObject *module)
+```
+
+Get module's `__dict__`. Returns **borrowed reference**.
+
+### PyModule_AddObject
+
+```c
+int PyModule_AddObject(PyObject *module, const char *name, PyObject *value)
+```
+
+**Steals** reference to `value`.
+
+**Example:**
+```c
+PyObject *version = PyUnicode_FromString("1.0.0");
+if (PyModule_AddObject(m, "__version__", version) < 0) {
+    Py_XDECREF(version);
+    Py_DECREF(m);
+    return NULL;
+}
+// Don't Py_DECREF(version) - reference stolen
+```
+
+### PyModule_AddIntConstant
+
+```c
+int PyModule_AddIntConstant(PyObject *module, const char *name, long value)
+```
+
+**Example:**
+```c
+PyModule_AddIntConstant(m, "MAX_SIZE", 1024);
+```
+
+## Complete Example
+
+```c
+static PyObject* use_json(PyObject *self, PyObject *args) {
+    const char *json_str;
+    
+    if (!PyArg_ParseTuple(args, "s", &json_str))
+        return NULL;
+    
+    // Import json module
+    PyObject *json = PyImport_ImportModule("json");
+    if (json == NULL)
+        return NULL;
+    
+    // Get loads function
+    PyObject *loads = PyObject_GetAttrString(json, "loads");
+    Py_DECREF(json);
+    if (loads == NULL)
+        return NULL;
+    
+    // Call json.loads(json_str)
+    PyObject *data = PyObject_CallFunction(loads, "s", json_str);
+    Py_DECREF(loads);
+    
+    return data;
+}
+```
+
+## See Also
+- [Very High Level Layer](/c-api/veryhigh)
+- [Extension Modules](/c-api/extension-modules)
+- [Utilities](/c-api/utilities)

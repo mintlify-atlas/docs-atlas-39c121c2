@@ -1,0 +1,521 @@
+---
+title: sys - System-specific Parameters
+description: Access to system-specific parameters and functions
+---
+
+The `sys` module provides access to variables and functions that interact closely with the Python interpreter.
+
+## Module Import
+
+```python
+import sys
+```
+
+## Common Attributes
+
+### sys.argv
+
+Command-line arguments passed to a Python script.
+
+```python
+import sys
+
+# script.py arg1 arg2 arg3
+print(sys.argv)
+# ['script.py', 'arg1', 'arg2', 'arg3']
+
+# First argument is always the script name
+script_name = sys.argv[0]
+
+# Process arguments
+if len(sys.argv) > 1:
+    input_file = sys.argv[1]
+```
+
+### sys.path
+
+List of directories Python searches for modules.
+
+```python
+import sys
+
+# View current module search path
+print(sys.path)
+# ['', '/usr/lib/python3.11', ...]
+
+# Add custom path
+sys.path.append('/path/to/custom/modules')
+sys.path.insert(0, '/priority/path')
+```
+
+### sys.platform
+
+Platform identifier.
+
+```python
+print(sys.platform)
+# 'linux', 'darwin', 'win32', etc.
+
+if sys.platform == 'linux':
+    print("Running on Linux")
+elif sys.platform == 'darwin':
+    print("Running on macOS")
+elif sys.platform == 'win32':
+    print("Running on Windows")
+```
+
+### sys.version
+
+Python version information.
+
+```python
+print(sys.version)
+# '3.11.2 (main, Mar 13 2023, 12:18:29) [GCC 12.2.0]'
+
+print(sys.version_info)
+# sys.version_info(major=3, minor=11, micro=2, releaselevel='final', serial=0)
+
+if sys.version_info >= (3, 10):
+    print("Python 3.10 or higher")
+```
+
+## Standard Streams
+
+### sys.stdin, sys.stdout, sys.stderr
+
+Standard input, output, and error streams.
+
+```python
+import sys
+
+# Read from stdin
+for line in sys.stdin:
+    print(line.strip())
+
+# Write to stdout
+sys.stdout.write("Hello, World!\n")
+
+# Write to stderr
+sys.stderr.write("Error message\n")
+
+# Redirect output
+original_stdout = sys.stdout
+with open('output.txt', 'w') as f:
+    sys.stdout = f
+    print("This goes to the file")
+    sys.stdout = original_stdout
+```
+
+## Exit Functions
+
+### sys.exit()
+
+Exit the program.
+
+<ParamField path="status" type="int | str" default="0">
+  Exit status code (0 for success, non-zero for error) or exit message
+</ParamField>
+
+```python
+import sys
+
+if not valid_input:
+    sys.exit(1)  # Exit with error code
+
+if error_occurred:
+    sys.exit("Fatal error occurred")  # Exit with message
+
+sys.exit(0)  # Successful exit
+```
+
+### sys.exc_info()
+
+Get information about current exception.
+
+```python
+import sys
+
+try:
+    1 / 0
+except:
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    print(f"Exception type: {exc_type}")
+    print(f"Exception value: {exc_value}")
+```
+
+## Module and Import Functions
+
+### sys.modules
+
+Dictionary of loaded modules.
+
+```python
+import sys
+import os
+
+# Check if module is loaded
+if 'os' in sys.modules:
+    print("os module is loaded")
+
+# Get loaded module
+os_module = sys.modules['os']
+
+# Reload module (use importlib.reload instead)
+from importlib import reload
+reload(os)
+```
+
+### sys.meta_path
+
+List of meta path finders.
+
+```python
+import sys
+
+print(sys.meta_path)
+# Shows import hooks
+```
+
+## Size and Memory
+
+### sys.getsizeof()
+
+Get size of an object in bytes.
+
+<ParamField path="object" type="any" required>
+  Object to get size of
+</ParamField>
+
+<ResponseField name="return" type="int">
+  Size in bytes
+</ResponseField>
+
+```python
+import sys
+
+print(sys.getsizeof(42))  # 28 bytes
+print(sys.getsizeof("hello"))  # String size
+print(sys.getsizeof([1, 2, 3]))  # List size
+print(sys.getsizeof({'a': 1}))  # Dict size
+```
+
+### sys.getrecursionlimit() / sys.setrecursionlimit()
+
+Get or set maximum recursion depth.
+
+```python
+import sys
+
+print(sys.getrecursionlimit())  # Default: 1000
+
+# Increase for deep recursion
+sys.setrecursionlimit(2000)
+
+# Example: deep recursion
+def factorial(n):
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+```
+
+## System Information
+
+### sys.maxsize
+
+Maximum value a variable of type `Py_ssize_t` can take.
+
+```python
+import sys
+
+print(sys.maxsize)
+# 9223372036854775807 (on 64-bit system)
+
+# Check if 64-bit
+if sys.maxsize > 2**32:
+    print("64-bit Python")
+else:
+    print("32-bit Python")
+```
+
+### sys.byteorder
+
+Byte order of the system.
+
+```python
+import sys
+
+print(sys.byteorder)
+# 'little' or 'big'
+```
+
+### sys.executable
+
+Path to Python interpreter.
+
+```python
+import sys
+
+print(sys.executable)
+# '/usr/bin/python3' or similar
+```
+
+## Debugging and Profiling
+
+### sys.settrace()
+
+Set trace function for debugging.
+
+```python
+import sys
+
+def trace_calls(frame, event, arg):
+    if event == 'call':
+        filename = frame.f_code.co_filename
+        lineno = frame.f_lineno
+        funcname = frame.f_code.co_name
+        print(f"Calling {funcname} at {filename}:{lineno}")
+    return trace_calls
+
+sys.settrace(trace_calls)
+
+def example():
+    print("Hello")
+
+example()
+sys.settrace(None)  # Disable tracing
+```
+
+### sys.setprofile()
+
+Set profiling function.
+
+```python
+import sys
+import time
+
+def profile_func(frame, event, arg):
+    if event == 'call':
+        frame.f_locals['__start_time__'] = time.time()
+    elif event == 'return':
+        elapsed = time.time() - frame.f_locals.get('__start_time__', 0)
+        funcname = frame.f_code.co_name
+        print(f"{funcname} took {elapsed:.4f} seconds")
+    return profile_func
+
+sys.setprofile(profile_func)
+```
+
+## Flags and Options
+
+### sys.flags
+
+Command-line flags.
+
+```python
+import sys
+
+print(sys.flags)
+# sys.flags(debug=0, inspect=0, interactive=0, optimize=0, ...)
+
+if sys.flags.debug:
+    print("Running in debug mode (-d flag)")
+
+if sys.flags.optimize:
+    print("Running in optimized mode (-O flag)")
+```
+
+## Practical Examples
+
+### Command-Line Script
+
+```python
+import sys
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python script.py <filename>", file=sys.stderr)
+        sys.exit(1)
+    
+    filename = sys.argv[1]
+    try:
+        with open(filename, 'r') as f:
+            print(f.read())
+    except FileNotFoundError:
+        print(f"Error: {filename} not found", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
+```
+
+### Platform-Specific Code
+
+```python
+import sys
+
+if sys.platform.startswith('linux'):
+    import fcntl
+    # Linux-specific code
+elif sys.platform == 'darwin':
+    # macOS-specific code
+    pass
+elif sys.platform == 'win32':
+    import msvcrt
+    # Windows-specific code
+```
+
+### Progress Bar with stderr
+
+```python
+import sys
+import time
+
+def progress_bar(iterable, total=None):
+    total = total or len(iterable)
+    for i, item in enumerate(iterable, 1):
+        percent = (i / total) * 100
+        sys.stderr.write(f"\rProgress: {percent:.1f}%")
+        sys.stderr.flush()
+        yield item
+    sys.stderr.write("\n")
+
+# Usage
+for item in progress_bar(range(100)):
+    time.sleep(0.01)
+    # Process item
+```
+
+### Memory Usage Tracker
+
+```python
+import sys
+
+def get_size(obj, seen=None):
+    """Recursively calculate size of objects"""
+    size = sys.getsizeof(obj)
+    if seen is None:
+        seen = set()
+    
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    
+    seen.add(obj_id)
+    
+    if isinstance(obj, dict):
+        size += sum(get_size(k, seen) + get_size(v, seen) 
+                   for k, v in obj.items())
+    elif hasattr(obj, '__dict__'):
+        size += get_size(obj.__dict__, seen)
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum(get_size(item, seen) for item in obj)
+    
+    return size
+
+# Usage
+data = {'a': [1, 2, 3], 'b': {'nested': [4, 5, 6]}}
+print(f"Total size: {get_size(data)} bytes")
+```
+
+## Complete Reference
+
+### Constants
+
+<AccordionGroup>
+  <Accordion title="Platform Constants">
+    - `sys.platform` - Platform identifier
+    - `sys.byteorder` - Native byte order ('little' or 'big')
+    - `sys.maxsize` - Maximum Py_ssize_t value
+    - `sys.maxunicode` - Maximum Unicode code point
+  </Accordion>
+  
+  <Accordion title="Version Information">
+    - `sys.version` - Version string
+    - `sys.version_info` - Version tuple
+    - `sys.hexversion` - Version as single number
+    - `sys.api_version` - C API version
+  </Accordion>
+  
+  <Accordion title="Executable Information">
+    - `sys.executable` - Python interpreter path
+    - `sys.prefix` - Installation prefix
+    - `sys.base_prefix` - Base installation prefix
+    - `sys.exec_prefix` - Platform-specific installation prefix
+  </Accordion>
+</AccordionGroup>
+
+### Functions
+
+<AccordionGroup>
+  <Accordion title="Exit Functions">
+    - `sys.exit(status)` - Exit the interpreter
+    - `sys.excepthook(type, value, traceback)` - Handle uncaught exceptions
+  </Accordion>
+  
+  <Accordion title="Exception Functions">
+    - `sys.exc_info()` - Current exception information
+    - `sys.last_type`, `sys.last_value`, `sys.last_traceback` - Last exception
+  </Accordion>
+  
+  <Accordion title="Debugging Functions">
+    - `sys.settrace(func)` - Set trace function
+    - `sys.gettrace()` - Get trace function
+    - `sys.setprofile(func)` - Set profile function
+    - `sys.getprofile()` - Get profile function
+  </Accordion>
+  
+  <Accordion title="Module Functions">
+    - `sys.getrefcount(object)` - Reference count
+    - `sys.getsizeof(object)` - Object size in bytes
+    - `sys.intern(string)` - Intern string
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tip>
+  **Use sys.exit() for clean exits:**
+  ```python
+  # Good
+  if error:
+      sys.exit(1)
+  
+  # Avoid
+  if error:
+      exit()  # May not be available in all contexts
+  ```
+</Tip>
+
+<Warning>
+  **Be careful with sys.setrecursionlimit():**
+  Setting it too high can cause stack overflow. Python's default limit (usually 1000) is reasonable for most cases. If you need deeper recursion, consider iterative approaches instead.
+</Warning>
+
+<Note>
+  **sys.argv is always a list:**
+  Always check length before accessing elements to avoid IndexError.
+  ```python
+  if len(sys.argv) > 1:
+      arg = sys.argv[1]
+  ```
+</Note>
+
+## Related Modules
+
+<CardGroup cols={2}>
+  <Card title="os" icon="folder" href="/library/os">
+    Operating system interfaces
+  </Card>
+  <Card title="platform" icon="info">
+    Platform identification
+  </Card>
+  <Card title="argparse" icon="terminal">
+    Command-line argument parsing
+  </Card>
+  <Card title="logging" icon="file-lines">
+    Logging facility
+  </Card>
+</CardGroup>

@@ -1,0 +1,150 @@
+---
+title: Integer Objects
+description: Working with Python int type (arbitrary precision integers)
+---
+
+## Overview
+
+Python integers (`int`) support arbitrary precision - they can represent integers of any size limited only by available memory.
+
+## Type Object
+
+```c
+PyTypeObject PyLong_Type
+```
+
+The Python `int` type.
+
+## Type Checking
+
+```c
+int PyLong_Check(PyObject *p)
+int PyLong_CheckExact(PyObject *p)
+```
+
+Check if object is an integer or exactly an integer (not subclass).
+
+## Creating Integers
+
+### From C Types
+
+```c
+PyObject* PyLong_FromLong(long v)
+PyObject* PyLong_FromUnsignedLong(unsigned long v)
+PyObject* PyLong_FromLongLong(long long v)
+PyObject* PyLong_FromUnsignedLongLong(unsigned long long v)
+PyObject* PyLong_FromSize_t(size_t v)
+PyObject* PyLong_FromSsize_t(Py_ssize_t v)
+PyObject* PyLong_FromDouble(double v)
+```
+
+**Example:**
+
+```c
+PyObject *num = PyLong_FromLong(42);
+if (num == NULL)
+    return PyErr_NoMemory();
+return num;
+```
+
+### From Strings
+
+```c
+PyObject* PyLong_FromString(const char *str, char **pend, int base)
+```
+
+Parse integer from string with specified base (2-36, or 0 for auto-detect).
+
+**Example:**
+
+```c
+PyObject *num = PyLong_FromString("ff", NULL, 16);  // Returns 255
+```
+
+## Converting to C Types
+
+```c
+long PyLong_AsLong(PyObject *obj)
+unsigned long PyLong_AsUnsignedLong(PyObject *obj)
+long long PyLong_AsLongLong(PyObject *obj)
+unsigned long long PyLong_AsUnsignedLongLong(PyObject *obj)
+Py_ssize_t PyLong_AsSsize_t(PyObject *obj)
+double PyLong_AsDouble(PyObject *obj)
+```
+
+**Returns:** Converted value, or -1 on error (check `PyErr_Occurred()`)
+
+**Example:**
+
+```c
+long value = PyLong_AsLong(obj);
+if (value == -1 && PyErr_Occurred()) {
+    // Handle overflow or type error
+    return NULL;
+}
+printf("Value: %ld\\n", value);
+```
+
+### With Overflow Detection
+
+```c
+long PyLong_AsLongAndOverflow(PyObject *obj, int *overflow)
+```
+
+<ParamField path="overflow" type="int*">
+  Set to -1, 0, or 1 indicating underflow, success, or overflow
+</ParamField>
+
+**Example:**
+
+```c
+int overflow;
+long value = PyLong_AsLongAndOverflow(obj, &overflow);
+
+if (overflow != 0) {
+    if (overflow < 0)
+        printf("Value too small for long\\n");
+    else
+        printf("Value too large for long\\n");
+    return NULL;
+}
+```
+
+## Complete Example
+
+```c
+static PyObject* add_integers(PyObject *self, PyObject *args) {
+    PyObject *a, *b;
+    long val_a, val_b, result;
+    
+    if (!PyArg_ParseTuple(args, "OO", &a, &b))
+        return NULL;
+    
+    // Check types
+    if (!PyLong_Check(a) || !PyLong_Check(b)) {
+        PyErr_SetString(PyExc_TypeError, "Arguments must be integers");
+        return NULL;
+    }
+    
+    // Convert to C long
+    val_a = PyLong_AsLong(a);
+    if (val_a == -1 && PyErr_Occurred())
+        return NULL;
+    
+    val_b = PyLong_AsLong(b);
+    if (val_b == -1 && PyErr_Occurred())
+        return NULL;
+    
+    // Perform operation
+    result = val_a + val_b;
+    
+    // Return as Python int
+    return PyLong_FromLong(result);
+}
+```
+
+## See Also
+
+- [Boolean Objects](/c-api/bool) - Booleans are a subclass of int
+- [Floating Point Objects](/c-api/float)
+- [Object Protocol](/c-api/object)

@@ -1,0 +1,576 @@
+---
+title: Object Protocol
+description: Generic operations on Python objects
+---
+
+## Overview
+
+The Object Protocol provides generic operations that work with any Python object through the abstract object interface. These functions operate on `PyObject*` pointers.
+
+## Type Checking
+
+### PyObject_Type
+
+```c
+PyObject* PyObject_Type(PyObject *o)
+```
+
+Return the type object for object `o`. Equivalent to `type(o)` in Python.
+
+<ParamField path="o" type="PyObject*" required>
+  Object to get the type of
+</ParamField>
+
+**Returns:** New reference to the type object, or `NULL` on error
+
+### PyObject_TypeCheck
+
+```c
+int PyObject_TypeCheck(PyObject *o, PyTypeObject *type)
+```
+
+Check if object `o` is of type `type` or a subtype.
+
+**Returns:** `1` if true, `0` if false
+
+**Example:**
+
+```c
+if (PyObject_TypeCheck(obj, &PyList_Type)) {
+    // obj is a list or list subclass
+}
+```
+
+### PyObject_IsInstance
+
+```c
+int PyObject_IsInstance(PyObject *inst, PyObject *cls)
+```
+
+Check if `inst` is an instance of class `cls`. Equivalent to `isinstance(inst, cls)`.
+
+**Returns:** `1` for true, `0` for false, `-1` on error
+
+## Attribute Access
+
+### PyObject_HasAttr
+
+```c
+int PyObject_HasAttr(PyObject *o, PyObject *attr_name)
+```
+
+Check if object has an attribute. Equivalent to `hasattr(o, attr_name)`.
+
+<ParamField path="o" type="PyObject*" required>
+  Object to check
+</ParamField>
+
+<ParamField path="attr_name" type="PyObject*" required>
+  Attribute name (string object)
+</ParamField>
+
+**Returns:** `1` if attribute exists, `0` otherwise
+
+### PyObject_GetAttr
+
+```c
+PyObject* PyObject_GetAttr(PyObject *o, PyObject *attr_name)
+```
+
+Get an attribute from an object. Equivalent to `o.attr_name` or `getattr(o, attr_name)`.
+
+**Returns:** New reference to attribute value, or `NULL` on error
+
+**Example:**
+
+```c
+PyObject *name_str = PyUnicode_FromString("__name__");
+PyObject *name = PyObject_GetAttr(module, name_str);
+Py_DECREF(name_str);
+
+if (name == NULL) {
+    PyErr_Clear();
+} else {
+    // Use name
+    Py_DECREF(name);
+}
+```
+
+### PyObject_GetAttrString
+
+```c
+PyObject* PyObject_GetAttrString(PyObject *o, const char *attr_name)
+```
+
+Convenience function for getting attributes with C string names.
+
+**Example:**
+
+```c
+PyObject *name = PyObject_GetAttrString(obj, "name");
+if (name != NULL) {
+    const char *name_str = PyUnicode_AsUTF8(name);
+    printf("Name: %s\n", name_str);
+    Py_DECREF(name);
+}
+```
+
+### PyObject_SetAttr
+
+```c
+int PyObject_SetAttr(PyObject *o, PyObject *attr_name, PyObject *v)
+```
+
+Set an attribute. Equivalent to `o.attr_name = v` or `setattr(o, attr_name, v)`.
+
+<ParamField path="o" type="PyObject*" required>
+  Object to modify
+</ParamField>
+
+<ParamField path="attr_name" type="PyObject*" required>
+  Attribute name (string object)
+</ParamField>
+
+<ParamField path="v" type="PyObject*" required>
+  New attribute value
+</ParamField>
+
+**Returns:** `0` on success, `-1` on error
+
+### PyObject_DelAttr
+
+```c
+int PyObject_DelAttr(PyObject *o, PyObject *attr_name)
+```
+
+Delete an attribute. Equivalent to `del o.attr_name`.
+
+**Returns:** `0` on success, `-1` on error
+
+## Rich Comparison
+
+### PyObject_RichCompare
+
+```c
+PyObject* PyObject_RichCompare(PyObject *o1, PyObject *o2, int opid)
+```
+
+Compare two objects with a comparison operator.
+
+<ParamField path="o1" type="PyObject*" required>
+  Left operand
+</ParamField>
+
+<ParamField path="o2" type="PyObject*" required>
+  Right operand
+</ParamField>
+
+<ParamField path="opid" type="int" required>
+  Comparison operator: `Py_LT`, `Py_LE`, `Py_EQ`, `Py_NE`, `Py_GT`, `Py_GE`
+</ParamField>
+
+**Returns:** Comparison result (new reference), or `NULL` on error
+
+**Example:**
+
+```c
+PyObject *result = PyObject_RichCompare(a, b, Py_EQ);
+if (result == NULL)
+    return NULL;
+
+int is_equal = PyObject_IsTrue(result);
+Py_DECREF(result);
+
+if (is_equal < 0)
+    return NULL;
+
+if (is_equal) {
+    printf("Objects are equal\n");
+}
+```
+
+### PyObject_RichCompareBool
+
+```c
+int PyObject_RichCompareBool(PyObject *o1, PyObject *o2, int opid)
+```
+
+Convenience function returning boolean result directly.
+
+**Returns:** `1` for true, `0` for false, `-1` on error
+
+## Callable Objects
+
+### PyCallable_Check
+
+```c
+int PyCallable_Check(PyObject *o)
+```
+
+Check if object is callable.
+
+**Returns:** `1` if callable, `0` otherwise (never fails)
+
+### PyObject_Call
+
+```c
+PyObject* PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
+```
+
+Call a callable object.
+
+<ParamField path="callable" type="PyObject*" required>
+  Callable object (function, method, class, etc.)
+</ParamField>
+
+<ParamField path="args" type="PyObject*" required>
+  Tuple of positional arguments (can be empty tuple)
+</ParamField>
+
+<ParamField path="kwargs" type="PyObject*">
+  Dictionary of keyword arguments (can be `NULL`)
+</ParamField>
+
+**Returns:** Return value (new reference), or `NULL` on error
+
+**Example:**
+
+```c
+// Call: func(42, name="Alice")
+PyObject *args = Py_BuildValue("(i)", 42);
+PyObject *kwargs = Py_BuildValue("{ss}", "name", "Alice");
+
+PyObject *result = PyObject_Call(func, args, kwargs);
+
+Py_DECREF(args);
+Py_DECREF(kwargs);
+
+if (result == NULL)
+    return NULL;
+
+Py_DECREF(result);
+```
+
+### PyObject_CallObject
+
+```c
+PyObject* PyObject_CallObject(PyObject *callable, PyObject *args)
+```
+
+Call with only positional arguments.
+
+**Example:**
+
+```c
+PyObject *args = Py_BuildValue("(ss)", "hello", "world");
+PyObject *result = PyObject_CallObject(func, args);
+Py_DECREF(args);
+```
+
+### PyObject_CallFunction
+
+```c
+PyObject* PyObject_CallFunction(PyObject *callable, const char *format, ...)
+```
+
+Call with C arguments built using format string.
+
+**Example:**
+
+```c
+// Call: func("hello", 42)
+PyObject *result = PyObject_CallFunction(func, "si", "hello", 42);
+```
+
+### PyObject_CallMethod
+
+```c
+PyObject* PyObject_CallMethod(PyObject *obj, const char *name, const char *format, ...)
+```
+
+Call a method on an object.
+
+**Example:**
+
+```c
+// Call: obj.append(42)
+PyObject *result = PyObject_CallMethod(obj, "append", "i", 42);
+if (result == NULL)
+    return NULL;
+Py_DECREF(result);
+```
+
+## Item Access
+
+### PyObject_GetItem
+
+```c
+PyObject* PyObject_GetItem(PyObject *o, PyObject *key)
+```
+
+Get item from mapping or sequence. Equivalent to `o[key]`.
+
+<ParamField path="o" type="PyObject*" required>
+  Container object
+</ParamField>
+
+<ParamField path="key" type="PyObject*" required>
+  Key or index
+</ParamField>
+
+**Returns:** New reference to item, or `NULL` on error
+
+**Example:**
+
+```c
+// dict["key"]
+PyObject *key = PyUnicode_FromString("key");
+PyObject *value = PyObject_GetItem(dict, key);
+Py_DECREF(key);
+
+if (value == NULL) {
+    if (PyErr_ExceptionMatches(PyExc_KeyError)) {
+        PyErr_Clear();
+        // Handle missing key
+    }
+    return NULL;
+}
+Py_DECREF(value);
+```
+
+### PyObject_SetItem
+
+```c
+int PyObject_SetItem(PyObject *o, PyObject *key, PyObject *value)
+```
+
+Set item in container. Equivalent to `o[key] = value`.
+
+**Returns:** `0` on success, `-1` on error
+
+### PyObject_DelItem
+
+```c
+int PyObject_DelItem(PyObject *o, PyObject *key)
+```
+
+Delete item from container. Equivalent to `del o[key]`.
+
+**Returns:** `0` on success, `-1` on error
+
+## Sequence Protocol
+
+### PyObject_Length / PyObject_Size
+
+```c
+Py_ssize_t PyObject_Length(PyObject *o)
+Py_ssize_t PyObject_Size(PyObject *o)  // Alias
+```
+
+Get length of sequence or mapping. Equivalent to `len(o)`.
+
+**Returns:** Length, or `-1` on error
+
+### PyObject_GetIter
+
+```c
+PyObject* PyObject_GetIter(PyObject *o)
+```
+
+Get iterator for object. Equivalent to `iter(o)`.
+
+**Returns:** New reference to iterator, or `NULL` on error
+
+**Example:**
+
+```c
+PyObject *iter = PyObject_GetIter(sequence);
+if (iter == NULL)
+    return NULL;
+
+PyObject *item;
+while ((item = PyIter_Next(iter)) != NULL) {
+    // Process item
+    printf("Item: %ld\n", PyLong_AsLong(item));
+    Py_DECREF(item);
+}
+
+Py_DECREF(iter);
+
+if (PyErr_Occurred())
+    return NULL;
+```
+
+## Truth Value Testing
+
+### PyObject_IsTrue
+
+```c
+int PyObject_IsTrue(PyObject *o)
+```
+
+Test truth value. Equivalent to `bool(o)`.
+
+**Returns:** `1` for true, `0` for false, `-1` on error
+
+### PyObject_Not
+
+```c
+int PyObject_Not(PyObject *o)
+```
+
+Logical negation. Equivalent to `not o`.
+
+**Returns:** `1` if false, `0` if true, `-1` on error
+
+## String Representation
+
+### PyObject_Repr
+
+```c
+PyObject* PyObject_Repr(PyObject *o)
+```
+
+Get object representation. Equivalent to `repr(o)`.
+
+**Returns:** New reference to string, or `NULL` on error
+
+### PyObject_Str
+
+```c
+PyObject* PyObject_Str(PyObject *o)
+```
+
+Get string representation. Equivalent to `str(o)`.
+
+**Returns:** New reference to string, or `NULL` on error
+
+### PyObject_ASCII
+
+```c
+PyObject* PyObject_ASCII(PyObject *o)
+```
+
+Get ASCII representation. Equivalent to `ascii(o)`.
+
+**Returns:** New reference to string with non-ASCII characters escaped
+
+## Hash Values
+
+### PyObject_Hash
+
+```c
+Py_hash_t PyObject_Hash(PyObject *o)
+```
+
+Compute hash value. Equivalent to `hash(o)`.
+
+**Returns:** Hash value, or `-1` on error
+
+<Warning>
+  Don't confuse return value `-1` with hash value `-1`. Check `PyErr_Occurred()` on `-1` return.
+</Warning>
+
+### PyObject_HashNotImplemented
+
+```c
+Py_hash_t PyObject_HashNotImplemented(PyObject *o)
+```
+
+Helper to raise `TypeError` for unhashable types.
+
+**Returns:** Always `-1` and sets exception
+
+## Reference Counting Helpers
+
+### Py_Is
+
+```c
+int Py_Is(PyObject *x, PyObject *y)
+```
+
+Test identity. Equivalent to `x is y`.
+
+**Returns:** `1` if same object, `0` otherwise
+
+### Py_IsNone
+
+```c
+int Py_IsNone(PyObject *x)
+```
+
+Test if object is `None`. Equivalent to `x is None`.
+
+### Py_IsTrue / Py_IsFalse
+
+```c
+int Py_IsTrue(PyObject *x)
+int Py_IsFalse(PyObject *x)
+```
+
+Test if object is `True` or `False` singleton.
+
+## Memory and Copying
+
+### PyObject_Bytes
+
+```c
+PyObject* PyObject_Bytes(PyObject *o)
+```
+
+Get bytes representation. Equivalent to `bytes(o)`.
+
+**Returns:** New reference to bytes object, or `NULL` on error
+
+## Complete Example
+
+```c
+static PyObject* process_object(PyObject *self, PyObject *args) {
+    PyObject *obj, *result = NULL;
+    
+    if (!PyArg_ParseTuple(args, "O", &obj))
+        return NULL;
+    
+    // Check if callable
+    if (PyCallable_Check(obj)) {
+        // Call with no arguments
+        PyObject *empty_args = PyTuple_New(0);
+        result = PyObject_Call(obj, empty_args, NULL);
+        Py_DECREF(empty_args);
+        return result;
+    }
+    
+    // Try to get 'value' attribute
+    if (PyObject_HasAttrString(obj, "value")) {
+        result = PyObject_GetAttrString(obj, "value");
+        return result;
+    }
+    
+    // Try to get length
+    Py_ssize_t len = PyObject_Length(obj);
+    if (len >= 0) {
+        return PyLong_FromSsize_t(len);
+    }
+    
+    // Fall back to string representation
+    PyErr_Clear();
+    return PyObject_Str(obj);
+}
+```
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Type Objects" icon="cube" href="/c-api/type">
+    Define and work with type objects
+  </Card>
+  <Card title="Reference Counting" icon="counter" href="/c-api/refcounting">
+    Manage object lifetimes
+  </Card>
+  <Card title="Concrete Objects" icon="shapes" href="/c-api/long">
+    Type-specific operations
+  </Card>
+  <Card title="Exception Handling" icon="triangle-exclamation" href="/c-api/exceptions">
+    Handle errors in object operations
+  </Card>
+</CardGroup>

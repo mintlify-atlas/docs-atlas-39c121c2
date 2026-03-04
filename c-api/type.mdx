@@ -1,0 +1,550 @@
+---
+title: Type Objects
+description: Working with Python type objects and defining new types
+---
+
+## Overview
+
+Type objects (`PyTypeObject`) define the behavior of Python types. Every Python object has a type, accessible via `obj->ob_type` or `Py_TYPE(obj)`.
+
+## Built-in Type Objects
+
+Python provides type objects for all built-in types:
+
+```c
+PyTypeObject PyType_Type;        // type
+PyTypeObject PyLong_Type;        // int
+PyTypeObject PyFloat_Type;       // float
+PyTypeObject PyUnicode_Type;     // str
+PyTypeObject PyList_Type;        // list
+PyTypeObject PyDict_Type;        // dict
+PyTypeObject PyTuple_Type;       // tuple
+PyTypeObject PySet_Type;         // set
+PyTypeObject PyBool_Type;        // bool
+PyTypeObject PyBytes_Type;       // bytes
+```
+
+## Type Checking
+
+### PyType_Check
+
+```c
+int PyType_Check(PyObject *o)
+```
+
+Check if object is a type object.
+
+**Returns:** `1` if type, `0` otherwise
+
+### PyType_CheckExact
+
+```c
+int PyType_CheckExact(PyObject *o)
+```
+
+Check if object is exactly `type` (not a subclass).
+
+**Returns:** `1` if exact match, `0` otherwise
+
+### Py_IS_TYPE
+
+```c
+int Py_IS_TYPE(PyObject *o, PyTypeObject *type)
+```
+
+Check if object's type is exactly `type`.
+
+**Example:**
+
+```c
+if (Py_IS_TYPE(obj, &PyLong_Type)) {
+    // obj is exactly int, not a subclass
+}
+```
+
+### PyObject_TypeCheck
+
+```c
+int PyObject_TypeCheck(PyObject *o, PyTypeObject *type)
+```
+
+Check if object is of type or subtype.
+
+**Example:**
+
+```c
+if (PyObject_TypeCheck(obj, &PyList_Type)) {
+    // obj is list or list subclass
+    PyListObject *list = (PyListObject*)obj;
+}
+```
+
+## Type Operations
+
+### PyType_IsSubtype
+
+```c
+int PyType_IsSubtype(PyTypeObject *a, PyTypeObject *b)
+```
+
+Check if type `a` is a subtype of type `b`.
+
+<ParamField path="a" type="PyTypeObject*" required>
+  Potential subtype
+</ParamField>
+
+<ParamField path="b" type="PyTypeObject*" required>
+  Potential supertype
+</ParamField>
+
+**Returns:** `1` if `a` is subtype of `b`, `0` otherwise
+
+### PyType_Ready
+
+```c
+int PyType_Ready(PyTypeObject *type)
+```
+
+Initialize a type object, filling in necessary fields.
+
+<Warning>
+  Call `PyType_Ready()` before using a custom type object. Usually done in module initialization.
+</Warning>
+
+**Returns:** `0` on success, `-1` on error
+
+### PyType_GetName
+
+```c
+PyObject* PyType_GetName(PyTypeObject *type)
+```
+
+Get the short name of the type.
+
+**Returns:** New reference to string
+
+### PyType_GetQualName
+
+```c
+PyObject* PyType_GetQualName(PyTypeObject *type)
+```
+
+Get the qualified name of the type.
+
+**Returns:** New reference to string
+
+## Defining Custom Types
+
+### Basic Type Definition
+
+To define a new Python type in C:
+
+```c
+#include <Python.h>
+#include <structmember.h>
+
+// 1. Define the C structure
+typedef struct {
+    PyObject_HEAD
+    PyObject *name;    // Managed attributes
+    int value;
+} MyObject;
+
+// 2. Destructor
+static void MyObject_dealloc(MyObject *self) {
+    Py_XDECREF(self->name);
+    Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+// 3. Constructor
+static PyObject* MyObject_new(
+    PyTypeObject *type,
+    PyObject *args,
+    PyObject *kwds
+) {
+    MyObject *self;
+    self = (MyObject*)type->tp_alloc(type, 0);
+    if (self != NULL) {
+        self->name = PyUnicode_FromString("");
+        if (self->name == NULL) {
+            Py_DECREF(self);
+            return NULL;
+        }
+        self->value = 0;
+    }
+    return (PyObject*)self;
+}
+
+// 4. Initialization
+static int MyObject_init(
+    MyObject *self,
+    PyObject *args,
+    PyObject *kwds
+) {
+    static char *kwlist[] = {"name", "value", NULL};
+    PyObject *name = NULL;
+    int value = 0;
+    
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|Oi", kwlist,
+                                     &name, &value))
+        return -1;
+    
+    if (name) {
+        PyObject *tmp = self->name;
+        Py_INCREF(name);
+        self->name = name;
+        Py_XDECREF(tmp);
+    }
+    
+    self->value = value;
+    return 0;
+}
+
+// 5. Type object definition
+static PyTypeObject MyType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "mymodule.MyObject",
+    .tp_doc = "Custom MyObject type",
+    .tp_basicsize = sizeof(MyObject),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = MyObject_new,
+    .tp_init = (initproc)MyObject_init,
+    .tp_dealloc = (destructor)MyObject_dealloc,
+};
+
+// 6. Module initialization
+PyMODINIT_FUNC PyInit_mymodule(void) {
+    PyObject *m;
+    
+    if (PyType_Ready(&MyType) < 0)
+        return NULL;
+    
+    m = PyModule_Create(&mymodule);
+    if (m == NULL)
+        return NULL;
+    
+    Py_INCREF(&MyType);
+    if (PyModule_AddObject(m, "MyObject", (PyObject*)&MyType) < 0) {
+        Py_DECREF(&MyType);
+        Py_DECREF(m);
+        return NULL;
+    }
+    
+    return m;
+}
+```
+
+## Type Object Structure
+
+### PyTypeObject Fields
+
+Key fields in `PyTypeObject`:
+
+<ParamField path="tp_name" type="const char*">
+  Type name (should include module name: `"module.TypeName"`)
+</ParamField>
+
+<ParamField path="tp_basicsize" type="Py_ssize_t">
+  Size of instance in bytes (`sizeof(YourStruct)`)
+</ParamField>
+
+<ParamField path="tp_itemsize" type="Py_ssize_t">
+  Size of variable-length items (0 for fixed-size types)
+</ParamField>
+
+<ParamField path="tp_doc" type="const char*">
+  Type docstring
+</ParamField>
+
+<ParamField path="tp_flags" type="unsigned long">
+  Type flags (see below)
+</ParamField>
+
+<ParamField path="tp_new" type="newfunc">
+  Object creation function (`__new__`)
+</ParamField>
+
+<ParamField path="tp_init" type="initproc">
+  Object initialization function (`__init__`)
+</ParamField>
+
+<ParamField path="tp_dealloc" type="destructor">
+  Object destruction function
+</ParamField>
+
+<ParamField path="tp_repr" type="reprfunc">
+  `__repr__` implementation
+</ParamField>
+
+<ParamField path="tp_str" type="reprfunc">
+  `__str__` implementation
+</ParamField>
+
+<ParamField path="tp_methods" type="PyMethodDef*">
+  Method definitions
+</ParamField>
+
+<ParamField path="tp_members" type="PyMemberDef*">
+  Member (attribute) definitions
+</ParamField>
+
+<ParamField path="tp_getset" type="PyGetSetDef*">
+  Computed attribute definitions
+</ParamField>
+
+### Type Flags
+
+Common type flags:
+
+- `Py_TPFLAGS_DEFAULT` - Default flags (always use)
+- `Py_TPFLAGS_BASETYPE` - Type can be subclassed
+- `Py_TPFLAGS_HEAPTYPE` - Type allocated on heap
+- `Py_TPFLAGS_HAVE_GC` - Type participates in garbage collection
+
+## Adding Methods
+
+### Method Definitions
+
+```c
+static PyObject* MyObject_method(MyObject *self, PyObject *args) {
+    // Method implementation
+    Py_RETURN_NONE;
+}
+
+static PyMethodDef MyObject_methods[] = {
+    {"method", (PyCFunction)MyObject_method, METH_VARARGS,
+     "Method docstring"},
+    {NULL}  // Sentinel
+};
+
+// Add to type object:
+static PyTypeObject MyType = {
+    // ...
+    .tp_methods = MyObject_methods,
+};
+```
+
+## Adding Members
+
+### Direct Attribute Access
+
+```c
+static PyMemberDef MyObject_members[] = {
+    {"value", T_INT, offsetof(MyObject, value), 0,
+     "integer value"},
+    {"name", T_OBJECT_EX, offsetof(MyObject, name), 0,
+     "name string"},
+    {NULL}  // Sentinel
+};
+
+// Add to type object:
+static PyTypeObject MyType = {
+    // ...
+    .tp_members = MyObject_members,
+};
+```
+
+Member types:
+- `T_INT` - C int
+- `T_LONG` - C long
+- `T_DOUBLE` - C double
+- `T_STRING` - C string (char*)
+- `T_OBJECT` - PyObject* (can be NULL)
+- `T_OBJECT_EX` - PyObject* (raises AttributeError if NULL)
+- `T_BOOL` - C char (boolean)
+
+## Adding Properties
+
+### Computed Attributes
+
+```c
+static PyObject* MyObject_getvalue(MyObject *self, void *closure) {
+    return PyLong_FromLong(self->value);
+}
+
+static int MyObject_setvalue(MyObject *self, PyObject *value, void *closure) {
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError, "Cannot delete value attribute");
+        return -1;
+    }
+    
+    if (!PyLong_Check(value)) {
+        PyErr_SetString(PyExc_TypeError, "value must be an integer");
+        return -1;
+    }
+    
+    self->value = PyLong_AsLong(value);
+    if (self->value == -1 && PyErr_Occurred())
+        return -1;
+    
+    return 0;
+}
+
+static PyGetSetDef MyObject_getsetters[] = {
+    {"value", (getter)MyObject_getvalue, (setter)MyObject_setvalue,
+     "value property", NULL},
+    {NULL}  // Sentinel
+};
+
+// Add to type object:
+static PyTypeObject MyType = {
+    // ...
+    .tp_getset = MyObject_getsetters,
+};
+```
+
+## Special Methods
+
+### Comparison
+
+```c
+static PyObject* MyObject_richcompare(
+    PyObject *self,
+    PyObject *other,
+    int op
+) {
+    MyObject *a = (MyObject*)self;
+    MyObject *b = (MyObject*)other;
+    int result;
+    
+    if (!PyObject_TypeCheck(other, &MyType)) {
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+    
+    switch (op) {
+        case Py_EQ:
+            result = (a->value == b->value);
+            break;
+        case Py_NE:
+            result = (a->value != b->value);
+            break;
+        case Py_LT:
+            result = (a->value < b->value);
+            break;
+        case Py_LE:
+            result = (a->value <= b->value);
+            break;
+        case Py_GT:
+            result = (a->value > b->value);
+            break;
+        case Py_GE:
+            result = (a->value >= b->value);
+            break;
+        default:
+            Py_RETURN_NOTIMPLEMENTED;
+    }
+    
+    if (result)
+        Py_RETURN_TRUE;
+    else
+        Py_RETURN_FALSE;
+}
+
+// Add to type object:
+static PyTypeObject MyType = {
+    // ...
+    .tp_richcompare = MyObject_richcompare,
+};
+```
+
+### String Representation
+
+```c
+static PyObject* MyObject_repr(MyObject *self) {
+    return PyUnicode_FromFormat("MyObject(name=%R, value=%d)",
+                                self->name, self->value);
+}
+
+static PyObject* MyObject_str(MyObject *self) {
+    return PyUnicode_FromFormat("%S: %d", self->name, self->value);
+}
+
+// Add to type object:
+static PyTypeObject MyType = {
+    // ...
+    .tp_repr = (reprfunc)MyObject_repr,
+    .tp_str = (reprfunc)MyObject_str,
+};
+```
+
+### Hash and Equality
+
+```c
+static Py_hash_t MyObject_hash(MyObject *self) {
+    Py_hash_t hash = PyObject_Hash(self->name);
+    if (hash == -1)
+        return -1;
+    // Combine with value
+    hash ^= self->value;
+    if (hash == -1)
+        hash = -2;  // -1 is reserved for error
+    return hash;
+}
+
+// Add to type object:
+static PyTypeObject MyType = {
+    // ...
+    .tp_hash = (hashfunc)MyObject_hash,
+};
+```
+
+## Garbage Collection Support
+
+For types containing PyObject* members that may create reference cycles:
+
+```c
+static int MyObject_traverse(MyObject *self, visitproc visit, void *arg) {
+    Py_VISIT(self->name);
+    // Visit other PyObject* members
+    return 0;
+}
+
+static int MyObject_clear(MyObject *self) {
+    Py_CLEAR(self->name);
+    // Clear other PyObject* members
+    return 0;
+}
+
+static void MyObject_dealloc(MyObject *self) {
+    PyObject_GC_UnTrack(self);
+    MyObject_clear(self);
+    Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+// Add to type object:
+static PyTypeObject MyType = {
+    // ...
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_traverse = (traverseproc)MyObject_traverse,
+    .tp_clear = (inquiry)MyObject_clear,
+    .tp_dealloc = (destructor)MyObject_dealloc,
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_free = PyObject_GC_Del,
+};
+
+// In __new__:
+self = (MyObject*)PyType_GenericAlloc(type, 0);
+// becomes:
+self = (MyObject*)_PyObject_GC_New(type);
+
+// After initialization in __init__:
+PyObject_GC_Track(self);
+```
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Object Protocol" icon="cube" href="/c-api/object">
+    Generic object operations
+  </Card>
+  <Card title="Memory Allocation" icon="memory" href="/c-api/allocation">
+    Allocating type instances
+  </Card>
+  <Card title="Extension Modules" icon="puzzle-piece" href="/c-api/extension-modules">
+    Creating extension modules
+  </Card>
+  <Card title="Reference Counting" icon="counter" href="/c-api/refcounting">
+    Managing object references
+  </Card>
+</CardGroup>

@@ -1,0 +1,88 @@
+---
+title: Dictionary Objects
+description: Working with Python dict type
+---
+
+## Overview
+
+Dictionaries are hash tables mapping hashable keys to values.
+
+## Creating Dictionaries
+
+```c
+PyObject* PyDict_New(void)
+```
+
+**Example:**
+```c
+PyObject *dict = PyDict_New();
+return dict;
+```
+
+## Accessing Items
+
+```c
+PyObject* PyDict_GetItem(PyObject *p, PyObject *key)  // Borrowed!
+PyObject* PyDict_GetItemString(PyObject *p, const char *key)  // Borrowed!
+int PyDict_Contains(PyObject *p, PyObject *key)
+```
+
+<Warning>
+`PyDict_GetItem` returns **borrowed reference** - don't Py_DECREF!
+</Warning>
+
+**Example:**
+```c
+PyObject *key = PyUnicode_FromString("name");
+PyObject *value = PyDict_GetItem(dict, key);
+Py_DECREF(key);
+if (value != NULL) {
+    // Use value (borrowed reference)
+}
+```
+
+## Modifying Dictionaries
+
+```c
+int PyDict_SetItem(PyObject *p, PyObject *key, PyObject *val)
+int PyDict_SetItemString(PyObject *p, const char *key, PyObject *val)
+int PyDict_DelItem(PyObject *p, PyObject *key)
+void PyDict_Clear(PyObject *p)
+```
+
+**Example:**
+```c
+PyObject *key = PyUnicode_FromString("age");
+PyObject *val = PyLong_FromLong(25);
+PyDict_SetItem(dict, key, val);
+Py_DECREF(key);
+Py_DECREF(val);
+```
+
+## Iterating
+
+```c
+int PyDict_Next(PyObject *p, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue)
+```
+
+**Example:**
+```c
+Py_ssize_t pos = 0;
+PyObject *key, *value;
+while (PyDict_Next(dict, &pos, &key, &value)) {
+    // key and value are borrowed references
+    printf("Key: %s\n", PyUnicode_AsUTF8(key));
+}
+```
+
+## Dict Views
+
+```c
+PyObject* PyDict_Keys(PyObject *p)
+PyObject* PyDict_Values(PyObject *p)
+PyObject* PyDict_Items(PyObject *p)
+```
+
+## See Also
+- [Object Protocol](/c-api/object)
+- [Set Objects](/c-api/set)

@@ -1,80 +1,438 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start Guide
+description: Get CPython up and running quickly on your system
 ---
 
-## Get started in three steps
+This guide will help you get CPython installed and running in just a few minutes. Whether you prefer downloading pre-built binaries or building from source, we'll walk you through the fastest path to writing your first Python program.
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
+## Choose Your Installation Method
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Download Binary" icon="download">
+    Fastest way to get started. Pre-built installers available for all major platforms.
+  </Card>
+  <Card title="Build from Source" icon="code">
+    Full control over features and optimizations. Recommended for development and customization.
+  </Card>
 </CardGroup>
 
+## Option 1: Install Pre-Built Binary
+
+### On Windows
+
+<Steps>
+  <Step title="Download Python">
+    Visit [python.org/downloads](https://www.python.org/downloads/) and download the latest Windows installer
+  </Step>
+  
+  <Step title="Run Installer">
+    Double-click the installer and check "Add Python to PATH"
+  </Step>
+  
+  <Step title="Verify Installation">
+    Open Command Prompt and run:
+    ```bash
+    python --version
+    ```
+  </Step>
+</Steps>
+
+<Info>
+You can also install Python from the Microsoft Store for easier updates and management.
+</Info>
+
+### On macOS
+
+<Steps>
+  <Step title="Download Python">
+    Download the macOS installer from [python.org/downloads](https://www.python.org/downloads/)
+  </Step>
+  
+  <Step title="Install Package">
+    Open the downloaded `.pkg` file and follow the installation wizard
+  </Step>
+  
+  <Step title="Verify Installation">
+    Open Terminal and run:
+    ```bash
+    python3 --version
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+Alternatively, use Homebrew: `brew install python3`
+</Tip>
+
+### On Linux
+
+Most Linux distributions include Python. To install or update:
+
+<CodeGroup>
+```bash Ubuntu/Debian
+sudo apt update
+sudo apt install python3 python3-pip
+```
+
+```bash Fedora/RHEL/CentOS
+sudo dnf install python3 python3-pip
+```
+
+```bash Arch Linux
+sudo pacman -S python python-pip
+```
+
+```bash openSUSE
+sudo zypper install python3 python3-pip
+```
+</CodeGroup>
+
+## Option 2: Build from Source
+
+Building from source gives you the latest features and allows custom optimizations.
+
+### Quick Build (Unix/Linux/macOS)
+
+<Steps>
+  <Step title="Download Source">
+    ```bash
+    git clone https://github.com/python/cpython.git
+    cd cpython
+    ```
+  </Step>
+  
+  <Step title="Configure">
+    ```bash
+    ./configure
+    ```
+  </Step>
+  
+  <Step title="Build">
+    ```bash
+    make -j$(nproc)
+    ```
+  </Step>
+  
+  <Step title="Test">
+    ```bash
+    make test
+    ```
+  </Step>
+  
+  <Step title="Install">
+    ```bash
+    sudo make install
+    ```
+  </Step>
+</Steps>
+
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+This installs Python as `python3`. Use `make altinstall` to avoid overwriting your system Python.
 </Note>
+
+### Quick Build (Windows)
+
+<Steps>
+  <Step title="Install Visual Studio">
+    Install Visual Studio 2017 or later with Python workload
+  </Step>
+  
+  <Step title="Download Source">
+    Clone the repository or download from [python.org/downloads/source](https://www.python.org/downloads/source/)
+  </Step>
+  
+  <Step title="Build">
+    Open Command Prompt in the `PCbuild` directory:
+    ```bash
+    build.bat
+    ```
+  </Step>
+  
+  <Step title="Test">
+    ```bash
+    rt.bat -q
+    ```
+  </Step>
+</Steps>
+
+## Your First Python Program
+
+Now that Python is installed, let's write your first program!
+
+### Interactive Mode
+
+Launch the Python interpreter:
+
+```bash
+python3
+```
+
+You'll see the Python prompt:
+
+```python
+Python 3.15.0 (default, Mar 4 2026, 10:30:00)
+[GCC 11.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>>
+```
+
+Try some Python code:
+
+```python
+>>> print("Hello, CPython!")
+Hello, CPython!
+
+>>> 2 + 2
+4
+
+>>> import sys
+>>> sys.version
+'3.15.0 (default, Mar 4 2026, 10:30:00) \n[GCC 11.2.0]'
+
+>>> # Exit with Ctrl+D (Unix) or Ctrl+Z (Windows)
+```
+
+<Tip>
+Use `quit()` or `exit()` to leave the interactive interpreter.
+</Tip>
+
+### Script Mode
+
+Create a file named `hello.py`:
+
+```python hello.py
+#!/usr/bin/env python3
+"""My first CPython program"""
+
+def greet(name):
+    """Greet someone by name"""
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    message = greet("World")
+    print(message)
+    
+    # Try some basic operations
+    numbers = [1, 2, 3, 4, 5]
+    total = sum(numbers)
+    print(f"Sum of {numbers} = {total}")
+```
+
+Run your script:
+
+```bash
+python3 hello.py
+```
+
+Output:
+```
+Hello, World!
+Sum of [1, 2, 3, 4, 5] = 15
+```
+
+### Using Modules
+
+Python's standard library provides powerful modules:
+
+```python example.py
+import os
+import json
+from pathlib import Path
+from datetime import datetime
+
+# Working with files
+current_dir = Path.cwd()
+print(f"Current directory: {current_dir}")
+
+# JSON data
+data = {
+    "name": "CPython",
+    "version": "3.15",
+    "timestamp": datetime.now().isoformat()
+}
+print(json.dumps(data, indent=2))
+
+# List directory contents
+files = os.listdir('.')
+print(f"Found {len(files)} files")
+```
+
+## Essential Commands
+
+Here are the most common Python commands you'll use:
+
+<CodeGroup>
+```bash Run a Script
+python3 script.py
+```
+
+```bash Interactive Mode
+python3
+```
+
+```bash Run Module
+python3 -m module_name
+```
+
+```bash Execute Command
+python3 -c "print('Hello')"
+```
+
+```bash Check Version
+python3 --version
+```
+
+```bash Get Help
+python3 --help
+```
+</CodeGroup>
+
+## Virtual Environments
+
+For project isolation, use virtual environments:
+
+<Steps>
+  <Step title="Create Virtual Environment">
+    ```bash
+    python3 -m venv myproject
+    ```
+  </Step>
+  
+  <Step title="Activate">
+    <CodeGroup>
+    ```bash Unix/macOS
+    source myproject/bin/activate
+    ```
+    
+    ```bash Windows
+    myproject\Scripts\activate
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Install Packages">
+    ```bash
+    pip install requests numpy pandas
+    ```
+  </Step>
+  
+  <Step title="Deactivate">
+    ```bash
+    deactivate
+    ```
+  </Step>
+</Steps>
+
+<Info>
+Virtual environments keep your project dependencies isolated and prevent version conflicts.
+</Info>
+
+## Package Management with pip
+
+CPython includes `pip`, the Python package installer:
+
+```bash
+# Install a package
+pip install requests
+
+# Install specific version
+pip install requests==2.28.0
+
+# Upgrade a package
+pip install --upgrade requests
+
+# List installed packages
+pip list
+
+# Show package info
+pip show requests
+
+# Uninstall package
+pip uninstall requests
+
+# Save dependencies
+pip freeze > requirements.txt
+
+# Install from requirements
+pip install -r requirements.txt
+```
+
+## Troubleshooting
+
+### Command Not Found
+
+If `python3` or `python` is not found:
+
+<Accordion title="Unix/Linux/macOS">
+Add Python to your PATH in `~/.bashrc` or `~/.zshrc`:
+```bash
+export PATH="/usr/local/bin:$PATH"
+```
+Then reload: `source ~/.bashrc`
+</Accordion>
+
+<Accordion title="Windows">
+The installer should add Python to PATH. If not:
+1. Search for "Environment Variables" in Windows
+2. Edit the PATH variable
+3. Add Python installation directory (e.g., `C:\Python315`)
+</Accordion>
+
+### Permission Denied
+
+On Unix systems, use `sudo make install` or install to a user directory:
+
+```bash
+./configure --prefix=$HOME/.local
+make
+make install
+```
+
+### Import Errors
+
+If modules can't be imported, check your Python path:
+
+```python
+import sys
+print(sys.path)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation Guide" icon="gear" href="/installation">
+    Detailed installation instructions for all platforms and build options
+  </Card>
+  
+  <Card title="Python Tutorial" icon="book" href="https://docs.python.org/3/tutorial/">
+    Official Python tutorial covering language features
+  </Card>
+  
+  <Card title="Standard Library" icon="books" href="https://docs.python.org/3/library/">
+    Explore Python's comprehensive standard library
+  </Card>
+  
+  <Card title="Contributing" icon="code-branch" href="https://devguide.python.org/">
+    Learn how to contribute to CPython development
+  </Card>
+</CardGroup>
+
+<Warning>
+Always use virtual environments for your projects to avoid dependency conflicts!
+</Warning>
+
+## Quick Reference
+
+Common Python interpreter options:
+
+| Option | Description |
+|--------|-------------|
+| `-c cmd` | Execute Python command |
+| `-m mod` | Run library module as script |
+| `-i` | Enter interactive mode after running script |
+| `-v` | Verbose output (trace imports) |
+| `-O` | Optimize bytecode |
+| `-B` | Don't write `.pyc` files |
+| `-u` | Unbuffered output |
+
+That's it! You're now ready to start developing with CPython. Happy coding!

@@ -1,0 +1,382 @@
+---
+title: Input and Output
+description: Learn about formatting output and reading/writing files in Python
+---
+
+Python provides several ways to present output and read input. This guide covers formatted output, file operations, and JSON serialization.
+
+## Fancier Output Formatting
+
+There are three main ways to format output:
+
+1. **f-strings**: Formatted string literals
+2. **str.format()**: The string format method
+3. **Manual formatting**: String slicing and concatenation
+
+### Formatted String Literals (f-strings)
+
+Prefix strings with `f` or `F` and include expressions in `{}`:
+
+```python
+>>> year = 2016
+>>> event = 'Referendum'
+>>> f'Results of the {year} {event}'
+'Results of the 2016 Referendum'
+```
+
+**Format specifiers:**
+
+```python
+>>> import math
+>>> print(f'The value of pi is approximately {math.pi:.3f}.')
+The value of pi is approximately 3.142.
+```
+
+**Column alignment:**
+
+```python
+>>> table = {'Sjoerd': 4127, 'Jack': 4098, 'Dcab': 7678}
+>>> for name, phone in table.items():
+...     print(f'{name:10} ==> {phone:10d}')
+...
+Sjoerd     ==>       4127
+Jack       ==>       4098
+Dcab       ==>       7678
+```
+
+**Conversion modifiers:**
+
+```python
+>>> animals = 'eels'
+>>> print(f'My hovercraft is full of {animals}.')
+My hovercraft is full of eels.
+>>> print(f'My hovercraft is full of {animals!r}.')
+My hovercraft is full of 'eels'.
+```
+
+**Self-documenting expressions:**
+
+```python
+>>> bugs = 'roaches'
+>>> count = 13
+>>> area = 'living room'
+>>> print(f'Debugging {bugs=} {count=} {area=}')
+Debugging bugs='roaches' count=13 area='living room'
+```
+
+### The str.format() Method
+
+Basic usage:
+
+```python
+>>> print('We are the {} who say "{}!"'.format('knights', 'Ni'))
+We are the knights who say "Ni!"
+```
+
+**Positional arguments:**
+
+```python
+>>> print('{0} and {1}'.format('spam', 'eggs'))
+spam and eggs
+>>> print('{1} and {0}'.format('spam', 'eggs'))
+eggs and spam
+```
+
+**Keyword arguments:**
+
+```python
+>>> print('This {food} is {adjective}.'.format(
+...       food='spam', adjective='absolutely horrible'))
+This spam is absolutely horrible.
+```
+
+**Accessing dictionary values:**
+
+```python
+>>> table = {'Sjoerd': 4127, 'Jack': 4098, 'Dcab': 8637678}
+>>> print('Jack: {0[Jack]:d}; Sjoerd: {0[Sjoerd]:d}; '
+...       'Dcab: {0[Dcab]:d}'.format(table))
+Jack: 4098; Sjoerd: 4127; Dcab: 8637678
+```
+
+Or unpack with `**`:
+
+```python
+>>> print('Jack: {Jack:d}; Sjoerd: {Sjoerd:d}; Dcab: {Dcab:d}'.format(**table))
+Jack: 4098; Sjoerd: 4127; Dcab: 8637678
+```
+
+**Aligned columns:**
+
+```python
+>>> for x in range(1, 11):
+...     print('{0:2d} {1:3d} {2:4d}'.format(x, x*x, x*x*x))
+...
+ 1   1    1
+ 2   4    8
+ 3   9   27
+ 4  16   64
+ 5  25  125
+ 6  36  216
+ 7  49  343
+ 8  64  512
+ 9  81  729
+10 100 1000
+```
+
+### Manual String Formatting
+
+String methods for formatting:
+
+```python
+>>> for x in range(1, 11):
+...     print(repr(x).rjust(2), repr(x*x).rjust(3), end=' ')
+...     print(repr(x*x*x).rjust(4))
+...
+ 1   1    1
+ 2   4    8
+ 3   9   27
+```
+
+**Zero-padding:**
+
+```python
+>>> '12'.zfill(5)
+'00012'
+>>> '-3.14'.zfill(7)
+'-003.14'
+>>> '3.14159265359'.zfill(5)
+'3.14159265359'
+```
+
+### Old String Formatting
+
+The `%` operator can also format strings:
+
+```python
+>>> import math
+>>> print('The value of pi is approximately %5.3f.' % math.pi)
+The value of pi is approximately 3.142.
+```
+
+<Info>
+While `%` formatting still works, f-strings and `str.format()` are more powerful and easier to read.
+</Info>
+
+## Reading and Writing Files
+
+Use `open()` to work with files:
+
+```python
+>>> f = open('workfile', 'w', encoding="utf-8")
+```
+
+### File Modes
+
+| Mode | Description |
+|------|-------------|
+| `'r'` | Read only (default) |
+| `'w'` | Write only (erases existing file) |
+| `'a'` | Append to file |
+| `'r+'` | Read and write |
+| `'b'` | Binary mode |
+
+<Warning>
+Always specify `encoding="utf-8"` when opening text files to ensure consistent behavior across platforms.
+</Warning>
+
+### Using with Statements
+
+The `with` keyword ensures files are properly closed:
+
+```python
+>>> with open('workfile', encoding="utf-8") as f:
+...     read_data = f.read()
+>>> f.closed
+True
+```
+
+Without `with`, you must manually close files:
+
+```python
+>>> f = open('workfile', encoding="utf-8")
+>>> # ... work with file ...
+>>> f.close()
+```
+
+<Warning>
+Failing to close files can result in data loss. Always use `with` statements or explicitly call `f.close()`.
+</Warning>
+
+## Methods of File Objects
+
+### Reading Files
+
+**Read entire file:**
+
+```python
+>>> f.read()
+'This is the entire file.\n'
+>>> f.read()  # End of file reached
+''
+```
+
+**Read a single line:**
+
+```python
+>>> f.readline()
+'This is the first line of the file.\n'
+>>> f.readline()
+'Second line of the file\n'
+>>> f.readline()  # End of file
+''
+```
+
+**Loop over lines (efficient):**
+
+```python
+>>> for line in f:
+...     print(line, end='')
+...
+This is the first line of the file.
+Second line of the file
+```
+
+**Read all lines into a list:**
+
+```python
+>>> list(f)
+['This is the first line of the file.\n', 'Second line of the file\n']
+```
+
+### Writing Files
+
+**Write a string:**
+
+```python
+>>> f.write('This is a test\n')
+15
+```
+
+<Note>
+`write()` returns the number of characters written.
+</Note>
+
+**Write other types:**
+
+```python
+>>> value = ('the answer', 42)
+>>> s = str(value)  # convert to string
+>>> f.write(s)
+18
+```
+
+### File Positioning
+
+**Get current position:**
+
+```python
+>>> f.tell()
+16
+```
+
+**Change position:**
+
+```python
+>>> f = open('workfile', 'rb+')
+>>> f.write(b'0123456789abcdef')
+16
+>>> f.seek(5)      # Go to 6th byte
+5
+>>> f.read(1)
+b'5'
+>>> f.seek(-3, 2)  # Go to 3rd byte before the end
+13
+>>> f.read(1)
+b'd'
+```
+
+**seek() parameters:**
+- `whence=0`: From beginning (default)
+- `whence=1`: From current position
+- `whence=2`: From end of file
+
+## Saving Structured Data with JSON
+
+JSON (JavaScript Object Notation) is perfect for serializing Python data:
+
+```python
+>>> import json
+>>> x = [1, 'simple', 'list']
+>>> json.dumps(x)
+'[1, "simple", "list"]'
+```
+
+### Writing JSON to a File
+
+```python
+import json
+
+data = {'name': 'Alice', 'age': 30, 'city': 'New York'}
+
+with open('data.json', 'w', encoding='utf-8') as f:
+    json.dump(data, f)
+```
+
+### Reading JSON from a File
+
+```python
+import json
+
+with open('data.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+print(data)  # {'name': 'Alice', 'age': 30, 'city': 'New York'}
+```
+
+<Note>
+JSON files must be encoded in UTF-8. Always use `encoding="utf-8"` when opening JSON files.
+</Note>
+
+### JSON Limitations
+
+- Handles lists and dictionaries well
+- Arbitrary class instances require extra work
+- For Python-specific serialization, consider `pickle` (but it's insecure with untrusted data)
+
+<Warning>
+**Security Note**: The `pickle` module can execute arbitrary code when deserializing data. Never unpickle data from untrusted sources.
+</Warning>
+
+## Complete Example
+
+Here's a complete example combining file I/O and JSON:
+
+```python
+import json
+
+# Data to save
+students = [
+    {'name': 'Alice', 'grade': 85},
+    {'name': 'Bob', 'grade': 92},
+    {'name': 'Charlie', 'grade': 78}
+]
+
+# Write to file
+with open('students.json', 'w', encoding='utf-8') as f:
+    json.dump(students, f, indent=2)
+
+print("Data written to file.")
+
+# Read from file
+with open('students.json', 'r', encoding='utf-8') as f:
+    loaded_students = json.load(f)
+
+# Display the data
+for student in loaded_students:
+    print(f"{student['name']}: {student['grade']}")
+```
+
+## Next Steps
+
+You now understand file I/O and data serialization. Next, learn how to handle [Errors and Exceptions](/tutorial/errors) gracefully in your programs.

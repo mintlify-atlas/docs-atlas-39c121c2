@@ -1,0 +1,232 @@
+---
+title: Python Standard Library Overview
+description: Comprehensive guide to Python's built-in modules and functions
+---
+
+The Python Standard Library is a collection of modules and packages distributed with Python. It provides a wide range of facilities including built-in functions, data types, file I/O, networking, concurrency, and much more.
+
+## What's in the Standard Library?
+
+The standard library is organized into several categories:
+
+### Core Language Features
+- **Built-in Functions**: Available without importing (`print()`, `len()`, `range()`, etc.)
+- **Built-in Types**: Fundamental data types (`int`, `str`, `list`, `dict`, etc.)
+- **Built-in Exceptions**: Standard exception hierarchy
+
+### Essential Modules
+
+<CardGroup cols={2}>
+  <Card title="sys" icon="gear" href="/library/sys">
+    System-specific parameters and functions
+  </Card>
+  <Card title="os" icon="folder" href="/library/os">
+    Operating system interfaces
+  </Card>
+  <Card title="pathlib" icon="route" href="/library/pathlib">
+    Object-oriented filesystem paths
+  </Card>
+  <Card title="datetime" icon="clock" href="/library/datetime">
+    Date and time manipulation
+  </Card>
+</CardGroup>
+
+### Data Structures & Algorithms
+
+<CardGroup cols={2}>
+  <Card title="collections" icon="box" href="/library/collections">
+    Specialized container datatypes
+  </Card>
+  <Card title="itertools" icon="repeat" href="/library/itertools">
+    Iterator building blocks
+  </Card>
+  <Card title="functools" icon="function" href="/library/functools">
+    Higher-order functions and operations
+  </Card>
+  <Card title="typing" icon="code" href="/library/typing">
+    Type hints and annotations
+  </Card>
+</CardGroup>
+
+### Concurrency & Parallelism
+
+<CardGroup cols={2}>
+  <Card title="asyncio" icon="bolt" href="/library/asyncio">
+    Asynchronous I/O and coroutines
+  </Card>
+  <Card title="threading" icon="layer-group" href="/library/threading">
+    Thread-based parallelism
+  </Card>
+  <Card title="multiprocessing" icon="microchip" href="/library/multiprocessing">
+    Process-based parallelism
+  </Card>
+  <Card title="concurrent.futures" icon="rocket" href="/library/concurrent-futures">
+    High-level concurrency interface
+  </Card>
+</CardGroup>
+
+### Text Processing
+
+<CardGroup cols={2}>
+  <Card title="re" icon="magnifying-glass" href="/library/re">
+    Regular expression operations
+  </Card>
+  <Card title="string" icon="text" href="/library/string">
+    String operations and formatting
+  </Card>
+  <Card title="json" icon="brackets-curly" href="/library/json">
+    JSON encoder and decoder
+  </Card>
+  <Card title="csv" icon="table" href="/library/csv">
+    CSV file reading and writing
+  </Card>
+</CardGroup>
+
+### File & Data Persistence
+
+<CardGroup cols={2}>
+  <Card title="io" icon="file" href="/library/io">
+    Core I/O operations
+  </Card>
+  <Card title="pickle" icon="database" href="/library/pickle">
+    Python object serialization
+  </Card>
+  <Card title="sqlite3" icon="server" href="/library/sqlite3">
+    SQLite database interface
+  </Card>
+  <Card title="zipfile" icon="file-zipper" href="/library/zipfile">
+    ZIP archive handling
+  </Card>
+</CardGroup>
+
+### Networking & Internet
+
+<CardGroup cols={2}>
+  <Card title="socket" icon="plug" href="/library/socket">
+    Low-level networking interface
+  </Card>
+  <Card title="http" icon="globe" href="/library/http">
+    HTTP modules
+  </Card>
+  <Card title="urllib" icon="link" href="/library/urllib">
+    URL handling modules
+  </Card>
+  <Card title="email" icon="envelope" href="/library/email">
+    Email and MIME handling
+  </Card>
+</CardGroup>
+
+## Library Philosophy
+
+The Python Standard Library follows these principles:
+
+<AccordionGroup>
+  <Accordion title="Batteries Included">
+    Python comes with a comprehensive standard library that provides tools for common programming tasks without requiring external dependencies.
+  </Accordion>
+  
+  <Accordion title="Cross-Platform">
+    Most standard library modules work consistently across different operating systems, with platform-specific variations clearly documented.
+  </Accordion>
+  
+  <Accordion title="Well-Tested">
+    All standard library modules are thoroughly tested and maintained by the Python core development team.
+  </Accordion>
+  
+  <Accordion title="Stable APIs">
+    Standard library APIs are stable and follow strict backward compatibility guidelines.
+  </Accordion>
+</AccordionGroup>
+
+## Getting Started
+
+No installation required! The standard library is included with Python:
+
+```python
+import sys
+import os
+from pathlib import Path
+from datetime import datetime
+
+print(f"Python {sys.version}")
+print(f"Running on {sys.platform}")
+print(f"Current directory: {Path.cwd()}")
+print(f"Current time: {datetime.now()}")
+```
+
+## Common Patterns
+
+### File Operations
+
+```python
+from pathlib import Path
+
+# Modern path handling
+path = Path("data.txt")
+if path.exists():
+    content = path.read_text()
+    print(content)
+```
+
+### Date and Time
+
+```python
+from datetime import datetime, timedelta
+
+# Current time
+now = datetime.now()
+
+# Time arithmetic
+tomorrow = now + timedelta(days=1)
+print(f"Tomorrow: {tomorrow.strftime('%Y-%m-%d')}")
+```
+
+### Data Structures
+
+```python
+from collections import Counter, defaultdict, deque
+
+# Count items
+items = ['apple', 'banana', 'apple', 'orange', 'banana', 'apple']
+count = Counter(items)
+print(count.most_common(2))  # [('apple', 3), ('banana', 2)]
+
+# Default dictionary
+grouped = defaultdict(list)
+grouped['fruits'].append('apple')
+
+# Double-ended queue
+queue = deque([1, 2, 3])
+queue.appendleft(0)  # Add to front
+```
+
+### Concurrency
+
+```python
+import asyncio
+
+async def fetch_data():
+    await asyncio.sleep(1)
+    return "Data fetched"
+
+async def main():
+    result = await fetch_data()
+    print(result)
+
+asyncio.run(main())
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Built-in Functions" icon="function" href="/library/built-in-functions">
+    Explore Python's built-in functions
+  </Card>
+  <Card title="Built-in Types" icon="shapes" href="/library/built-in-types">
+    Learn about fundamental data types
+  </Card>
+</CardGroup>
+
+<Tip>
+  Start with the modules you'll use most: `sys`, `os`, `pathlib`, `datetime`, and `json`.
+</Tip>

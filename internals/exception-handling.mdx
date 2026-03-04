@@ -1,0 +1,321 @@
+---
+title: Exception Handling
+description: How CPython implements zero-cost exception handling with exception tables
+---
+
+# Exception Handling
+
+Python uses "zero-cost" exception handling, which minimizes overhead when no exception occurs but efficiently handles exceptions when they are raised.
+
+## Zero-Cost Exception Handling
+
+The key idea:
+
+- **No exception:** Virtually no overhead (no explicit checks)
+- **Exception raised:** Higher cost, but exceptions are rare
+
+This contrasts with explicit error checking in languages like C, where every call must check for errors.
+
+## From Source to Bytecode
+
+Consider this Python code:
+
+```python
+try:
+    g(0)
+except:
+    res = "fail"
+```
+
+It compiles to intermediate code with pseudo-instructions:
+
+```
+              RESUME                   0
+
+    1         SETUP_FINALLY            8 (to L1)
+
+    2         LOAD_NAME                0 (g)
+              PUSH_NULL
+              LOAD_CONST               0 (0)
+              CALL                     1
+              POP_TOP
+              POP_BLOCK
+
+  --   L1:    PUSH_EXC_INFO
+
+    3         POP_TOP
+
+    4         LOAD_CONST               1 ('fail')
+              STORE_NAME               1 (res)
+```
+
+### Pseudo-Instructions
+
+`SETUP_FINALLY` and `POP_BLOCK` are **pseudo-instructions**:
+
+- Appear in intermediate code
+- **Not** actual bytecode instructions
+- `SETUP_FINALLY`: Specify exception handler location
+- `POP_BLOCK`: Restore previous exception handler
+
+### The Exception Table
+
+These pseudo-instructions are converted to an **exception table** stored in `co_exceptiontable`:
+
+- Maps instruction offsets to exception handlers
+- Consulted only when an exception occurs
+- Instructions not covered by handlers don't appear in the table
+
+This achieves zero cost: no runtime checks when no exception occurs.
+
+## Handling Exceptions at Runtime
+
+When an exception is raised:
+
+1. Interpreter calls `get_exception_handler()` in [Python/ceval.c](https://github.com/python/cpython/blob/main/Python/ceval.c)
+2. Looks up current instruction offset in exception table
+3. If handler found: Transfer control to handler
+4. If not found: Bubble up to caller's frame
+5. Repeat until handler found or topmost frame reached
+
+### Traceback Construction
+
+During unwinding, `PyTraceBack_Here()` ([Python/traceback.c](https://github.com/python/cpython/blob/main/Python/traceback.c)) adds each frame to the traceback.
+
+### Exception Table Entries
+
+Each entry contains:
+
+- **Handler location** - Offset of exception handler
+- **Stack depth** - Stack depth at `try` statement
+- **lasti flag** - Whether to push instruction offset
+
+### Handler Execution Steps
+
+1. Pop values until stack depth matches handler's depth
+2. If `lasti` is true, push raising instruction offset
+3. Push exception onto stack
+4. Jump to handler offset
+
+## Reraising Exceptions
+
+The `lasti` (last instruction) flag supports exception reraising:
+
+```python
+try:
+    something()
+finally:
+    cleanup()
+    # Exception continues propagating
+```
+
+When reraising:
+
+1. `lasti` pushed to stack during exception handling
+2. `RERAISE` instruction (with `oparg > 0`) sets instruction pointer to `lasti`
+3. Traceback shows original raising location, not `finally` block
+
+## Exception Table Format
+
+Conceptually, the table is a sequence of 5-tuples:
+
+```python
+(start_offset,   # Inclusive start of protected region
+ end_offset,     # Exclusive end of protected region
+ target,         # Handler location
+ stack_depth,    # Stack depth at try
+ push_lasti)     # Boolean: push instruction offset?
+```
+
+All offsets are in **code units** (not bytes).
+
+### Design Goals
+
+- **Compact:** Variable-sized entries for small offsets
+- **Searchable:** Binary search in O(log n) time
+
+### Encoding Strategy
+
+Store as `(start, size, target, depth, push_lasti)` instead of `(start, end, ...)`:
+
+- Size is always less than end offset
+- More compact encoding
+
+### Varint Encoding
+
+Uses 7-bit variable-length encoding:
+
+- First byte: `1Xdddddd` (1 = start bit, X = extend bit, d = data)
+- Continuation bytes: `0Xdddddd`
+- Extend bit set if another byte follows
+
+### Depth and Lasti Combined
+
+Encoded together as `(depth << 1) | lasti` before encoding.
+
+### Example Entry
+
+```python
+start:  20
+end:    28
+target: 100  
+depth:  3
+lasti:  False
+```
+
+Converts to:
+
+```python
+start:            20
+size:             8   # end - start
+target:           100
+depth<<1|lasti:   6   # (3 << 1) | 0
+```
+
+Encodes as bytes:
+
+```
+148     # 0b10010100 = MSB + 20
+8       # Size
+65      # 0b01000001 = Extend bit + 1  
+36      # Remainder: 100 = (1 << 6) + 36
+6       # depth<<1|lasti
+```
+
+Total: **5 bytes**
+
+## Code References
+
+### Constructing the Table
+
+`assemble_exception_table()` in [Python/assemble.c](https://github.com/python/cpython/blob/main/Python/assemble.c)
+
+### Looking Up Handlers
+
+`get_exception_handler()` in [Python/ceval.c](https://github.com/python/cpython/blob/main/Python/ceval.c)
+
+### Parsing in Python
+
+```python
+import dis
+
+def example():
+    try:
+        risky()
+    except ValueError:
+        handle()
+
+# Parse exception table
+for entry in dis._parse_exception_table(example.__code__):
+    print(entry)
+```
+
+Defined in [Lib/dis.py](https://github.com/python/cpython/blob/main/Lib/dis.py).
+
+## Exception Chaining
+
+[Exception chaining](https://docs.python.org/3/tutorial/errors.html#exception-chaining) sets `__context__` and `__cause__` attributes.
+
+### Implicit Chaining (`__context__`)
+
+Set automatically by `_PyErr_SetObject()` in [Python/errors.c](https://github.com/python/cpython/blob/main/Python/errors.c):
+
+```python
+try:
+    1 / 0
+except:
+    raise ValueError("Oops")
+
+# ValueError.__context__ is the ZeroDivisionError
+```
+
+All `PyErr_Set*()` functions ultimately call `_PyErr_SetObject()`.
+
+### Explicit Chaining (`__cause__`)
+
+Set by `RAISE_VARARGS` bytecode:
+
+```python
+try:
+    1 / 0
+except Exception as e:
+    raise ValueError("Oops") from e
+
+# ValueError.__cause__ is the ZeroDivisionError
+# ValueError.__suppress_context__ is True
+```
+
+### Traceback Display
+
+When displaying tracebacks:
+
+1. Show original exception first
+2. If `__cause__` is set: Print "The above exception was the direct cause..."
+3. Else if `__context__` is set and not suppressed: Print "During handling of the above exception..."
+4. Show new exception
+
+## Example: Exception Table in Action
+
+```python
+import dis
+
+def complex_example():
+    try:
+        try:
+            dangerous()
+        except ValueError:
+            recover()
+    finally:
+        cleanup()
+
+# Disassemble with exception table
+dis.dis(complex_example)
+
+# View exception table entries
+for entry in dis._parse_exception_table(complex_example.__code__):
+    print(f"Start: {entry.start}, End: {entry.end}, "
+          f"Target: {entry.target}, Depth: {entry.depth}, "
+          f"Lasti: {entry.lasti}")
+```
+
+## Performance Implications
+
+### Fast Path (No Exception)
+
+```python
+def no_exception():
+    try:
+        x = 1 + 1
+    except:
+        pass
+    return x
+```
+
+Performance:
+- No runtime overhead from `try` block
+- Same speed as code without exception handling
+- Exception table consulted only if exception raised
+
+### Exception Path
+
+```python
+def with_exception():
+    try:
+        raise ValueError("error")
+    except ValueError:
+        pass
+```
+
+Performance:
+- Table lookup: O(log n) binary search
+- Stack unwinding: O(depth) to handler
+- Traceback construction: O(depth) frame additions
+
+Exceptions are expensive, but the fast path is free.
+
+## Related Topics
+
+- [Bytecode Interpreter](/internals/interpreter) - How exceptions are raised
+- [Code Objects](/internals/code-objects) - Exception table storage
+- [Frames](/internals/frames) - Frame unwinding during exceptions
+- [Compiler Design](/internals/compiler) - Exception table generation

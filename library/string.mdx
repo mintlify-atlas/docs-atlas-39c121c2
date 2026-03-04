@@ -1,0 +1,106 @@
+---
+title: string - String Operations
+description: Common string operations and constants
+---
+
+The `string` module provides common string constants and template classes.
+
+## Module Import
+
+```python
+import string
+```
+
+## String Constants
+
+```python
+import string
+
+# ASCII letters
+print(string.ascii_lowercase)  # 'abcdefghijklmnopqrstuvwxyz'
+print(string.ascii_uppercase)  # 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+print(string.ascii_letters)    # 'abcd...XYZ'
+
+# Digits
+print(string.digits)  # '0123456789'
+
+# Hexadecimal digits
+print(string.hexdigits)  # '0123456789abcdefABCDEF'
+
+# Punctuation
+print(string.punctuation)  # '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'
+
+# Whitespace
+print(string.whitespace)  # ' \t\n\r\x0b\x0c'
+
+# Printable characters
+print(string.printable)  # All printable ASCII characters
+```
+
+## Template Strings
+
+```python
+from string import Template
+
+# Basic template
+template = Template('Hello, $name!')
+result = template.substitute(name='Alice')
+print(result)  # 'Hello, Alice!'
+
+# With braces
+template = Template('${greeting}, $name!')
+result = template.substitute(greeting='Hi', name='Bob')
+print(result)  # 'Hi, Bob!'
+
+# Safe substitute (no error for missing keys)
+template = Template('Hello, $name!')
+result = template.safe_substitute()  # Returns 'Hello, $name!'
+```
+
+## Formatter
+
+```python
+import string
+
+# Custom formatter
+formatter = string.Formatter()
+result = formatter.format('{0}, {1}!', 'Hello', 'World')
+print(result)  # 'Hello, World!'
+```
+
+## Practical Uses
+
+### Generate Random String
+
+```python
+import string
+import random
+
+def random_string(length=10):
+    chars = string.ascii_letters + string.digits
+    return ''.join(random.choice(chars) for _ in range(length))
+
+print(random_string())  # 'aB3xK9mP2q'
+```
+
+### Password Generator
+
+```python
+import string
+import random
+
+def generate_password(length=12):
+    chars = string.ascii_letters + string.digits + string.punctuation
+    return ''.join(random.choice(chars) for _ in range(length))
+
+print(generate_password())  # 'aB3!xK9@mP2q'
+```
+
+<CardGroup cols={2}>
+  <Card title="Built-in Types" href="/library/built-in-types">
+    String type
+  </Card>
+  <Card title="re" href="/library/re">
+    Regular expressions
+  </Card>
+</CardGroup>

@@ -1,0 +1,108 @@
+---
+title: concurrent.futures - High-Level Concurrency
+description: High-level interface for asynchronously executing callables
+---
+
+The `concurrent.futures` module provides a high-level interface for asynchronously executing callables using threads or processes.
+
+## Module Import
+
+```python
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+```
+
+## ThreadPoolExecutor
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+import time
+
+def task(n):
+    time.sleep(1)
+    return n * n
+
+# Using context manager
+with ThreadPoolExecutor(max_workers=5) as executor:
+    # Submit tasks
+    futures = [executor.submit(task, i) for i in range(10)]
+    
+    # Get results
+    results = [f.result() for f in futures]
+    print(results)
+
+# Using map
+with ThreadPoolExecutor(max_workers=5) as executor:
+    results = executor.map(task, range(10))
+    print(list(results))
+```
+
+## ProcessPoolExecutor
+
+```python
+from concurrent.futures import ProcessPoolExecutor
+
+def cpu_intensive(n):
+    return sum(i*i for i in range(n))
+
+if __name__ == '__main__':
+    with ProcessPoolExecutor(max_workers=4) as executor:
+        results = executor.map(cpu_intensive, [10**6] * 10)
+        print(list(results))
+```
+
+## Handling Results
+
+```python
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+
+def task(n):
+    time.sleep(n)
+    return n
+
+with ThreadPoolExecutor(max_workers=5) as executor:
+    futures = {executor.submit(task, i): i for i in range(5)}
+    
+    # Process as they complete
+    for future in as_completed(futures):
+        arg = futures[future]
+        try:
+            result = future.result()
+            print(f"Task {arg} returned {result}")
+        except Exception as e:
+            print(f"Task {arg} raised {e}")
+```
+
+## Wait for Completion
+
+```python
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED, ALL_COMPLETED
+
+def task(n):
+    return n * n
+
+with ThreadPoolExecutor() as executor:
+    futures = [executor.submit(task, i) for i in range(10)]
+    
+    # Wait for all
+    done, pending = wait(futures, return_when=ALL_COMPLETED)
+    
+    # Wait for first
+    done, pending = wait(futures, return_when=FIRST_COMPLETED)
+```
+
+<Tip>
+  Use ThreadPoolExecutor for I/O-bound tasks and ProcessPoolExecutor for CPU-bound tasks.
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="threading" href="/library/threading">
+    Thread-based parallelism
+  </Card>
+  <Card title="multiprocessing" href="/library/multiprocessing">
+    Process-based parallelism
+  </Card>
+  <Card title="asyncio" href="/library/asyncio">
+    Asynchronous I/O
+  </Card>
+</CardGroup>

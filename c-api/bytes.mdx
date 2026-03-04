@@ -1,0 +1,58 @@
+---
+title: Bytes Objects
+description: Working with Python bytes type
+---
+
+## Overview
+
+Bytes objects represent sequences of bytes (integers 0-255). They are immutable.
+
+## Type Object
+
+```c
+PyTypeObject PyBytes_Type
+```
+
+## Type Checking
+
+```c
+int PyBytes_Check(PyObject *o)
+int PyBytes_CheckExact(PyObject *o)
+```
+
+## Creating Bytes
+
+```c
+PyObject* PyBytes_FromString(const char *v)
+PyObject* PyBytes_FromStringAndSize(const char *v, Py_ssize_t len)
+```
+
+**Example:**
+
+```c
+PyObject *data = PyBytes_FromString("binary\\x00data");
+PyObject *buf = PyBytes_FromStringAndSize(buffer, buffer_len);
+```
+
+## Accessing Bytes
+
+```c
+char* PyBytes_AsString(PyObject *o)
+Py_ssize_t PyBytes_Size(PyObject *o)
+```
+
+**Example:**
+
+```c
+char *data = PyBytes_AsString(bytes_obj);
+Py_ssize_t size = PyBytes_Size(bytes_obj);
+
+for (Py_ssize_t i = 0; i < size; i++) {
+    printf("%02x ", (unsigned char)data[i]);
+}
+```
+
+## See Also
+
+- [Unicode Objects](/c-api/unicode)  
+- [Bytearray Objects](/c-api/bytearray)

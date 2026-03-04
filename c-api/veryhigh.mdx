@@ -1,0 +1,381 @@
+---
+title: Very High Level Layer
+description: Execute Python source code from C programs
+---
+
+## Overview
+
+The Very High Level Layer provides simple functions to execute Python code from C without detailed interaction with the interpreter. These functions accept Python source code as strings or files.
+
+<Warning>
+  These functions use `FILE*` parameters. Ensure the FILE structures come from the same C runtime library as Python to avoid compatibility issues.
+</Warning>
+
+## Running Python Code
+
+### From Strings
+
+#### PyRun_SimpleString
+
+```c
+int PyRun_SimpleString(const char *command)
+```
+
+Execute Python code from a string in the `__main__` module.
+
+<ParamField path="command" type="const char*" required>
+  Python source code to execute
+</ParamField>
+
+**Returns:** `0` on success, `-1` if an exception was raised
+
+**Example:**
+
+```c
+int result = PyRun_SimpleString(
+    "import sys\n"
+    "print('Python version:', sys.version)\n"
+);
+if (result != 0) {
+    fprintf(stderr, "Failed to execute Python code\n");
+}
+```
+
+<Note>
+  Unhandled `SystemExit` exceptions will exit the process (unless `PyConfig.inspect` is set).
+</Note>
+
+### From Files
+
+#### PyRun_SimpleFile
+
+```c
+int PyRun_SimpleFile(FILE *fp, const char *filename)
+```
+
+Execute Python code from a file.
+
+<ParamField path="fp" type="FILE*" required>
+  Open file pointer to read Python code from
+</ParamField>
+
+<ParamField path="filename" type="const char*" required>
+  Filename for error messages (decoded from filesystem encoding)
+</ParamField>
+
+**Returns:** `0` on success, `-1` on error
+
+**Example:**
+
+```c
+FILE *fp = fopen("script.py", "rb");  // Binary mode on Windows!
+if (fp == NULL) {
+    perror("Failed to open script");
+    return -1;
+}
+
+int result = PyRun_SimpleFile(fp, "script.py");
+fclose(fp);
+```
+
+<Warning>
+  On Windows, open files in binary mode (`"rb"`) to handle line endings correctly.
+</Warning>
+
+## Interactive Execution
+
+### PyRun_InteractiveOne
+
+```c
+int PyRun_InteractiveOne(FILE *fp, const char *filename)
+```
+
+Read and execute a single statement from an interactive device.
+
+<ParamField path="fp" type="FILE*" required>
+  Interactive input source (typically stdin)
+</ParamField>
+
+<ParamField path="filename" type="const char*" required>
+  Filename for prompts and error messages
+</ParamField>
+
+**Returns:**
+- `0` - Input executed successfully
+- `-1` - An exception occurred  
+- Error code from `errcode.h` - Parse error
+
+The user is prompted with `sys.ps1` and `sys.ps2`.
+
+### PyRun_InteractiveLoop
+
+```c
+int PyRun_InteractiveLoop(FILE *fp, const char *filename)
+```
+
+Read and execute statements until EOF, creating a Python REPL.
+
+**Returns:** `0` at EOF, negative on failure
+
+**Example:**
+
+```c
+printf("Python Interactive Shell\n");
+PyRun_InteractiveLoop(stdin, "<stdin>");
+```
+
+## Advanced Execution
+
+### PyRun_String
+
+```c
+PyObject* PyRun_String(
+    const char *str,
+    int start,
+    PyObject *globals,
+    PyObject *locals
+)
+```
+
+Execute Python code with specific namespace.
+
+<ParamField path="str" type="const char*" required>
+  Python source code to compile and execute
+</ParamField>
+
+<ParamField path="start" type="int" required>
+  Grammar start symbol (see Start Symbols below)
+</ParamField>
+
+<ParamField path="globals" type="PyObject*" required>
+  Global namespace dictionary
+</ParamField>
+
+<ParamField path="locals" type="PyObject*" required>
+  Local namespace (can be any mapping object)
+</ParamField>
+
+**Returns:** Result of execution as `PyObject*`, or `NULL` on error
+
+**Example:**
+
+```c
+PyObject *main_module = PyImport_AddModule("__main__");
+PyObject *globals = PyModule_GetDict(main_module);
+PyObject *locals = PyDict_New();
+
+PyObject *result = PyRun_String(
+    "x = 42\ny = x * 2\ny",
+    Py_file_input,
+    globals,
+    locals
+);
+
+if (result == NULL) {
+    PyErr_Print();
+} else {
+    printf("Result: %ld\n", PyLong_AsLong(result));
+    Py_DECREF(result);
+}
+Py_DECREF(locals);
+```
+
+## Compilation
+
+### Py_CompileString
+
+```c
+PyObject* Py_CompileString(
+    const char *str,
+    const char *filename,
+    int start
+)
+```
+
+Compile Python source to a code object without executing.
+
+<ParamField path="str" type="const char*" required>
+  Python source code
+</ParamField>
+
+<ParamField path="filename" type="const char*" required>
+  Filename for error messages and tracebacks
+</ParamField>
+
+<ParamField path="start" type="int" required>
+  Start symbol: `Py_file_input`, `Py_eval_input`, or `Py_single_input`
+</ParamField>
+
+**Returns:** Code object, or `NULL` on error
+
+**Example:**
+
+```c
+PyObject *code = Py_CompileString(
+    "def hello(name): return f'Hello, {name}!'",
+    "<string>",
+    Py_file_input
+);
+
+if (code != NULL) {
+    // Execute with PyEval_EvalCode
+    Py_DECREF(code);
+}
+```
+
+### PyEval_EvalCode
+
+```c
+PyObject* PyEval_EvalCode(
+    PyObject *co,
+    PyObject *globals,
+    PyObject *locals
+)
+```
+
+Execute a precompiled code object.
+
+<ParamField path="co" type="PyObject*" required>
+  Code object from `Py_CompileString`
+</ParamField>
+
+<ParamField path="globals" type="PyObject*" required>
+  Global namespace dictionary
+</ParamField>
+
+<ParamField path="locals" type="PyObject*" required>
+  Local namespace dictionary
+</ParamField>
+
+## Start Symbols
+
+Start symbols determine what kind of Python code can be compiled:
+
+<ParamField path="Py_eval_input" type="int">
+  Single expression - returns the expression value
+  
+  ```c
+  Py_CompileString("2 + 2", "<expr>", Py_eval_input)
+  ```
+</ParamField>
+
+<ParamField path="Py_file_input" type="int">
+  Sequence of statements - typical for modules/files
+  
+  ```c
+  Py_CompileString("x = 1\ny = 2", "<file>", Py_file_input)
+  ```
+</ParamField>
+
+<ParamField path="Py_single_input" type="int">
+  Single statement - used in interactive interpreters
+  
+  ```c
+  Py_CompileString("print('hello')", "<stdin>", Py_single_input)
+  ```
+</ParamField>
+
+<ParamField path="Py_func_type_input" type="int">
+  Function type annotation - requires `PyCF_ONLY_AST` flag
+  
+  Used for parsing PEP 484 signature type comments.
+</ParamField>
+
+## Compiler Flags
+
+Control compilation behavior with `PyCompilerFlags`:
+
+```c
+typedef struct {
+    int cf_flags;           // Compiler option flags
+    int cf_feature_version; // Python minor version for features
+} PyCompilerFlags;
+```
+
+### Common Flags
+
+- `PyCF_ALLOW_TOP_LEVEL_AWAIT` - Allow `await` at module level
+- `PyCF_ONLY_AST` - Return AST instead of code object
+- `PyCF_TYPE_COMMENTS` - Enable PEP 484 type comments
+
+**Example:**
+
+```c
+PyCompilerFlags flags = {0};
+flags.cf_flags = PyCF_ALLOW_TOP_LEVEL_AWAIT;
+flags.cf_feature_version = PY_MINOR_VERSION;
+
+PyObject *result = PyRun_StringFlags(
+    "await asyncio.sleep(1)",
+    Py_file_input,
+    globals,
+    locals,
+    &flags
+);
+```
+
+## Input Hooks
+
+Customize interactive input behavior:
+
+### PyOS_InputHook
+
+```c
+int (*PyOS_InputHook)(void)
+```
+
+Function called when the interpreter becomes idle waiting for input. Useful for integrating with GUI event loops.
+
+**Example:**
+
+```c
+int my_input_hook(void) {
+    // Process GUI events
+    process_events();
+    return 0;
+}
+
+PyOS_InputHook = my_input_hook;
+```
+
+### PyOS_ReadlineFunctionPointer
+
+```c
+char* (*PyOS_ReadlineFunctionPointer)(FILE*, FILE*, const char*)
+```
+
+Override line reading function for interactive input.
+
+**Example:**
+
+```c
+char* my_readline(FILE *stdin, FILE *stdout, const char *prompt) {
+    if (prompt)
+        fprintf(stdout, "%s", prompt);
+    char *buffer = (char*)PyMem_RawMalloc(1024);
+    if (fgets(buffer, 1024, stdin) == NULL) {
+        PyMem_RawFree(buffer);
+        return NULL;
+    }
+    return buffer;
+}
+
+PyOS_ReadlineFunctionPointer = my_readline;
+```
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Introduction" icon="book" href="/c-api/intro">
+    C API basics and setup
+  </Card>
+  <Card title="Import Modules" icon="file-import" href="/c-api/import">
+    Import and use Python modules
+  </Card>
+  <Card title="Exception Handling" icon="triangle-exclamation" href="/c-api/exceptions">
+    Handle execution errors
+  </Card>
+  <Card title="Utilities" icon="wrench" href="/c-api/utilities">
+    Argument parsing and utilities
+  </Card>
+</CardGroup>

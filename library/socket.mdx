@@ -1,0 +1,116 @@
+---
+title: socket - Low-Level Networking Interface
+description: Low-level networking interface
+---
+
+The `socket` module provides access to the BSD socket interface.
+
+## Module Import
+
+```python
+import socket
+```
+
+## TCP Client
+
+```python
+import socket
+
+# Create TCP socket
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Connect to server
+sock.connect(('example.com', 80))
+
+# Send data
+sock.send(b'GET / HTTP/1.1\r\nHost: example.com\r\n\r\n')
+
+# Receive data
+data = sock.recv(1024)
+print(data.decode())
+
+# Close socket
+sock.close()
+```
+
+## TCP Server
+
+```python
+import socket
+
+# Create TCP socket
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Bind to address
+server.bind(('localhost', 8080))
+
+# Listen for connections
+server.listen(5)
+print("Server listening on port 8080")
+
+while True:
+    # Accept connection
+    client, address = server.accept()
+    print(f"Connection from {address}")
+    
+    # Receive data
+    data = client.recv(1024)
+    
+    # Send response
+    client.send(b'HTTP/1.1 200 OK\r\n\r\nHello, World!')
+    
+    # Close client socket
+    client.close()
+```
+
+## UDP Socket
+
+```python
+import socket
+
+# UDP client
+client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+client.sendto(b'Hello', ('localhost', 9999))
+data, addr = client.recvfrom(1024)
+
+# UDP server
+server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+server.bind(('localhost', 9999))
+
+while True:
+    data, addr = server.recvfrom(1024)
+    print(f"Received from {addr}: {data}")
+    server.sendto(b'ACK', addr)
+```
+
+## Socket Options
+
+```python
+import socket
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Set timeout
+sock.settimeout(5.0)
+
+# Reuse address
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+# Get hostname
+hostname = socket.gethostname()
+ip = socket.gethostbyname(hostname)
+print(f"{hostname}: {ip}")
+```
+
+<Tip>
+  For high-level networking, use libraries like `requests`, `httpx`, or `asyncio` instead of raw sockets.
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="http" href="/library/http">
+    HTTP modules
+  </Card>
+  <Card title="urllib" href="/library/urllib">
+    URL handling
+  </Card>
+</CardGroup>

@@ -1,0 +1,527 @@
+---
+title: Reference Counting
+description: Managing Python object lifetimes with reference counts
+---
+
+## Overview
+
+Python uses reference counting for memory management. Every Python object has a reference count tracking how many references point to it. When the count reaches zero, the object is deallocated.
+
+<Warning>
+  Reference counting errors are the most common source of bugs in C extensions. Always track ownership carefully!
+</Warning>
+
+## Reference Count Basics
+
+### Py_INCREF
+
+```c
+void Py_INCREF(PyObject *o)
+```
+
+Increment the reference count. Indicates taking a new **strong reference**.
+
+<ParamField path="o" type="PyObject*" required>
+  Object to increment (must not be `NULL`)
+</ParamField>
+
+**Example:**
+
+```c
+PyObject *item = PyList_GetItem(list, 0);  // Borrowed reference
+Py_INCREF(item);  // Convert to owned reference
+// Now we own a reference and must Py_DECREF later
+```
+
+<Warning>
+  `Py_INCREF` does nothing if the object is immortal (Python 3.12+), but you should still call it.
+</Warning>
+
+### Py_DECREF
+
+```c
+void Py_DECREF(PyObject *o)
+```
+
+Decrement the reference count. When count reaches zero, the object is deallocated.
+
+<ParamField path="o" type="PyObject*" required>
+  Object to decrement (must not be `NULL`)
+</ParamField>
+
+**Example:**
+
+```c
+PyObject *result = PyLong_FromLong(42);  // New reference
+// Use result...
+Py_DECREF(result);  // Release our reference
+```
+
+<Warning>
+  **Deallocation Side Effects**
+  
+  When an object's refcount reaches zero, its `__del__` method can execute arbitrary Python code. Ensure objects are in consistent state before calling `Py_DECREF`:
+  
+  ```c
+  // WRONG:
+  Py_DECREF(item);  // May trigger code that uses list
+  PyList_SetItem(list, 0, NULL);
+  
+  // RIGHT:
+  PyObject *tmp = item;
+  PyList_SetItem(list, 0, NULL);  // Update data structure first
+  Py_DECREF(tmp);  // Then decrement
+  ```
+</Warning>
+
+### Py_XINCREF / Py_XDECREF
+
+```c
+void Py_XINCREF(PyObject *o)
+void Py_XDECREF(PyObject *o)
+```
+
+Same as `Py_INCREF`/`Py_DECREF` but safe for `NULL` pointers.
+
+**Example:**
+
+```c
+void cleanup(MyStruct *s) {
+    Py_XDECREF(s->name);   // OK even if name is NULL
+    Py_XDECREF(s->value);  // OK even if value is NULL
+}
+```
+
+## Creating References
+
+### Py_NewRef
+
+```c
+PyObject* Py_NewRef(PyObject *o)
+```
+
+Increment reference count and return the object. Convenient for assignment.
+
+<ParamField path="o" type="PyObject*" required>
+  Object (must not be `NULL`)
+</ParamField>
+
+**Returns:** The same object (with incremented refcount)
+
+**Example:**
+
+```c
+// Instead of:
+Py_INCREF(obj);
+self->attr = obj;
+
+// Write:
+self->attr = Py_NewRef(obj);
+```
+
+### Py_XNewRef
+
+```c
+PyObject* Py_XNewRef(PyObject *o)
+```
+
+Same as `Py_NewRef` but accepts `NULL` (returns `NULL` unchanged).
+
+**Example:**
+
+```c
+self->optional = Py_XNewRef(value);  // OK if value is NULL
+```
+
+## Safe Reference Management
+
+### Py_CLEAR
+
+```c
+void Py_CLEAR(PyObject *o)
+```
+
+Safely decrement reference and set variable to `NULL`. Avoids use-after-free bugs.
+
+<ParamField path="o" type="PyObject*" required>
+  Reference to clear (variable, not just value)
+</ParamField>
+
+**Example:**
+
+```c
+typedef struct {
+    PyObject_HEAD
+    PyObject *cache;
+} MyObject;
+
+static int MyObject_clear(MyObject *self) {
+    Py_CLEAR(self->cache);  // Decrements and sets to NULL
+    return 0;
+}
+```
+
+**Expands to:**
+
+```c
+PyObject *_tmp = (o);
+if (_tmp != NULL) {
+    (o) = NULL;
+    Py_DECREF(_tmp);
+}
+```
+
+### Py_SETREF
+
+```c
+void Py_SETREF(PyObject *dst, PyObject *src)
+```
+
+Safely replace a reference. Assigns `src` to `dst` before decrementing old value.
+
+**Example:**
+
+```c
+// DANGEROUS:
+Py_DECREF(self->attr);     // Old attr might trigger code
+self->attr = new_value;    // that uses self->attr
+
+// SAFE:
+Py_SETREF(self->attr, new_value);
+```
+
+**Expands to:**
+
+```c
+PyObject *_tmp = (dst);
+(dst) = (src);
+Py_XDECREF(_tmp);
+```
+
+### Py_XSETREF
+
+```c
+void Py_XSETREF(PyObject *dst, PyObject *src)
+```
+
+Like `Py_SETREF` but uses `Py_XDECREF` (safer if `dst` might be `NULL`).
+
+## Reference Ownership
+
+### Borrowed References
+
+Some functions return **borrowed references** - you don't own them and shouldn't decrement.
+
+**Common borrowed reference functions:**
+- `PyList_GetItem()` - Returns borrowed reference
+- `PyTuple_GetItem()` - Returns borrowed reference
+- `PyDict_GetItem()` - Returns borrowed reference
+- `PyModule_GetDict()` - Returns borrowed reference
+
+**Example:**
+
+```c
+PyObject *item = PyList_GetItem(list, 0);  // Borrowed
+// Don't call Py_DECREF(item)!
+
+// If you need to store it:
+Py_INCREF(item);  // Convert to owned reference
+self->stored = item;
+```
+
+### Owned References (New References)
+
+Most functions return **new references** - you own them and must decrement.
+
+**Common new reference functions:**
+- `PyLong_FromLong()` - Returns new reference
+- `PyUnicode_FromString()` - Returns new reference
+- `PyList_New()` - Returns new reference
+- `PyObject_GetAttr()` - Returns new reference
+- `PySequence_GetItem()` - Returns new reference (even for lists!)
+
+**Example:**
+
+```c
+PyObject *num = PyLong_FromLong(42);  // New reference
+if (num == NULL)
+    return NULL;
+
+// Use num...
+
+Py_DECREF(num);  // Must release
+```
+
+### Stealing References
+
+Some functions **steal references** - they take ownership without incrementing.
+
+**Functions that steal:**
+- `PyList_SetItem()` - Steals reference to item
+- `PyTuple_SetItem()` - Steals reference to item
+- `PyModule_AddObject()` - Steals reference to value
+
+**Example:**
+
+```c
+PyObject *list = PyList_New(1);
+PyObject *item = PyLong_FromLong(42);  // New reference
+
+PyList_SetItem(list, 0, item);  // Steals item reference
+// Don't call Py_DECREF(item)! List owns it now
+
+return list;
+```
+
+**If you need to keep a reference:**
+
+```c
+PyObject *item = PyLong_FromLong(42);
+Py_INCREF(item);  // Extra reference for us
+PyList_SetItem(list, 0, item);  // Steals one reference
+// We still own one reference to item
+Py_DECREF(item);
+```
+
+## Common Patterns
+
+### Function Return Values
+
+Functions should return owned references (new references):
+
+```c
+static PyObject* get_value(MyObject *self) {
+    // Return new reference
+    Py_INCREF(self->value);
+    return self->value;
+}
+```
+
+Or for `None`:
+
+```c
+static PyObject* do_something(MyObject *self) {
+    // Perform operation...
+    Py_RETURN_NONE;  // Convenience macro
+}
+```
+
+### Error Handling
+
+Clean up references on error:
+
+```c
+static PyObject* create_pair(void) {
+    PyObject *list = PyList_New(0);
+    if (list == NULL)
+        return NULL;
+    
+    PyObject *dict = PyDict_New();
+    if (dict == NULL) {
+        Py_DECREF(list);  // Clean up list
+        return NULL;
+    }
+    
+    PyObject *pair = PyTuple_Pack(2, list, dict);
+    Py_DECREF(list);  // Tuple holds references
+    Py_DECREF(dict);
+    
+    return pair;  // Return NULL if PyTuple_Pack failed
+}
+```
+
+### Structure Members
+
+Manage references in structures:
+
+```c
+typedef struct {
+    PyObject_HEAD
+    PyObject *name;
+    PyObject *value;
+} MyObject;
+
+static void MyObject_dealloc(MyObject *self) {
+    Py_XDECREF(self->name);
+    Py_XDECREF(self->value);
+    Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+static int MyObject_init(
+    MyObject *self,
+    PyObject *args,
+    PyObject *kwds
+) {
+    PyObject *name, *value;
+    
+    if (!PyArg_ParseTuple(args, "OO", &name, &value))
+        return -1;
+    
+    // Store with new references
+    Py_INCREF(name);
+    Py_XDECREF(self->name);  // Clear old value
+    self->name = name;
+    
+    Py_INCREF(value);
+    Py_XDECREF(self->value);
+    self->value = value;
+    
+    return 0;
+}
+```
+
+### Setter Functions
+
+Implement setters correctly:
+
+```c
+static int MyObject_setvalue(MyObject *self, PyObject *value, void *closure) {
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError, "Cannot delete value");
+        return -1;
+    }
+    
+    if (!PyLong_Check(value)) {
+        PyErr_SetString(PyExc_TypeError, "value must be int");
+        return -1;
+    }
+    
+    // Safe replacement:
+    Py_INCREF(value);
+    Py_XSETREF(self->value, value);
+    return 0;
+}
+```
+
+## Debugging Reference Counts
+
+### Py_REFCNT
+
+```c
+Py_ssize_t Py_REFCNT(PyObject *o)
+```
+
+Get current reference count.
+
+<Warning>
+  Reference counts may not reflect actual usage:
+  - Immortal objects have very high refcounts
+  - Internal caching affects counts
+  - Use only for debugging
+</Warning>
+
+**Example:**
+
+```c
+#ifdef Py_DEBUG
+fprintf(stderr, "Object %p has refcount %zd\n", obj, Py_REFCNT(obj));
+#endif
+```
+
+### Py_SET_REFCNT
+
+```c
+void Py_SET_REFCNT(PyObject *o, Py_ssize_t refcnt)
+```
+
+Set reference count directly. Rarely needed.
+
+## Best Practices
+
+<Note>
+  **Track Ownership**
+  
+  Always know whether you own a reference:
+  ```c
+  PyObject *borrowed = PyList_GetItem(list, 0);  // Borrowed
+  PyObject *owned = PySequence_GetItem(list, 0); // Owned!
+  
+  // Don't Py_DECREF borrowed!
+  Py_DECREF(owned);  // Must release owned
+  ```
+</Note>
+
+<Note>
+  **Initialize to NULL**
+  
+  ```c
+  PyObject *a = NULL, *b = NULL, *c = NULL;
+  
+  a = PyLong_FromLong(1);
+  if (a == NULL) goto error;
+  
+  b = PyLong_FromLong(2);
+  if (b == NULL) goto error;
+  
+  // ...
+  
+error:
+  Py_XDECREF(a);
+  Py_XDECREF(b);
+  Py_XDECREF(c);
+  return NULL;
+  ```
+</Note>
+
+<Warning>
+  **Common Mistakes**
+  
+  ```c
+  // WRONG: Double-decrement
+  PyObject *item = PyList_GetItem(list, 0);
+  Py_DECREF(item);  // Item was borrowed!
+  
+  // WRONG: Forgot to decrement
+  PyObject *num = PyLong_FromLong(42);
+  return num;  // Should Py_DECREF first if not returning it
+  
+  // WRONG: Use after free
+  Py_DECREF(obj);
+  PyObject_Print(obj, stdout, 0);  // obj might be freed!
+  ```
+</Warning>
+
+<Note>
+  **Use Helper Macros**
+  
+  Prefer `Py_CLEAR`, `Py_SETREF`, `Py_XSETREF` over manual reference management:
+  ```c
+  // Good:
+  Py_CLEAR(self->attr);
+  
+  // Tedious and error-prone:
+  if (self->attr != NULL) {
+      PyObject *tmp = self->attr;
+      self->attr = NULL;
+      Py_DECREF(tmp);
+  }
+  ```
+</Note>
+
+## Function Versions
+
+### Py_IncRef / Py_DecRef
+
+```c
+void Py_IncRef(PyObject *o)
+void Py_DecRef(PyObject *o)
+```
+
+Function versions of `Py_XINCREF`/`Py_XDECREF`. Used for runtime dynamic embedding.
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Object Protocol" icon="cube" href="/c-api/object">
+    Generic object operations
+  </Card>
+  <Card title="Memory Allocation" icon="memory" href="/c-api/allocation">
+    Allocating Python objects
+  </Card>
+  <Card title="Type Objects" icon="shapes" href="/c-api/type">
+    Custom type definitions
+  </Card>
+  <Card title="Exception Handling" icon="triangle-exclamation" href="/c-api/exceptions">
+    Error handling in C extensions
+  </Card>
+</CardGroup>

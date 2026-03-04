@@ -1,0 +1,174 @@
+---
+title: Introduction to CPython
+description: Learn about CPython, the reference implementation of the Python programming language written in C
+---
+
+CPython is the reference implementation of the Python programming language. Written in C and Python, it is the most widely used Python interpreter and serves as the standard against which all other Python implementations are measured.
+
+## What is CPython?
+
+CPython is both an interpreter and a compiler that executes Python code. When you download Python from [python.org](https://www.python.org), you're getting CPython. It's called "CPython" to distinguish it from other Python implementations like PyPy, Jython, or IronPython.
+
+<Note>
+The name "CPython" comes from the fact that the interpreter is written in C, not because it's related to C/C++ programming.
+</Note>
+
+## Why CPython Matters
+
+CPython serves as the reference implementation for the Python language, which means:
+
+- **Language Definition**: CPython defines what "Python" means. The behavior of CPython is considered the canonical interpretation of Python language features
+- **Standard Library**: It includes the comprehensive Python standard library with over 200 modules
+- **C API**: Provides a robust C API for embedding Python in applications and extending it with C/C++ modules
+- **Community Standard**: Most Python packages and tools are developed and tested against CPython
+
+## Key Features
+
+### C Implementation
+
+CPython's core is written in C, providing:
+- Efficient execution of Python bytecode
+- Direct integration with system libraries and C extensions
+- Ability to embed Python in C/C++ applications
+- Access to low-level system capabilities
+
+### Comprehensive Standard Library
+
+CPython comes with an extensive standard library that provides:
+
+<CodeGroup>
+```python File I/O and System Calls
+import os
+import sys
+import pathlib
+
+# Work with files and directories
+path = pathlib.Path('/usr/local/bin')
+print(path.exists())
+
+# System information
+print(sys.version)
+print(os.name)
+```
+
+```python Networking and Sockets
+import socket
+import http.client
+
+# Create a TCP socket
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# HTTP client
+conn = http.client.HTTPSConnection("www.python.org")
+conn.request("GET", "/")
+```
+
+```python Data Processing
+import json
+import csv
+import sqlite3
+
+# JSON handling
+data = json.loads('{"name": "Python", "version": 3.15}')
+
+# Database access
+conn = sqlite3.connect('example.db')
+```
+</CodeGroup>
+
+### Multi-Platform Support
+
+CPython runs on virtually every modern platform:
+
+- **Unix/Linux**: All major distributions including Ubuntu, Fedora, Debian, RHEL
+- **macOS**: Full support including Apple Silicon (M1/M2/M3)
+- **Windows**: Windows 10, 11, and Server editions
+- **BSD**: FreeBSD, OpenBSD, NetBSD
+- **Mobile**: iOS and Android (experimental)
+
+### C API for Extensions
+
+The CPython C API enables developers to:
+
+- Write performance-critical code in C
+- Create Python bindings for existing C/C++ libraries
+- Embed the Python interpreter in applications
+- Extend Python with custom built-in types
+
+<Info>
+Popular packages like NumPy, pandas, and TensorFlow use the C API for performance-critical operations.
+</Info>
+
+## CPython vs Other Implementations
+
+| Implementation | Description | Use Case |
+|---------------|-------------|----------|
+| **CPython** | Reference implementation in C | General purpose, production use |
+| PyPy | Python implementation with JIT compiler | Performance-critical applications |
+| Jython | Python on the Java Virtual Machine | Java integration |
+| IronPython | Python for .NET framework | .NET integration |
+| MicroPython | Python for microcontrollers | Embedded systems |
+
+## Version Information
+
+This documentation covers CPython 3.15, which includes:
+
+- Enhanced performance optimizations
+- Improved error messages and debugging
+- Updated standard library modules
+- Security enhancements
+- Platform-specific improvements
+
+<Tip>
+To check your CPython version, run `python --version` or `python3 --version` in your terminal.
+</Tip>
+
+## Architecture Overview
+
+CPython's execution model follows these steps:
+
+<Steps>
+  <Step title="Source Code Parsing">
+    Your Python source code (`.py` files) is parsed into an Abstract Syntax Tree (AST)
+  </Step>
+  
+  <Step title="Bytecode Compilation">
+    The AST is compiled into Python bytecode (`.pyc` files)
+  </Step>
+  
+  <Step title="Bytecode Execution">
+    The CPython virtual machine executes the bytecode instructions
+  </Step>
+  
+  <Step title="C Extension Calls">
+    When needed, the interpreter calls into C extensions for performance-critical operations
+  </Step>
+</Steps>
+
+## Getting Started
+
+Ready to start using CPython? Check out these resources:
+
+- [Quick Start Guide](/quickstart) - Get Python running in minutes
+- [Installation Instructions](/installation) - Detailed setup for all platforms
+- [Python Documentation](https://docs.python.org/3.15/) - Official Python documentation
+- [Developer's Guide](https://devguide.python.org/) - Contributing to CPython
+
+## Community and Support
+
+CPython is developed by the Python Software Foundation and a global community of contributors:
+
+- **Website**: [python.org](https://www.python.org)
+- **Source Code**: [github.com/python/cpython](https://github.com/python/cpython)
+- **Issue Tracker**: [github.com/python/cpython/issues](https://github.com/python/cpython/issues)
+- **Discussions**: [discuss.python.org](https://discuss.python.org/)
+
+<Warning>
+CPython is the reference implementation. When reporting bugs or issues, make sure you're using CPython and not another Python implementation.
+</Warning>
+
+## License
+
+CPython is open source software licensed under the Python Software Foundation License. It contains no GPL code and may be used in proprietary projects.
+
+Copyright © 2001-2026 Python Software Foundation. All rights reserved.

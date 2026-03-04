@@ -1,0 +1,313 @@
+---
+title: Garbage Collector Design  
+description: How CPython's garbage collector handles reference cycles and memory management
+---
+
+# Garbage Collector Design
+
+CPython uses a combination of reference counting and a cyclic garbage collector to manage memory automatically.
+
+## Reference Counting
+
+The primary memory management mechanism in CPython is **reference counting**. Every Python object has a reference count that tracks how many references point to it.
+
+### Basic Concept
+
+- When a reference to an object is created, its reference count increases
+- When a reference is deleted, the count decreases  
+- When the count reaches zero, the object is immediately deallocated
+
+### Example
+
+```python
+>>> x = object()      # refcount = 1 (+ 1 from getrefcount)
+>>> sys.getrefcount(x)
+2
+>>> y = x             # refcount = 2 (+ 1 from getrefcount)
+>>> sys.getrefcount(x)  
+3
+>>> del y             # refcount = 1 (+ 1 from getrefcount)
+>>> sys.getrefcount(x)
+2
+```
+
+<Note>
+`sys.getrefcount()` always returns 1 more than the actual count because the function itself holds a temporary reference.
+</Note>
+
+## The Cycle Problem
+
+Reference counting cannot handle **reference cycles**:
+
+```python
+>>> container = []
+>>> container.append(container)  # Creates a cycle
+>>> sys.getrefcount(container)
+3  # One from variable, one from self-reference, one from getrefcount
+>>> del container
+# Object is never freed because internal reference remains!
+```
+
+The cyclic garbage collector (GC) is needed to detect and clean up these cycles.
+
+## Two GC Implementations
+
+Starting in Python 3.13, CPython has two GC implementations:
+
+1. **Default build** - Uses global interpreter lock (GIL) for thread safety
+2. **Free-threaded build** - Pauses threads during collection
+
+Both use the same algorithms but operate on different data structures.
+
+## Memory Layout
+
+### Default Build
+
+Objects tracked by GC have extra header fields:
+
+```
+                +--+--+--+--+--+--+--+--+
+                |      *_gc_next        |  PyGC_Head
+                +--+--+--+--+--+--+--+--+
+                |      *_gc_prev        |
+object -----> +--+--+--+--+--+--+--+--+
+                |      ob_refcnt        |  PyObject_HEAD
+                +--+--+--+--+--+--+--+--+
+                |      *ob_type         |
+                +--+--+--+--+--+--+--+--+
+                |         ...           |
+```
+
+The `PyGC_Head` fields form doubly-linked lists for GC generations.
+
+### Free-Threaded Build  
+
+Uses an `ob_gc_bits` byte in every object:
+
+```
+object -----> +--+--+--+--+--+--+--+--+
+              |       ob_tid          |  Thread ID
+              +--+--+--+--+--+--+--+--+
+              | pad | mutex | gc_bits | ob_ref_local
+              +--+--+--+--+--+--+--+--+
+              |    ob_ref_shared      |  PyObject_HEAD
+              +--+--+--+--+--+--+--+--+
+              |      *ob_type         |
+              +--+--+--+--+--+--+--+--+
+```
+
+The `ob_gc_bits` field tracks GC state without linked lists.
+
+## Cycle Detection Algorithm
+
+The GC identifies unreachable cycles using a mark-and-sweep approach:
+
+### Phase 1: Initial Marking
+
+1. Copy each object's refcount to a temporary `gc_ref` field
+2. For each object, decrement `gc_ref` of every object it references
+3. Objects with `gc_ref > 0` are directly reachable from outside
+
+```
+      gc_ref=1           gc_ref=0           gc_ref=0
+    ┌────────┐     ┌────────┐     ┌────────┐
+A ──> │ link_1 │ ──> │ link_2 │ ──> │ link_3 │
+    └────────┘     └────────┘     └────────┘
+       │                               │
+       └───────────────────────────────┘
+```
+
+### Phase 2: Propagation
+
+1. Objects with `gc_ref == 0` are marked "tentatively unreachable"
+2. For each object with `gc_ref > 0`, traverse all references
+3. Move referenced objects back to "reachable" list
+4. Mark visited objects to avoid processing twice
+
+### Phase 3: Result
+
+Objects still in the "tentatively unreachable" list are truly unreachable and can be collected.
+
+<Info>
+**Key Insight:** This algorithm requires no recursion and uses O(1) extra storage beyond the objects themselves.
+</Info>
+
+## Destroying Unreachable Objects
+
+Once unreachable objects are identified, destruction follows these steps:
+
+1. **Handle weak references** with callbacks (only for reachable weakrefs)
+2. **Move legacy finalizers** (`tp_del`) to `gc.garbage` list  
+3. **Call finalizers** (`tp_finalize`) and mark objects as finalized
+4. **Handle resurrection** - If finalizers revive objects, re-run cycle detection
+5. **Clear weak references** - Set `wr_object` to `None`
+6. **Call `tp_clear`** - Break internal references, triggering deallocation
+
+## Incremental Collection (Default Build)
+
+The default build uses **generational** collection with two generations:
+
+- **Young generation** - Newly created objects  
+- **Old generation** - Objects that survived previous collections
+
+### Why Generations?
+
+Most objects die young (weak generational hypothesis). By collecting young objects frequently and old objects incrementally, pause times stay low.
+
+### Old Generation Structure
+
+The old generation has two lists:
+- **Pending** - Objects not yet scanned this cycle
+- **Visited** - Objects already scanned
+
+A full collection scans the entire heap incrementally across multiple collections.
+
+### Increments
+
+Each collection scans:
+- The entire young generation
+- Least recently scanned portion of old generation  
+- Transitive closure of references from these objects
+
+Surviving young objects are moved to old generation's visited list.
+
+### Correctness
+
+To ensure complete cycle detection, the algorithm computes the **transitive closure** of reachable objects from the initial increment. This guarantees no partial cycles are included.
+
+<Note>
+The free-threaded build does **not** use generational collection. Every collection scans the entire heap.
+</Note>
+
+## Excluding Reachable Objects
+
+Both implementations optimize by identifying definitely reachable objects before cycle detection.
+
+### Default Build
+
+Identifies reachable objects from:
+- Builtin classes
+- `sys` and `builtins` modules  
+- Stack frames
+
+These objects and their transitive closures are moved to the visited list before cycle detection runs.
+
+### Free-Threaded Build
+
+The "mark alive" phase sets `_PyGC_BITS_ALIVE` flag on:
+- `interp->sysdict`, `interp->builtins`, `interp->types`
+- All objects reachable from active frames
+- Transitive closure of above
+
+Objects with this flag are excluded from cycle detection.
+
+### Software Prefetch (Free-Threaded Only)
+
+For large object sets, the free-threaded GC uses software prefetch instructions during the mark alive phase:
+
+- Prefetch buffer (FIFO) queues objects before access
+- Issuing prefetch and accessing object are separated by buffer size
+- Parameters: max size 256, low threshold 8, high threshold 16
+- Enabled only when long-lived object count > 200,000
+
+## Optimization: Reusing Fields
+
+The default build reuses `PyGC_Head` fields as "fat pointers" (tagged pointers):
+
+### `_gc_prev` Field
+
+- Normally: previous pointer in doubly-linked list
+- Bits 0-1: Store `PREV_MASK_COLLECTING` and `_PyGC_PREV_MASK_FINALIZED` flags
+- During collection: Temporarily stores `gc_ref` copy
+
+### `_gc_next` Field
+
+- Normally: next pointer in doubly-linked list  
+- Bit 0: `NEXT_MASK_UNREACHABLE` flag during collection
+
+<Note>
+**Warning:** Fat pointers must be "untagged" (bits masked off) before dereferencing.
+</Note>
+
+## Optimization: Delayed Untracking
+
+Containers that cannot participate in cycles are untracked to reduce GC overhead.
+
+### Tuples
+
+Tuples containing only immutable objects (recursively) don't need tracking:
+
+```python
+>>> gc.is_tracked(0)
+False
+>>> gc.is_tracked("a") 
+False
+>>> gc.is_tracked([])
+True
+>>> gc.is_tracked(())
+False
+>>> gc.is_tracked((1, "hello", (2, 3)))
+False  # All contents are immutable
+```
+
+Tuples are checked during GC rather than at creation, trading tracking overhead for reduced allocation cost.
+
+## Implementation Differences
+
+### Default Build
+
+- Uses `PyGC_Head` doubly-linked lists
+- Generational collection (young + old)
+- Relies on GIL for thread safety
+- Flags stored in `_gc_prev` field
+
+### Free-Threaded Build  
+
+- Uses mimalloc allocator to find tracked objects
+- Non-generational (scans entire heap)
+- Stop-the-world pauses for thread safety
+- Flags stored in `ob_gc_bits` field
+- Unreachable list uses repurposed `ob_tid` field
+
+## Configuration
+
+### Thresholds
+
+```python
+>>> import gc
+>>> gc.get_threshold()
+(700, 10, 10)  # (threshold0, threshold1, threshold2)
+```
+
+- `threshold0` - Allocations minus deallocations before collection
+- `threshold1` - Controls old generation fraction (default build only)
+- `threshold2` - Ignored
+
+### Manual Control
+
+```python
+>>> gc.collect()          # Trigger collection now
+>>> gc.disable()          # Disable automatic collection
+>>> gc.enable()           # Re-enable automatic collection
+>>> gc.get_objects()      # Get all tracked objects
+```
+
+## C API
+
+Key functions in the [GC C API](https://docs.python.org/3/c-api/gcsupport.html):
+
+- `PyObject_GC_New()` - Allocate GC-tracked object
+- `PyObject_GC_Track()` - Start tracking object
+- `PyObject_GC_UnTrack()` - Stop tracking object  
+- `PyObject_GC_Del()` - Deallocate GC object
+
+Types supporting GC must:
+- Include `Py_TPFLAGS_HAVE_GC` in `tp_flags`
+- Provide `tp_traverse` implementation
+- Provide `tp_clear` implementation (usually)
+
+## Related Topics
+
+- [Object Layout](https://github.com/python/cpython/blob/main/Objects/object_layout.md) - 3.11+ object structure
+- [Code Objects](/internals/code-objects) - Compiled code representation
+- [Frames](/internals/frames) - Frame object lifecycle

@@ -1,0 +1,160 @@
+---
+title: json - JSON Encoder and Decoder
+description: JSON encoding and decoding
+---
+
+The `json` module provides functions for encoding and decoding JSON data.
+
+## Module Import
+
+```python
+import json
+```
+
+## Encoding (Python to JSON)
+
+### dumps() - Serialize to String
+
+```python
+import json
+
+data = {
+    'name': 'Alice',
+    'age': 30,
+    'city': 'NYC',
+    'hobbies': ['reading', 'coding']
+}
+
+# Convert to JSON string
+json_string = json.dumps(data)
+print(json_string)
+# '{"name": "Alice", "age": 30, "city": "NYC", "hobbies": ["reading", "coding"]}'
+
+# Pretty print
+json_string = json.dumps(data, indent=2)
+print(json_string)
+# {
+#   "name": "Alice",
+#   "age": 30,
+#   ...
+# }
+```
+
+### dump() - Write to File
+
+```python
+import json
+
+data = {'name': 'Alice', 'age': 30}
+
+with open('data.json', 'w') as f:
+    json.dump(data, f, indent=2)
+```
+
+## Decoding (JSON to Python)
+
+### loads() - Parse String
+
+```python
+import json
+
+json_string = '{"name": "Alice", "age": 30}'
+data = json.loads(json_string)
+print(data)  # {'name': 'Alice', 'age': 30}
+print(data['name'])  # 'Alice'
+```
+
+### load() - Read from File
+
+```python
+import json
+
+with open('data.json', 'r') as f:
+    data = json.load(f)
+print(data)
+```
+
+## Type Mapping
+
+| Python | JSON |
+|--------|------|
+| dict | object |
+| list, tuple | array |
+| str | string |
+| int, float | number |
+| True | true |
+| False | false |
+| None | null |
+
+## Options
+
+```python
+import json
+
+data = {'name': 'Alice', 'items': [1, 2, 3]}
+
+# Compact output
+json.dumps(data, separators=(',', ':'))
+# '{"name":"Alice","items":[1,2,3]}'
+
+# Sort keys
+json.dumps(data, sort_keys=True)
+
+# Handle non-serializable objects
+import datetime
+
+def serialize_datetime(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+data = {'timestamp': datetime.datetime.now()}
+json.dumps(data, default=serialize_datetime)
+```
+
+## Practical Examples
+
+### Config File
+
+```python
+import json
+
+config = {
+    'database': {
+        'host': 'localhost',
+        'port': 5432,
+        'name': 'mydb'
+    },
+    'debug': True
+}
+
+# Save config
+with open('config.json', 'w') as f:
+    json.dump(config, f, indent=2)
+
+# Load config
+with open('config.json', 'r') as f:
+    config = json.load(f)
+```
+
+### API Response
+
+```python
+import json
+
+# Parse API response
+response_text = '{"status": "success", "data": {"id": 1, "name": "Item"}}'
+response = json.loads(response_text)
+
+if response['status'] == 'success':
+    print(f"Item: {response['data']['name']}")
+```
+
+<CardGroup cols={2}>
+  <Card title="pickle" href="/library/pickle">
+    Python object serialization
+  </Card>
+  <Card title="csv" href="/library/csv">
+    CSV file handling
+  </Card>
+</CardGroup>

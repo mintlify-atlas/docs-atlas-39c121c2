@@ -1,0 +1,733 @@
+---
+title: Installation Guide
+description: Complete instructions for installing and building CPython on all platforms
+---
+
+This comprehensive guide covers installing CPython from pre-built binaries or building from source on all supported platforms. Whether you're setting up a development environment or deploying to production, this guide has you covered.
+
+## Installation Options
+
+<CardGroup cols={3}>
+  <Card title="Unix/Linux" icon="linux">
+    Build from source with configure and make
+  </Card>
+  <Card title="macOS" icon="apple">
+    Download installer or build with Xcode
+  </Card>
+  <Card title="Windows" icon="windows">
+    Visual Studio build or pre-built installer
+  </Card>
+</CardGroup>
+
+## Building from Source (Unix/Linux/macOS)
+
+Building CPython from source gives you full control over features and optimizations.
+
+### Prerequisites
+
+<Tabs>
+  <Tab title="Ubuntu/Debian">
+    ```bash
+    sudo apt update
+    sudo apt install -y build-essential gdb lcov pkg-config \
+          libbz2-dev libffi-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
+          libncurses5-dev libreadline6-dev libsqlite3-dev libssl-dev \
+          lzma lzma-dev tk-dev uuid-dev zlib1g-dev
+    ```
+  </Tab>
+  
+  <Tab title="Fedora/RHEL/CentOS">
+    ```bash
+    sudo dnf install -y gcc gcc-c++ make pkgconfig \
+          bzip2-devel gdbm-devel libffi-devel libnsl2-devel \
+          libuuid-devel ncurses-devel openssl-devel \
+          readline-devel sqlite-devel tk-devel xz-devel zlib-devel
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    ```bash
+    # Install Xcode Command Line Tools
+    xcode-select --install
+    
+    # Install Homebrew dependencies (optional but recommended)
+    brew install openssl readline sqlite3 xz zlib tcl-tk
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+For detailed platform-specific dependencies, see the [Developer's Guide](https://devguide.python.org/getting-started/setup-building.html#build-dependencies).
+</Info>
+
+### Standard Build
+
+<Steps>
+  <Step title="Get the Source">
+    Download from GitHub or python.org:
+    ```bash
+    # From GitHub (development version)
+    git clone https://github.com/python/cpython.git
+    cd cpython
+    
+    # Or download a release
+    wget https://www.python.org/ftp/python/3.15.0/Python-3.15.0.tar.xz
+    tar -xf Python-3.15.0.tar.xz
+    cd Python-3.15.0
+    ```
+  </Step>
+  
+  <Step title="Configure">
+    Run the configure script:
+    ```bash
+    ./configure
+    ```
+    
+    This will detect your system and set up the build environment.
+  </Step>
+  
+  <Step title="Build">
+    Compile CPython:
+    ```bash
+    make -j$(nproc)
+    ```
+    
+    The `-j` flag enables parallel compilation for faster builds.
+  </Step>
+  
+  <Step title="Test">
+    Run the test suite to verify the build:
+    ```bash
+    make test
+    ```
+    
+    <Note>
+    Some tests may be skipped due to missing optional dependencies. This is normal.
+    </Note>
+  </Step>
+  
+  <Step title="Install">
+    Install Python system-wide:
+    ```bash
+    sudo make install
+    ```
+    
+    This installs Python as `python3`.
+  </Step>
+</Steps>
+
+### Build Configuration Options
+
+The `configure` script accepts many options to customize your build:
+
+<CodeGroup>
+```bash Installation Location
+# Install to custom directory
+./configure --prefix=/usr/local
+
+# Install to user directory
+./configure --prefix=$HOME/.local
+
+# Specify separate directories
+./configure --prefix=/usr/local --exec-prefix=/usr/local
+```
+
+```bash Performance Options
+# Enable optimizations (PGO + LTO)
+./configure --enable-optimizations
+
+# Enable Link Time Optimization only
+./configure --with-lto
+
+# Enable computed gotos (better performance)
+./configure --with-computed-gotos
+```
+
+```bash Development Options
+# Debug build with assertions
+./configure --with-pydebug
+
+# Enable address sanitizer
+./configure --with-address-sanitizer
+
+# Enable memory sanitizer
+./configure --with-memory-sanitizer
+
+# Enable undefined behavior sanitizer
+./configure --with-undefined-behavior-sanitizer
+```
+
+```bash Library Options
+# Use custom OpenSSL
+./configure --with-openssl=/usr/local/custom-openssl \
+            --with-openssl-rpath=auto
+
+# Use system libraries
+./configure --with-system-expat \
+            --with-system-ffi \
+            --with-system-libmpdec
+```
+</CodeGroup>
+
+<Tip>
+Run `./configure --help` to see all available options.
+</Tip>
+
+### Optimized Build (PGO + LTO)
+
+For maximum performance, use Profile-Guided Optimization (PGO) and Link-Time Optimization (LTO):
+
+```bash
+./configure --enable-optimizations
+make -j$(nproc)
+make test
+sudo make install
+```
+
+<Warning>
+PGO builds take significantly longer (2-3x) because the build process:
+1. Builds an instrumented version
+2. Runs training workload
+3. Rebuilds with optimization data
+</Warning>
+
+The optimized build process:
+
+<Steps>
+  <Step title="Initial Build">
+    Builds an instrumented interpreter with profiling code embedded
+  </Step>
+  
+  <Step title="Profile Collection">
+    Runs benchmark suite to collect execution profile data
+  </Step>
+  
+  <Step title="Optimized Build">
+    Rebuilds Python using profile data to optimize hot code paths
+  </Step>
+</Steps>
+
+### Alternative Install (Multiple Versions)
+
+To install alongside existing Python versions without overwriting:
+
+```bash
+# Use altinstall instead of install
+sudo make altinstall
+```
+
+This installs Python as `python3.15` instead of `python3`, allowing multiple versions to coexist.
+
+<Info>
+For example, you can have `python3.14`, `python3.15`, and `python3` (symlink to default) all installed simultaneously.
+</Info>
+
+### Out-of-Tree Build
+
+Build in a separate directory to keep source tree clean:
+
+```bash
+# Create build directory
+mkdir build-release
+cd build-release
+
+# Configure from build directory
+../configure --enable-optimizations
+make -j$(nproc)
+make test
+sudo make install
+```
+
+<Tip>
+Useful for testing different configurations:
+```bash
+mkdir debug && cd debug && ../configure --with-pydebug
+mkdir release && cd release && ../configure --enable-optimizations
+```
+</Tip>
+
+## Building on macOS
+
+macOS builds require special considerations for framework builds and universal binaries.
+
+### Standard macOS Build
+
+```bash
+# Install dependencies
+brew install openssl readline sqlite3 xz zlib tcl-tk
+
+# Configure with Homebrew libraries
+./configure \
+    --with-openssl=$(brew --prefix openssl) \
+    --enable-optimizations
+    
+make -j$(sysctl -n hw.ncpu)
+make test
+sudo make install
+```
+
+### Framework Build
+
+For native macOS app integration:
+
+```bash
+./configure \
+    --enable-framework=/Library/Frameworks \
+    --with-openssl=$(brew --prefix openssl) \
+    --enable-optimizations
+    
+make
+sudo make install
+```
+
+<Note>
+Framework builds integrate better with macOS applications and IDEs but are not required for command-line use.
+</Note>
+
+### Universal Binary (Apple Silicon)
+
+To build for both Intel and Apple Silicon:
+
+```bash
+./configure \
+    --enable-universalsdk \
+    --with-universal-archs=universal2
+    
+make
+sudo make install
+```
+
+For more details, see [Mac/README.rst](https://github.com/python/cpython/blob/main/Mac/README.rst) in the source tree.
+
+## Building on Windows
+
+Windows builds use Microsoft Visual Studio or Clang.
+
+### Prerequisites
+
+<Steps>
+  <Step title="Install Visual Studio">
+    Install Visual Studio 2017 or later with:
+    - Python workload
+    - Python native development component
+  </Step>
+  
+  <Step title="Optional: Install Python">
+    Optionally install Python 3.10+ (used by build scripts if available)
+  </Step>
+</Steps>
+
+### Visual Studio Build
+
+<Steps>
+  <Step title="Get Source">
+    Clone the repository or download source archive:
+    ```bash
+    git clone https://github.com/python/cpython.git
+    cd cpython
+    ```
+  </Step>
+  
+  <Step title="Build">
+    Run the build script from `PCbuild` directory:
+    ```bash
+    cd PCbuild
+    build.bat
+    ```
+    
+    This builds 64-bit Release configuration by default.
+  </Step>
+  
+  <Step title="Test">
+    Run the test suite:
+    ```bash
+    rt.bat -q
+    ```
+  </Step>
+</Steps>
+
+### Build Options
+
+<CodeGroup>
+```bash Platform Options
+# Build 32-bit
+build.bat -p Win32
+
+# Build 64-bit (default)
+build.bat -p x64
+
+# Build ARM64
+build.bat -p ARM64
+```
+
+```bash Configuration Options
+# Debug build
+build.bat -d
+
+# Release build (default)
+build.bat
+
+# PGO optimized build
+build.bat --pgo
+```
+
+```bash Advanced Options
+# Use specific VS version
+build.bat --vs2019
+
+# Build with Clang
+build.bat "/p:PlatformToolset=ClangCL"
+
+# Clean build
+build.bat -c
+```
+</CodeGroup>
+
+### Profile-Guided Optimization (Windows)
+
+For maximum performance on Windows:
+
+```bash
+cd PCbuild
+build.bat --pgo
+```
+
+This performs:
+1. PGInstrument build - Creates instrumented binaries
+2. Runs training workload
+3. PGUpdate build - Creates optimized binaries using profile data
+
+<Info>
+PGO requires Premium Edition of Visual Studio. Community Edition also works for most scenarios.
+</Info>
+
+### Using Clang on Windows
+
+To build with Clang/LLVM:
+
+```bash
+build.bat "/p:PlatformToolset=ClangCL"
+```
+
+For specific Clang version:
+
+```bash
+build.bat --pgo ^
+    "/p:PlatformToolset=ClangCL" ^
+    "/p:LLVMInstallDir=C:\Program Files\LLVM" ^
+    "/p:LLVMToolsVersion=18"
+```
+
+### Building Installer
+
+To create Windows installer packages:
+
+```bash
+cd Tools\msi
+buildrelease.bat
+```
+
+See [Tools/msi/README.txt](https://github.com/python/cpython/blob/main/Tools/msi/README.txt) for details.
+
+## Post-Installation
+
+### Verify Installation
+
+```bash
+# Check version
+python3 --version
+
+# Check installation paths
+python3 -c "import sys; print(sys.executable)"
+python3 -c "import sys; print(sys.prefix)"
+
+# Test basic functionality
+python3 -c "print('Hello from CPython!')"
+```
+
+### Set Up Environment
+
+Add Python to your PATH (if not already done):
+
+<CodeGroup>
+```bash Unix/Linux (.bashrc or .zshrc)
+export PATH="/usr/local/bin:$PATH"
+export PYTHONPATH="/usr/local/lib/python3.15/site-packages"
+```
+
+```bash macOS (.zshrc)
+export PATH="/usr/local/bin:$PATH"
+# For framework build
+export PATH="/Library/Frameworks/Python.framework/Versions/3.15/bin:$PATH"
+```
+
+```bash Windows (PowerShell Profile)
+$env:PATH = "C:\Python315;C:\Python315\Scripts;" + $env:PATH
+```
+</CodeGroup>
+
+### Install pip and setuptools
+
+If pip is not included, bootstrap it:
+
+```bash
+python3 -m ensurepip --upgrade
+python3 -m pip install --upgrade pip setuptools
+```
+
+## Platform-Specific Notes
+
+### Linux Distributions
+
+<Accordion title="Ubuntu/Debian">
+```bash
+# Install from apt (easier but older version)
+sudo apt install python3 python3-pip python3-venv
+
+# Or build from source for latest version
+./configure --enable-optimizations --with-lto
+make -j$(nproc)
+sudo make altinstall
+```
+</Accordion>
+
+<Accordion title="Fedora/RHEL/CentOS">
+```bash
+# Install from dnf
+sudo dnf install python3 python3-pip python3-devel
+
+# Build from source
+./configure --enable-optimizations
+make -j$(nproc)
+sudo make altinstall
+```
+</Accordion>
+
+<Accordion title="Arch Linux">
+```bash
+# Install from pacman
+sudo pacman -S python python-pip
+
+# Build from AUR for development version
+yay -S python-git
+```
+</Accordion>
+
+### FreeBSD and OpenBSD
+
+<CodeGroup>
+```bash FreeBSD
+# Install package
+pkg install python3
+
+# Or build from ports
+cd /usr/ports/lang/python315
+make install clean
+```
+
+```bash OpenBSD
+# Install package
+pkg_add python
+
+# Specify version
+pkg_add python-3.15
+```
+</CodeGroup>
+
+### Custom OpenSSL
+
+To use a custom OpenSSL installation:
+
+<Steps>
+  <Step title="Download and Build OpenSSL">
+    ```bash
+    curl -O https://www.openssl.org/source/openssl-3.1.0.tar.gz
+    tar xzf openssl-3.1.0.tar.gz
+    cd openssl-3.1.0
+    
+    ./config \
+        --prefix=/usr/local/custom-openssl \
+        --libdir=lib \
+        --openssldir=/etc/ssl
+        
+    make -j$(nproc)
+    sudo make install_sw
+    ```
+  </Step>
+  
+  <Step title="Build Python with Custom OpenSSL">
+    ```bash
+    cd cpython
+    ./configure \
+        --with-openssl=/usr/local/custom-openssl \
+        --with-openssl-rpath=auto
+        
+    make -j$(nproc)
+    sudo make install
+    ```
+  </Step>
+</Steps>
+
+<Note>
+Patch releases of OpenSSL have backward-compatible ABI. You can update OpenSSL without recompiling Python.
+</Note>
+
+## Troubleshooting
+
+### Common Build Issues
+
+<AccordionGroup>
+  <Accordion title="Missing Dependencies">
+    **Error**: `configure: error: no acceptable C compiler found`
+    
+    **Solution**: Install build tools:
+    ```bash
+    # Ubuntu/Debian
+    sudo apt install build-essential
+    
+    # macOS
+    xcode-select --install
+    ```
+  </Accordion>
+  
+  <Accordion title="OpenSSL Issues">
+    **Error**: `Could not build the ssl module`
+    
+    **Solution**: Install OpenSSL development files:
+    ```bash
+    # Ubuntu/Debian
+    sudo apt install libssl-dev
+    
+    # Fedora
+    sudo dnf install openssl-devel
+    
+    # macOS
+    ./configure --with-openssl=$(brew --prefix openssl)
+    ```
+  </Accordion>
+  
+  <Accordion title="Test Failures">
+    **Error**: Some tests fail during `make test`
+    
+    **Solution**: 
+    - Check if only optional feature tests are failing
+    - Review test output for actual errors vs. skipped tests
+    - File a bug report if genuine test failures occur
+    
+    ```bash
+    # Run specific test in verbose mode
+    ./python -m test -v test_os
+    ```
+  </Accordion>
+  
+  <Accordion title="Permission Denied">
+    **Error**: `Permission denied` during `make install`
+    
+    **Solution**: Either use sudo or install to user directory:
+    ```bash
+    # Option 1: Use sudo
+    sudo make install
+    
+    # Option 2: User installation
+    ./configure --prefix=$HOME/.local
+    make install
+    ```
+  </Accordion>
+  
+  <Accordion title="Out of Memory">
+    **Error**: Compilation fails with memory errors
+    
+    **Solution**: Reduce parallel jobs:
+    ```bash
+    # Use fewer parallel jobs
+    make -j2
+    
+    # Or single-threaded
+    make
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Clean Build
+
+If you encounter persistent issues, try a clean build:
+
+```bash
+# Clean previous build
+make clean
+
+# Or complete clean (removes all generated files)
+make distclean
+
+# Reconfigure and rebuild
+./configure [options]
+make
+```
+
+### Windows-Specific Issues
+
+<Accordion title="Visual Studio Not Found">
+Run the build from "Developer Command Prompt for VS" or ensure Visual Studio is properly installed with C++ tools.
+</Accordion>
+
+<Accordion title="Python Not Found">
+Install Python 3.10+ or let build.bat download Python via NuGet automatically.
+</Accordion>
+
+## Performance Tuning
+
+### Recommended Build Flags
+
+For production deployment:
+
+```bash
+./configure \
+    --enable-optimizations \
+    --with-lto \
+    --enable-ipv6 \
+    --with-system-expat \
+    --with-system-ffi \
+    --with-computed-gotos \
+    --enable-loadable-sqlite-extensions
+```
+
+### Memory Allocator
+
+For better memory performance:
+
+```bash
+# Use mimalloc
+./configure --with-mimalloc
+
+# Or use jemalloc
+./configure --with-system-libmpdec
+export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Start writing Python code immediately
+  </Card>
+  
+  <Card title="Python Tutorial" icon="book" href="https://docs.python.org/3/tutorial/">
+    Learn Python language fundamentals
+  </Card>
+  
+  <Card title="Developer Guide" icon="code" href="https://devguide.python.org/">
+    Contributing to CPython development
+  </Card>
+  
+  <Card title="C API Reference" icon="c" href="https://docs.python.org/3/c-api/">
+    Extend Python with C/C++
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+- **Build Dependencies**: [devguide.python.org/setup-building](https://devguide.python.org/getting-started/setup-building.html#build-dependencies)
+- **Mac Build Instructions**: [Mac/README.rst](https://github.com/python/cpython/blob/main/Mac/README.rst)
+- **Windows Build Instructions**: [PCbuild/readme.txt](https://github.com/python/cpython/blob/main/PCbuild/readme.txt)
+- **Source Downloads**: [python.org/downloads/source](https://www.python.org/downloads/source/)
+- **GitHub Repository**: [github.com/python/cpython](https://github.com/python/cpython)

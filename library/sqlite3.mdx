@@ -1,0 +1,248 @@
+---
+title: sqlite3 - SQLite Database Interface
+description: DB-API 2.0 interface for SQLite databases
+---
+
+The `sqlite3` module provides a SQL database interface compatible with SQLite.
+
+## Module Import
+
+```python
+import sqlite3
+```
+
+## Basic Usage
+
+### Connect to Database
+
+```python
+import sqlite3
+
+# Connect to file
+conn = sqlite3.connect('database.db')
+
+# In-memory database
+conn = sqlite3.connect(':memory:')
+
+# Always close when done
+conn.close()
+
+# Or use context manager
+with sqlite3.connect('database.db') as conn:
+    # Work with database
+    pass
+```
+
+### Create Table
+
+```python
+import sqlite3
+
+conn = sqlite3.connect('database.db')
+cursor = conn.cursor()
+
+# Create table
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE,
+        age INTEGER
+    )
+''')
+
+conn.commit()
+conn.close()
+```
+
+### Insert Data
+
+```python
+import sqlite3
+
+conn = sqlite3.connect('database.db')
+cursor = conn.cursor()
+
+# Insert single row
+cursor.execute("INSERT INTO users (name, email, age) VALUES (?, ?, ?)",
+               ('Alice', 'alice@example.com', 30))
+
+# Insert multiple rows
+users = [
+    ('Bob', 'bob@example.com', 25),
+    ('Charlie', 'charlie@example.com', 35),
+]
+cursor.executemany("INSERT INTO users (name, email, age) VALUES (?, ?, ?)", users)
+
+conn.commit()
+conn.close()
+```
+
+### Query Data
+
+```python
+import sqlite3
+
+conn = sqlite3.connect('database.db')
+cursor = conn.cursor()
+
+# Fetch all results
+cursor.execute("SELECT * FROM users")
+rows = cursor.fetchall()
+for row in rows:
+    print(row)
+
+# Fetch one row
+cursor.execute("SELECT * FROM users WHERE age > ?", (25,))
+row = cursor.fetchone()
+print(row)
+
+# Iterate over results
+cursor.execute("SELECT name, email FROM users")
+for name, email in cursor:
+    print(f"{name}: {email}")
+
+conn.close()
+```
+
+### Update and Delete
+
+```python
+import sqlite3
+
+conn = sqlite3.connect('database.db')
+cursor = conn.cursor()
+
+# Update
+cursor.execute("UPDATE users SET age = ? WHERE name = ?", (31, 'Alice'))
+
+# Delete
+cursor.execute("DELETE FROM users WHERE age < ?", (20,))
+
+conn.commit()
+print(f"Rows affected: {cursor.rowcount}")
+conn.close()
+```
+
+## Row Factories
+
+```python
+import sqlite3
+
+# Return rows as dictionaries
+conn = sqlite3.connect('database.db')
+conn.row_factory = sqlite3.Row
+
+cursor = conn.cursor()
+cursor.execute("SELECT * FROM users")
+
+for row in cursor:
+    print(f"Name: {row['name']}, Email: {row['email']}")
+    print(dict(row))  # Convert to dict
+
+conn.close()
+```
+
+## Practical Examples
+
+### Simple CRUD Operations
+
+```python
+import sqlite3
+
+class UserDatabase:
+    def __init__(self, db_file):
+        self.conn = sqlite3.connect(db_file)
+        self.conn.row_factory = sqlite3.Row
+        self.create_table()
+    
+    def create_table(self):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE
+            )
+        ''')
+        self.conn.commit()
+    
+    def add_user(self, name, email):
+        cursor = self.conn.cursor()
+        cursor.execute("INSERT INTO users (name, email) VALUES (?, ?)",
+                      (name, email))
+        self.conn.commit()
+        return cursor.lastrowid
+    
+    def get_user(self, user_id):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        return cursor.fetchone()
+    
+    def update_user(self, user_id, name=None, email=None):
+        if name:
+            self.conn.execute("UPDATE users SET name = ? WHERE id = ?",
+                            (name, user_id))
+        if email:
+            self.conn.execute("UPDATE users SET email = ? WHERE id = ?",
+                            (email, user_id))
+        self.conn.commit()
+    
+    def delete_user(self, user_id):
+        self.conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        self.conn.commit()
+    
+    def close(self):
+        self.conn.close()
+
+# Usage
+db = UserDatabase('users.db')
+user_id = db.add_user('Alice', 'alice@example.com')
+user = db.get_user(user_id)
+print(dict(user))
+db.close()
+```
+
+### Transaction Management
+
+```python
+import sqlite3
+
+conn = sqlite3.connect('database.db')
+
+try:
+    cursor = conn.cursor()
+    
+    # Multiple operations in transaction
+    cursor.execute("INSERT INTO users (name, email) VALUES (?, ?)",
+                  ('Alice', 'alice@example.com'))
+    cursor.execute("INSERT INTO users (name, email) VALUES (?, ?)",
+                  ('Bob', 'bob@example.com'))
+    
+    conn.commit()
+    print("Transaction committed")
+    
+except sqlite3.Error as e:
+    conn.rollback()
+    print(f"Transaction rolled back: {e}")
+    
+finally:
+    conn.close()
+```
+
+<Tip>
+  Always use parameterized queries (`?` placeholders) to prevent SQL injection.
+</Tip>
+
+<Warning>
+  Remember to commit changes with `conn.commit()` or they will be lost.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="pickle" href="/library/pickle">
+    Python object serialization
+  </Card>
+  <Card title="json" href="/library/json">
+    JSON encoding/decoding
+  </Card>
+</CardGroup>

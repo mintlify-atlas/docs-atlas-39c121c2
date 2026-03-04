@@ -1,0 +1,483 @@
+---
+title: functools - Higher-Order Functions
+description: Tools for working with functions and callable objects
+---
+
+The `functools` module provides higher-order functions and operations on callable objects.
+
+## Module Import
+
+```python
+import functools
+from functools import lru_cache, wraps, partial
+```
+
+## Caching Decorators
+
+### @lru_cache - LRU Cache
+
+Least Recently Used cache decorator for memoization.
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def fibonacci(n):
+    if n < 2:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+# Much faster with caching
+print(fibonacci(100))  # Instant!
+
+# Check cache statistics
+print(fibonacci.cache_info())
+# CacheInfo(hits=98, misses=101, maxsize=128, currsize=101)
+
+# Clear cache
+fibonacci.cache_clear()
+```
+
+### @cache - Unlimited Cache
+
+Simple unbounded cache (Python 3.9+).
+
+```python
+from functools import cache
+
+@cache
+def expensive_function(n):
+    print(f"Computing {n}...")
+    return n * n
+
+print(expensive_function(5))  # Computing 5... 25
+print(expensive_function(5))  # 25 (cached, no print)
+```
+
+## Function Wrappers
+
+### @wraps - Preserve Function Metadata
+
+Preserves original function's metadata when creating wrappers.
+
+```python
+from functools import wraps
+
+def my_decorator(func):
+    @wraps(func)  # Preserves func's metadata
+    def wrapper(*args, **kwargs):
+        print(f"Calling {func.__name__}")
+        return func(*args, **kwargs)
+    return wrapper
+
+@my_decorator
+def greet(name):
+    """Greet someone by name"""
+    return f"Hello, {name}!"
+
+print(greet.__name__)  # 'greet' (not 'wrapper')
+print(greet.__doc__)   # 'Greet someone by name'
+```
+
+## Partial Functions
+
+### partial() - Partial Application
+
+Create new function with some arguments pre-filled.
+
+```python
+from functools import partial
+
+# Regular function
+def power(base, exponent):
+    return base ** exponent
+
+# Create partial functions
+square = partial(power, exponent=2)
+cube = partial(power, exponent=3)
+
+print(square(5))  # 25
+print(cube(5))    # 125
+
+# Practical use: pre-configure functions
+from operator import mul
+double = partial(mul, 2)
+triple = partial(mul, 3)
+
+print(double(10))  # 20
+print(triple(10))  # 30
+```
+
+### partialmethod() - Partial for Methods
+
+```python
+from functools import partialmethod
+
+class Cell:
+    def __init__(self):
+        self.value = 0
+    
+    def set_value(self, value, multiplier=1):
+        self.value = value * multiplier
+    
+    # Create partial method
+    set_double = partialmethod(set_value, multiplier=2)
+    set_triple = partialmethod(set_value, multiplier=3)
+
+cell = Cell()
+cell.set_double(5)  # value = 10
+cell.set_triple(5)  # value = 15
+```
+
+## Function Composition
+
+### reduce() - Reduce Iterable
+
+Apply function cumulatively to items.
+
+```python
+from functools import reduce
+from operator import add, mul
+
+# Sum all numbers
+numbers = [1, 2, 3, 4, 5]
+total = reduce(add, numbers)
+print(total)  # 15
+
+# Product of all numbers
+product = reduce(mul, numbers)
+print(product)  # 120
+
+# With initial value
+total = reduce(add, numbers, 10)
+print(total)  # 25 (10 + 1 + 2 + 3 + 4 + 5)
+
+# Custom function
+max_value = reduce(lambda a, b: a if a > b else b, numbers)
+print(max_value)  # 5
+```
+
+## Comparison Functions
+
+### @total_ordering - Complete Comparison Methods
+
+Automatically provides all comparison methods from a subset.
+
+```python
+from functools import total_ordering
+
+@total_ordering
+class Student:
+    def __init__(self, name, grade):
+        self.name = name
+        self.grade = grade
+    
+    def __eq__(self, other):
+        return self.grade == other.grade
+    
+    def __lt__(self, other):
+        return self.grade < other.grade
+    
+    # __le__, __gt__, __ge__ are automatically provided!
+
+s1 = Student('Alice', 90)
+s2 = Student('Bob', 85)
+
+print(s1 > s2)   # True
+print(s1 >= s2)  # True
+print(s1 <= s2)  # False
+```
+
+### cmp_to_key() - Convert Comparison Function
+
+Convert old-style comparison function to key function.
+
+```python
+from functools import cmp_to_key
+
+def compare(a, b):
+    """Old-style comparison function"""
+    if a < b:
+        return -1
+    elif a > b:
+        return 1
+    return 0
+
+# Use with sorted()
+items = [5, 2, 8, 1, 9]
+sorted_items = sorted(items, key=cmp_to_key(compare))
+print(sorted_items)  # [1, 2, 5, 8, 9]
+```
+
+## Single Dispatch
+
+### @singledispatch - Generic Functions
+
+Create generic functions that behave differently based on argument type.
+
+```python
+from functools import singledispatch
+
+@singledispatch
+def process(arg):
+    """Default implementation"""
+    print(f"Processing {arg} as object")
+
+@process.register(int)
+def _(arg):
+    print(f"Processing {arg} as integer")
+
+@process.register(str)
+def _(arg):
+    print(f"Processing '{arg}' as string")
+
+@process.register(list)
+def _(arg):
+    print(f"Processing list with {len(arg)} items")
+
+# Different behavior based on type
+process(42)         # Processing 42 as integer
+process("hello")    # Processing 'hello' as string
+process([1, 2, 3])  # Processing list with 3 items
+process(3.14)       # Processing 3.14 as object
+```
+
+### @singledispatchmethod - For Class Methods
+
+```python
+from functools import singledispatchmethod
+
+class Processor:
+    @singledispatchmethod
+    def process(self, arg):
+        print(f"Processing {arg}")
+    
+    @process.register(int)
+    def _(self, arg):
+        print(f"Processing integer: {arg * 2}")
+    
+    @process.register(str)
+    def _(self, arg):
+        print(f"Processing string: {arg.upper()}")
+
+p = Processor()
+p.process(42)       # Processing integer: 84
+p.process("hello")  # Processing string: HELLO
+```
+
+## Cached Properties
+
+### @cached_property - Cache Property Value
+
+```python
+from functools import cached_property
+
+class DataSet:
+    def __init__(self, data):
+        self._data = data
+    
+    @cached_property
+    def processed_data(self):
+        """Expensive computation, cached after first access"""
+        print("Processing data...")
+        return [x * 2 for x in self._data]
+
+ds = DataSet([1, 2, 3, 4, 5])
+print(ds.processed_data)  # Processing data... [2, 4, 6, 8, 10]
+print(ds.processed_data)  # [2, 4, 6, 8, 10] (cached, no print)
+```
+
+## Practical Examples
+
+### Memoization for Expensive Functions
+
+```python
+from functools import lru_cache
+import time
+
+@lru_cache(maxsize=None)
+def expensive_computation(n):
+    """Simulate expensive computation"""
+    time.sleep(1)
+    return n * n
+
+start = time.time()
+print(expensive_computation(5))  # Takes 1 second
+print(expensive_computation(5))  # Instant (cached)
+print(f"Time: {time.time() - start:.2f}s")  # ~1 second
+```
+
+### Retry Decorator
+
+```python
+from functools import wraps
+import time
+
+def retry(max_attempts=3, delay=1):
+    """Retry decorator with configurable attempts and delay"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        raise
+                    print(f"Attempt {attempts} failed, retrying...")
+                    time.sleep(delay)
+        return wrapper
+    return decorator
+
+@retry(max_attempts=3, delay=2)
+def unstable_function():
+    import random
+    if random.random() < 0.7:
+        raise Exception("Random failure")
+    return "Success!"
+```
+
+### Function Pipeline
+
+```python
+from functools import reduce
+
+def compose(*functions):
+    """Compose multiple functions into pipeline"""
+    return reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
+
+# Define transformations
+def add_10(x): return x + 10
+def multiply_2(x): return x * 2
+def subtract_5(x): return x - 5
+
+# Create pipeline
+pipeline = compose(subtract_5, multiply_2, add_10)
+
+result = pipeline(5)  # ((5 + 10) * 2) - 5 = 25
+print(result)
+```
+
+### Timing Decorator
+
+```python
+from functools import wraps
+import time
+
+def timer(func):
+    """Measure function execution time"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(f"{func.__name__} took {end - start:.4f} seconds")
+        return result
+    return wrapper
+
+@timer
+def slow_function():
+    time.sleep(1)
+    return "Done"
+
+slow_function()  # slow_function took 1.0001 seconds
+```
+
+### Currying with partial
+
+```python
+from functools import partial
+
+def volume(length, width, height):
+    return length * width * height
+
+# Create specialized functions
+cube_volume = partial(partial(volume, width=1), height=1)
+box_volume = partial(volume, width=10, height=5)
+
+print(cube_volume(length=5))  # 5
+print(box_volume(length=2))   # 100
+```
+
+## Best Practices
+
+<Tip>
+  **Always use @wraps for decorators:**
+  ```python
+  from functools import wraps
+  
+  def my_decorator(func):
+      @wraps(func)  # Preserves metadata
+      def wrapper(*args, **kwargs):
+          return func(*args, **kwargs)
+      return wrapper
+  ```
+</Tip>
+
+<Tip>
+  **Use @lru_cache for expensive pure functions:**
+  ```python
+  @lru_cache(maxsize=128)
+  def expensive_function(arg):
+      # Must be pure (same input = same output)
+      return complex_calculation(arg)
+  ```
+</Tip>
+
+<Warning>
+  **Don't cache functions with mutable arguments:**
+  ```python
+  # Bad - lists aren't hashable
+  @lru_cache
+  def process(items: list):  # Will fail!
+      return sum(items)
+  
+  # Good - use tuple
+  @lru_cache
+  def process(items: tuple):
+      return sum(items)
+  ```
+</Warning>
+
+## Complete Function List
+
+<AccordionGroup>
+  <Accordion title="Caching">
+    - `@lru_cache(maxsize=128)` - LRU cache with size limit
+    - `@cache` - Unlimited cache (Python 3.9+)
+    - `@cached_property` - Cache property value
+  </Accordion>
+  
+  <Accordion title="Function Tools">
+    - `@wraps(wrapped)` - Update wrapper function
+    - `partial(func, /, *args, **keywords)` - Partial application
+    - `partialmethod(func, /, *args, **keywords)` - Partial for methods
+    - `reduce(function, iterable, initializer)` - Cumulative application
+  </Accordion>
+  
+  <Accordion title="Comparison">
+    - `@total_ordering` - Fill in comparison methods
+    - `cmp_to_key(func)` - Convert comparison function
+  </Accordion>
+  
+  <Accordion title="Dispatch">
+    - `@singledispatch` - Single-dispatch generic function
+    - `@singledispatchmethod` - Single-dispatch for methods
+  </Accordion>
+</AccordionGroup>
+
+## Related Modules
+
+<CardGroup cols={2}>
+  <Card title="itertools" icon="repeat" href="/library/itertools">
+    Iterator building blocks
+  </Card>
+  <Card title="operator" icon="calculator">
+    Function equivalents of operators
+  </Card>
+  <Card title="Built-in Functions" icon="function" href="/library/built-in-functions">
+    Core Python functions
+  </Card>
+</CardGroup>

@@ -1,0 +1,428 @@
+---
+title: Simple Statements
+description: Specification of assignment, assertions, pass, del, return, yield, raise, break, continue, import, global, nonlocal, and type statements
+---
+
+# Simple Statements
+
+A simple statement is comprised within a single logical line. Several simple statements may occur on a single line separated by semicolons.
+
+```
+simple_stmt: expression_stmt
+           | assert_stmt
+           | assignment_stmt
+           | augmented_assignment_stmt
+           | annotated_assignment_stmt
+           | pass_stmt
+           | del_stmt
+           | return_stmt
+           | yield_stmt
+           | raise_stmt
+           | break_stmt
+           | continue_stmt
+           | import_stmt
+           | global_stmt
+           | nonlocal_stmt
+           | type_stmt
+```
+
+## Expression Statements
+
+Expression statements are used (mostly interactively) to compute and write a value, or (usually) to call a procedure (a function that returns no meaningful result; in Python, procedures return the value `None`).
+
+```python
+print("Hello, World!")  # Function call
+x + y                   # Expression evaluation
+42                      # Literal expression
+```
+
+In interactive mode, if the value is not `None`, it is converted to a string using the built-in `repr()` function and the resulting string is written to standard output.
+
+## Assignment Statements
+
+Assignment statements are used to (re)bind names to values and to modify attributes or items of mutable objects:
+
+```
+assignment_stmt: (target_list "=")+ (starred_expression | yield_expression)
+target_list: target ("," target)* [","]
+target: identifier
+      | "(" [target_list] ")"
+      | "[" [target_list] "]"
+      | attributeref
+      | subscription
+      | "*" target
+```
+
+An assignment statement evaluates the expression list and assigns the single resulting object to each of the target lists, from left to right:
+
+```python
+x = 5
+y = z = 10
+a, b = 1, 2
+a, b = b, a  # Swap values
+```
+
+### Assignment Rules
+
+Assignment of an object to a target list is recursively defined as follows:
+
+- If the target list is a single target with no trailing comma, the object is assigned to that target
+- If the target list contains one target prefixed with an asterisk (a "starred" target), the object must be an iterable with at least as many items as there are targets in the target list, minus one:
+
+```python
+a, *b, c = [1, 2, 3, 4, 5]
+# a = 1, b = [2, 3, 4], c = 5
+```
+
+### Assignment to Names
+
+If the target is an identifier (name):
+
+- If the name does not occur in a `global` or `nonlocal` statement in the current code block, the name is bound to the object in the current local namespace
+- Otherwise, the name is bound to the object in the global namespace or the outer namespace determined by `nonlocal`
+
+### Assignment to Attributes
+
+If the target is an attribute reference, the primary expression in the reference is evaluated. It should yield an object with assignable attributes. That object is then asked to assign the assigned object to the given attribute:
+
+```python
+obj.attr = value
+```
+
+<Note>
+  If the object is a class instance and the attribute reference occurs on both sides of the assignment operator, the right-hand side expression `a.x` can access either an instance attribute or (if no instance attribute exists) a class attribute. The left-hand side target `a.x` is always set as an instance attribute.
+</Note>
+
+### Assignment to Subscriptions
+
+If the target is a subscription, the primary's `__setitem__()` method is called with two arguments: the subscript and the assigned object:
+
+```python
+list_obj[index] = value
+dict_obj[key] = value
+```
+
+## Augmented Assignment Statements
+
+Augmented assignment is the combination, in a single statement, of a binary operation and an assignment statement:
+
+```
+augmented_assignment_stmt: augtarget augop (expression_list | yield_expression)
+augtarget: identifier | attributeref | subscription
+augop: "+=" | "-=" | "*=" | "@=" | "/=" | "//=" | "%=" | "**="
+     | ">>=" | "<<=" | "&=" | "^=" | "|="
+```
+
+An augmented assignment evaluates the target and the expression list, performs the binary operation specific to the type of assignment on the two operands, and assigns the result to the original target:
+
+```python
+x += 1   # Equivalent to: x = x + 1
+y *= 2   # Equivalent to: y = y * 2
+```
+
+Unlike normal assignments, augmented assignments evaluate the left-hand side *before* evaluating the right-hand side. Also, when possible, the actual operation is performed *in-place*, meaning that rather than creating a new object and assigning that to the target, the old object is modified instead.
+
+## Annotated Assignment Statements
+
+Annotation assignment is the combination, in a single statement, of a variable or attribute annotation and an optional assignment statement:
+
+```
+annotated_assignment_stmt: augtarget ":" expression
+                         ["=" (starred_expression | yield_expression)]
+```
+
+The difference from normal assignment is that only a single target is allowed:
+
+```python
+name: str = "Python"
+count: int
+values: list[int] = [1, 2, 3]
+```
+
+For simple assignment targets (a single name), if in class or module scope, the annotations are gathered in a lazily evaluated annotation scope. If the assignment target is not simple (an attribute, subscript node, or parenthesized name), the annotation is never evaluated.
+
+If a name is annotated in a function scope, then this name is local for that scope. Annotations are never evaluated and stored in function scopes.
+
+## The `assert` Statement
+
+Assert statements are a convenient way to insert debugging assertions into a program:
+
+```python
+assert expression [, expression]
+```
+
+The simple form, `assert expression`, is equivalent to:
+
+```python
+if __debug__:
+    if not expression: raise AssertionError
+```
+
+The extended form, `assert expression1, expression2`, is equivalent to:
+
+```python
+if __debug__:
+    if not expression1: raise AssertionError(expression2)
+```
+
+Examples:
+
+```python
+assert x > 0, "x must be positive"
+assert len(data) == expected_size
+```
+
+<Note>
+  The built-in variable `__debug__` is `True` under normal circumstances, `False` when optimization is requested (command line option `-O`).
+</Note>
+
+## The `pass` Statement
+
+`pass` is a null operation — when it is executed, nothing happens. It is useful as a placeholder when a statement is required syntactically:
+
+```python
+def f(arg): pass    # a function that does nothing (yet)
+
+class C: pass       # a class with no methods (yet)
+```
+
+## The `del` Statement
+
+Deletion is recursively defined very similar to the way assignment is defined:
+
+```python
+del target_list
+```
+
+Deletion of a name removes the binding of that name from the local or global namespace:
+
+```python
+x = 10
+del x
+# x is now unbound
+```
+
+Deletion of attribute references and subscriptions is passed to the primary object involved:
+
+```python
+del obj.attr
+del list_obj[index]
+del dict_obj[key]
+```
+
+## The `return` Statement
+
+`return` may only occur syntactically nested in a function definition:
+
+```python
+return [expression_list]
+```
+
+If an expression list is present, it is evaluated, else `None` is substituted. `return` leaves the current function call with the expression list (or `None`) as return value:
+
+```python
+def add(a, b):
+    return a + b
+
+def greet():
+    print("Hello")
+    return  # Implicit None
+```
+
+In a generator function, the `return` statement indicates that the generator is done and will cause `StopIteration` to be raised. The returned value (if any) is used as an argument to construct `StopIteration` and becomes the `StopIteration.value` attribute.
+
+## The `yield` Statement
+
+A `yield` statement is semantically equivalent to a yield expression:
+
+```python
+yield [expression_list]
+yield from expression
+```
+
+Yield expressions and statements are only used when defining a generator function:
+
+```python
+def count_up_to(n):
+    i = 1
+    while i <= n:
+        yield i
+        i += 1
+
+for num in count_up_to(5):
+    print(num)  # Prints 1, 2, 3, 4, 5
+```
+
+## The `raise` Statement
+
+If no expressions are present, `raise` re-raises the exception that is currently being handled:
+
+```python
+raise [expression ["from" expression]]
+```
+
+Otherwise, `raise` evaluates the first expression as the exception object. It must be either a subclass or an instance of `BaseException`:
+
+```python
+raise ValueError("Invalid value")
+raise TypeError
+```
+
+### Exception Chaining
+
+The `from` clause is used for exception chaining:
+
+```python
+try:
+    print(1 / 0)
+except Exception as exc:
+    raise RuntimeError("Something bad happened") from exc
+```
+
+Exception chaining can be explicitly suppressed by specifying `None` in the `from` clause:
+
+```python
+try:
+    print(1 / 0)
+except:
+    raise RuntimeError("Something bad happened") from None
+```
+
+## The `break` Statement
+
+`break` may only occur syntactically nested in a `for` or `while` loop, but not nested in a function or class definition within that loop:
+
+```python
+for item in items:
+    if condition:
+        break
+```
+
+It terminates the nearest enclosing loop, skipping the optional `else` clause if the loop has one.
+
+## The `continue` Statement
+
+`continue` may only occur syntactically nested in a `for` or `while` loop. It continues with the next cycle of the nearest enclosing loop:
+
+```python
+for item in items:
+    if should_skip(item):
+        continue
+    process(item)
+```
+
+## The `import` Statement
+
+The basic import statement (no `from` clause) is executed in two steps:
+
+1. Find a module, loading and initializing it if necessary
+2. Define a name or names in the local namespace
+
+```python
+import module
+import module as alias
+from module import name
+from module import name as alias
+from module import *
+```
+
+Examples:
+
+```python
+import math
+import numpy as np
+from collections import defaultdict
+from typing import List, Dict
+```
+
+### Lazy Imports
+
+The `lazy` keyword is a soft keyword that only has special meaning when it appears immediately before an `import` statement:
+
+```python
+lazy import json
+import sys
+
+print('json' in sys.modules)  # False - json module not yet loaded
+
+# First use triggers loading
+result = json.dumps({"hello": "world"})
+
+print('json' in sys.modules)  # True - now loaded
+```
+
+When an import statement is preceded by the `lazy` keyword, the import becomes *lazy*: the module is not loaded immediately at the import statement. Instead, a lazy proxy object is created and bound to the name. The actual module is loaded on first use of that name.
+
+## The `global` Statement
+
+The `global` statement causes the listed identifiers to be interpreted as globals:
+
+```python
+global identifier [, identifier]*
+```
+
+Example:
+
+```python
+x = 10
+
+def func():
+    global x
+    x = 20  # Modifies the global x
+
+func()
+print(x)  # Output: 20
+```
+
+The `global` statement applies to the entire current scope. A `SyntaxError` is raised if a variable is used or assigned to prior to its global declaration in the scope.
+
+## The `nonlocal` Statement
+
+The `nonlocal` statement causes the listed identifiers to refer to previously bound variables in the nearest enclosing function scope:
+
+```python
+nonlocal identifier [, identifier]*
+```
+
+Example:
+
+```python
+def outer():
+    x = 10
+    def inner():
+        nonlocal x
+        x = 20  # Modifies outer's x
+    inner()
+    print(x)  # Output: 20
+
+outer()
+```
+
+If a name is bound in more than one nonlocal scope, the nearest binding is used. If a name is not bound in any nonlocal scope, or if there is no nonlocal scope, a `SyntaxError` is raised.
+
+## The `type` Statement
+
+The `type` statement declares a type alias, which is an instance of `typing.TypeAliasType`:
+
+```python
+type identifier [type_params] = expression
+```
+
+Example:
+
+```python
+type Point = tuple[float, float]
+type Matrix[T] = list[list[T]]
+```
+
+This code is roughly equivalent to:
+
+```python
+def __value_of_Point():
+    return tuple[float, float]
+Point = TypeAliasType("Point", __value_of_Point)
+```
+
+The value of the type alias is evaluated in an annotation scope. It is not evaluated when the type alias is created, but only when the value is accessed through the type alias's `__value__` attribute (lazy evaluation).
+
+Type aliases may be made generic by adding a type parameter list after the name.

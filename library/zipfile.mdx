@@ -1,0 +1,131 @@
+---
+title: zipfile - ZIP Archive Handling
+description: Read and write ZIP archive files
+---
+
+The `zipfile` module provides tools to create, read, write, append, and list ZIP files.
+
+## Module Import
+
+```python
+import zipfile
+```
+
+## Reading ZIP Files
+
+```python
+import zipfile
+
+# Open ZIP file
+with zipfile.ZipFile('archive.zip', 'r') as zf:
+    # List contents
+    print(zf.namelist())
+    
+    # Get file info
+    for info in zf.infolist():
+        print(f"{info.filename}: {info.file_size} bytes")
+    
+    # Read specific file
+    with zf.open('file.txt') as f:
+        content = f.read()
+    
+    # Extract all files
+    zf.extractall('extracted')
+    
+    # Extract specific file
+    zf.extract('file.txt', 'output')
+```
+
+## Creating ZIP Files
+
+```python
+import zipfile
+
+# Create new ZIP file
+with zipfile.ZipFile('archive.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
+    # Add file
+    zf.write('file.txt')
+    
+    # Add file with different archive name
+    zf.write('data.txt', arcname='renamed.txt')
+    
+    # Add file from string
+    zf.writestr('info.txt', 'File contents here')
+```
+
+## Appending to ZIP Files
+
+```python
+import zipfile
+
+# Append to existing ZIP
+with zipfile.ZipFile('archive.zip', 'a') as zf:
+    zf.write('new_file.txt')
+```
+
+## Compression Levels
+
+```python
+import zipfile
+
+# No compression
+with zipfile.ZipFile('archive.zip', 'w', zipfile.ZIP_STORED) as zf:
+    zf.write('file.txt')
+
+# Deflate compression (most common)
+with zipfile.ZipFile('archive.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
+    zf.write('file.txt')
+
+# BZIP2 compression
+with zipfile.ZipFile('archive.zip', 'w', zipfile.ZIP_BZIP2) as zf:
+    zf.write('file.txt')
+
+# LZMA compression
+with zipfile.ZipFile('archive.zip', 'w', zipfile.ZIP_LZMA) as zf:
+    zf.write('file.txt')
+```
+
+## Practical Examples
+
+### Backup Directory
+
+```python
+import zipfile
+from pathlib import Path
+
+def backup_directory(directory, output_zip):
+    """Backup all files in directory to ZIP"""
+    with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for file in Path(directory).rglob('*'):
+            if file.is_file():
+                zf.write(file, file.relative_to(directory))
+
+backup_directory('my_project', 'backup.zip')
+```
+
+### Extract with Progress
+
+```python
+import zipfile
+
+def extract_with_progress(zip_path, extract_to):
+    """Extract ZIP with progress indication"""
+    with zipfile.ZipFile(zip_path, 'r') as zf:
+        files = zf.namelist()
+        total = len(files)
+        
+        for i, file in enumerate(files, 1):
+            print(f"Extracting {i}/{total}: {file}")
+            zf.extract(file, extract_to)
+
+extract_with_progress('archive.zip', 'output')
+```
+
+<CardGroup cols={2}>
+  <Card title="shutil" icon="copy">
+    High-level file operations
+  </Card>
+  <Card title="tarfile" icon="file-archive">
+    TAR archive handling
+  </Card>
+</CardGroup>

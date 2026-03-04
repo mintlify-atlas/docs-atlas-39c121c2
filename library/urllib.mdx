@@ -1,0 +1,231 @@
+---
+title: urllib - URL Handling Modules
+description: Modules for working with URLs
+---
+
+The `urllib` package provides modules for working with URLs.
+
+## Module Import
+
+```python
+from urllib import request, parse, error
+from urllib.request import urlopen
+from urllib.parse import urlparse, urlencode
+```
+
+## Making Requests
+
+### urlopen() - Open URL
+
+```python
+from urllib.request import urlopen
+
+# GET request
+with urlopen('http://example.com') as response:
+    html = response.read()
+    print(html.decode('utf-8'))
+
+# With timeout
+with urlopen('http://example.com', timeout=10) as response:
+    data = response.read()
+```
+
+### Request with Headers
+
+```python
+from urllib.request import Request, urlopen
+
+# Create request with headers
+req = Request('http://example.com')
+req.add_header('User-Agent', 'MyApp/1.0')
+req.add_header('Accept', 'application/json')
+
+with urlopen(req) as response:
+    data = response.read()
+```
+
+### POST Request
+
+```python
+from urllib.request import Request, urlopen
+from urllib.parse import urlencode
+
+# Prepare POST data
+data = urlencode({'key': 'value', 'name': 'Alice'})
+data = data.encode('utf-8')
+
+# Create POST request
+req = Request('http://example.com/api', data=data)
+req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+
+with urlopen(req) as response:
+    result = response.read()
+```
+
+## URL Parsing
+
+### urlparse() - Parse URL
+
+```python
+from urllib.parse import urlparse
+
+url = 'https://example.com:8080/path/to/page?key=value&foo=bar#section'
+parsed = urlparse(url)
+
+print(parsed.scheme)    # 'https'
+print(parsed.netloc)    # 'example.com:8080'
+print(parsed.path)      # '/path/to/page'
+print(parsed.query)     # 'key=value&foo=bar'
+print(parsed.fragment)  # 'section'
+```
+
+### urlencode() - Encode Parameters
+
+```python
+from urllib.parse import urlencode, quote, unquote
+
+# Encode dictionary to query string
+params = {'name': 'Alice', 'age': 30, 'city': 'New York'}
+query_string = urlencode(params)
+print(query_string)  # 'name=Alice&age=30&city=New+York'
+
+# URL encode/decode
+encoded = quote('Hello World!')  # 'Hello%20World%21'
+decoded = unquote('Hello%20World%21')  # 'Hello World!'
+```
+
+### urljoin() - Join URLs
+
+```python
+from urllib.parse import urljoin
+
+base = 'http://example.com/path/page.html'
+
+print(urljoin(base, 'other.html'))  
+# 'http://example.com/path/other.html'
+
+print(urljoin(base, '/absolute/path'))  
+# 'http://example.com/absolute/path'
+
+print(urljoin(base, 'http://other.com/page'))  
+# 'http://other.com/page'
+```
+
+## Error Handling
+
+```python
+from urllib.request import urlopen
+from urllib.error import URLError, HTTPError
+
+try:
+    with urlopen('http://example.com/nonexistent') as response:
+        data = response.read()
+except HTTPError as e:
+    print(f"HTTP Error: {e.code} {e.reason}")
+except URLError as e:
+    print(f"URL Error: {e.reason}")
+```
+
+## Downloading Files
+
+```python
+from urllib.request import urlretrieve
+
+# Download file
+url = 'http://example.com/file.pdf'
+local_file, headers = urlretrieve(url, 'downloaded_file.pdf')
+print(f"Downloaded to {local_file}")
+```
+
+## Query String Parsing
+
+```python
+from urllib.parse import parse_qs, parse_qsl
+
+query = 'name=Alice&age=30&hobby=reading&hobby=coding'
+
+# Parse as dictionary
+params = parse_qs(query)
+print(params)  
+# {'name': ['Alice'], 'age': ['30'], 'hobby': ['reading', 'coding']}
+
+# Parse as list of tuples
+params = parse_qsl(query)
+print(params)  
+# [('name', 'Alice'), ('age', '30'), ('hobby', 'reading'), ('hobby', 'coding')]
+```
+
+## Practical Examples
+
+### Simple API Client
+
+```python
+from urllib.request import Request, urlopen
+from urllib.parse import urlencode
+import json
+
+def api_get(url, params=None):
+    if params:
+        url = f"{url}?{urlencode(params)}"
+    
+    req = Request(url)
+    req.add_header('Accept', 'application/json')
+    
+    with urlopen(req) as response:
+        return json.loads(response.read())
+
+def api_post(url, data):
+    req = Request(url)
+    req.add_header('Content-Type', 'application/json')
+    req.data = json.dumps(data).encode('utf-8')
+    
+    with urlopen(req) as response:
+        return json.loads(response.read())
+
+# Usage
+result = api_get('http://api.example.com/users', {'page': 1})
+```
+
+### Download with Progress
+
+```python
+from urllib.request import urlopen
+
+def download_file(url, filename):
+    with urlopen(url) as response:
+        total_size = int(response.headers.get('Content-Length', 0))
+        downloaded = 0
+        
+        with open(filename, 'wb') as f:
+            while True:
+                chunk = response.read(8192)
+                if not chunk:
+                    break
+                
+                f.write(chunk)
+                downloaded += len(chunk)
+                
+                if total_size:
+                    percent = (downloaded / total_size) * 100
+                    print(f"\rDownloading: {percent:.1f}%", end='')
+        
+        print("\nDownload complete!")
+
+download_file('http://example.com/file.zip', 'file.zip')
+```
+
+<Tip>
+  For modern HTTP client functionality, consider using the `requests` library instead of urllib.
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="http" href="/library/http">
+    HTTP modules
+  </Card>
+  <Card title="socket" href="/library/socket">
+    Low-level networking
+  </Card>
+  <Card title="json" href="/library/json">
+    JSON encoding/decoding
+  </Card>
+</CardGroup>

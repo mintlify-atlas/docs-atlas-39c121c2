@@ -1,0 +1,531 @@
+---
+title: Code Style Guide
+description: Code style guidelines for contributing to CPython
+---
+
+CPython follows specific coding standards to maintain consistency across the codebase. This guide covers style guidelines for both C and Python code.
+
+## Python Code Style
+
+Python code in CPython follows **PEP 8** - the official Python style guide.
+
+### PEP 8 Essentials
+
+#### Indentation
+
+```python
+# Use 4 spaces per indentation level
+def function_name(arg1, arg2):
+    if arg1 > arg2:
+        return arg1
+    else:
+        return arg2
+```
+
+<Warning>
+Never use tabs for Python code. Configure your editor to use spaces.
+</Warning>
+
+#### Line Length
+
+```python
+# Limit lines to 79 characters for code
+def long_function_name(
+        var_one, var_two, var_three,
+        var_four):
+    print(var_one)
+
+# Limit comments and docstrings to 72 characters
+```
+
+#### Naming Conventions
+
+```python
+# Functions and variables: lowercase with underscores
+def my_function():
+    my_variable = 10
+
+# Classes: CapitalizedWords
+class MyClass:
+    pass
+
+# Constants: UPPERCASE with underscores
+MAX_OVERFLOW = 100
+TOTAL_COUNT = 0
+
+# Private: leading underscore
+def _internal_function():
+    pass
+
+_private_var = 42
+```
+
+#### Imports
+
+```python
+# Standard library imports
+import os
+import sys
+from typing import Optional
+
+# Related third party imports
+import pytest
+
+# Local application imports
+from .module import function
+
+# Avoid wildcard imports
+# DON'T: from module import *
+```
+
+#### Whitespace
+
+```python
+# Good
+spam(ham[1], {eggs: 2})
+if x == 4: print(x, y); x, y = y, x
+
+# Bad
+spam( ham[ 1 ], { eggs: 2 } )
+if x == 4 : print(x , y) ; x , y = y , x
+
+# Good - operators
+i = i + 1
+submitted += 1
+x = x*2 - 1
+
+# Bad
+i=i+1
+submitted +=1
+x = x * 2 - 1
+```
+
+#### Documentation Strings
+
+```python
+def complex_function(arg1, arg2):
+    """Brief description of function.
+
+    More detailed description goes here. Explain what the
+    function does, its parameters, return value, and any
+    exceptions it might raise.
+
+    Args:
+        arg1: Description of arg1.
+        arg2: Description of arg2.
+
+    Returns:
+        Description of return value.
+
+    Raises:
+        ValueError: If arg1 is invalid.
+    """
+    if not arg1:
+        raise ValueError("arg1 cannot be empty")
+    return process(arg1, arg2)
+```
+
+## C Code Style
+
+C code in CPython follows **PEP 7** - the C style guide.
+
+### PEP 7 Essentials
+
+#### Indentation
+
+```c
+/* Use 4 spaces per indentation level */
+static PyObject *
+function_name(PyObject *self, PyObject *args)
+{
+    int x = 0;
+    if (x > 0) {
+        return PyLong_FromLong(x);
+    }
+    return NULL;
+}
+```
+
+#### Braces
+
+```c
+/* Opening brace on same line for functions */
+int function(void) {
+    /* code */
+}
+
+/* Control structures */
+if (condition) {
+    /* code */
+}
+else {
+    /* code */
+}
+
+while (condition) {
+    /* code */
+}
+```
+
+#### Naming Conventions
+
+```c
+/* Public functions: start with Py or _Py */
+PyObject *PyDict_New(void);
+int _PyDict_CheckExact(PyObject *obj);
+
+/* Static functions: use lowercase with underscores */
+static int dict_resize(PyDictObject *mp);
+
+/* Macros: UPPERCASE with underscores */
+#define Py_RETURN_NONE return Py_NewRef(Py_None)
+
+/* Struct types: PySomething */
+typedef struct {
+    PyObject_HEAD
+    /* fields */
+} PyDictObject;
+```
+
+#### Comments
+
+```c
+/* Use C-style comments, not C++ style */
+/* Good comment */
+
+// DON'T use C++ style comments
+
+/* Multi-line comments
+ * use this format with
+ * asterisks aligned
+ */
+```
+
+#### Error Handling
+
+```c
+/* Always check return values */
+PyObject *result = PyObject_CallMethod(obj, "method", NULL);
+if (result == NULL) {
+    return NULL;  /* Exception already set */
+}
+
+/* Clean up on error */
+PyObject *tmp = PyList_New(0);
+if (tmp == NULL) {
+    Py_DECREF(other_obj);
+    return NULL;
+}
+```
+
+#### Reference Counting
+
+```c
+/* Steal references with care */
+PyObject *obj = PyLong_FromLong(42);  /* New reference */
+PyList_Append(list, obj);  /* Doesn't steal reference */
+Py_DECREF(obj);  /* Must decrement */
+
+/* Functions that steal references */
+PyTuple_SET_ITEM(tuple, 0, obj);  /* Steals reference to obj */
+/* Don't DECREF obj here */
+
+/* Borrowed references */
+PyObject *item = PyList_GET_ITEM(list, 0);  /* Borrowed */
+/* Don't DECREF item */
+
+/* Incrementing references */
+Py_INCREF(obj);  /* Increase reference count */
+Py_XINCREF(obj);  /* NULL-safe version */
+
+/* Decrementing references */
+Py_DECREF(obj);  /* Decrease reference count */
+Py_XDECREF(obj);  /* NULL-safe version */
+```
+
+#### NULL Checks
+
+```c
+/* Always check for NULL */
+PyObject *obj = PyLong_FromLong(value);
+if (obj == NULL) {
+    return NULL;
+}
+
+/* Use NULL, not 0 */
+if (ptr == NULL) {  /* Good */
+if (ptr == 0) {     /* Bad */
+```
+
+### Code Organization
+
+#### File Structure
+
+C files in CPython typically follow this structure:
+
+```c
+/* Include guards for headers */
+#ifndef Py_MODULENAME_H
+#define Py_MODULENAME_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Includes */
+#include "Python.h"
+
+/* Type definitions */
+typedef struct { ... } PyMyObject;
+
+/* Forward declarations */
+static PyObject *helper_function(PyObject *);
+
+/* Static data */
+static PyMethodDef module_methods[] = {
+    ...
+};
+
+/* Function implementations */
+static PyObject *
+helper_function(PyObject *arg)
+{
+    ...
+}
+
+/* Module initialization */
+PyMODINIT_FUNC
+PyInit_module(void)
+{
+    ...
+}
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* !Py_MODULENAME_H */
+```
+
+## Type Hints
+
+Use type hints in Python 3.5+ style:
+
+```python
+from typing import Optional, List, Dict, Union
+
+def process_items(items: List[str], 
+                  count: int = 10) -> Dict[str, int]:
+    """Process a list of items."""
+    result: Dict[str, int] = {}
+    for item in items[:count]:
+        result[item] = len(item)
+    return result
+
+def find_item(name: str) -> Optional[str]:
+    """Find an item by name."""
+    # May return None
+    return None
+```
+
+## Documentation
+
+### Python Documentation
+
+Document modules, classes, and functions:
+
+```python
+"""Module docstring.
+
+Brief description of the module.
+"""
+
+class MyClass:
+    """Brief description of the class.
+    
+    Longer description with more details.
+    """
+    
+    def method(self, arg: int) -> str:
+        """Brief description of method.
+        
+        Args:
+            arg: Description of argument.
+            
+        Returns:
+            Description of return value.
+        """
+        return str(arg)
+```
+
+### C Documentation
+
+Use structured comments:
+
+```c
+/* Brief description of function.
+ *
+ * More detailed explanation of what the function does,
+ * parameters it takes, and what it returns.
+ *
+ * Returns NULL on error with exception set.
+ */
+static PyObject *
+my_function(PyObject *self, PyObject *args)
+{
+    ...
+}
+```
+
+## Tools and Automation
+
+### Running Style Checks
+
+```bash
+# Check Python code style
+python -m flake8 Lib/
+
+# Check with specific rules
+python -m flake8 --max-line-length=79 file.py
+
+# Type checking
+python -m mypy Lib/
+```
+
+### Editor Configuration
+
+Create `.editorconfig` in your editor:
+
+```ini
+[*.py]
+indent_style = space
+indent_size = 4
+max_line_length = 79
+
+[*.c]
+indent_style = space
+indent_size = 4
+```
+
+### Pre-commit Hooks
+
+Consider setting up pre-commit hooks:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install hooks
+pre-commit install
+
+# Run manually
+pre-commit run --all-files
+```
+
+## Special Builds and Debug Macros
+
+When writing C code for debug builds:
+
+```c
+/* Code only in debug builds */
+#ifdef Py_DEBUG
+    assert(refcount > 0);
+    fprintf(stderr, "Debug info: %d\n", value);
+#endif
+
+/* Reference counting debug */
+#ifdef Py_REF_DEBUG
+    extern Py_ssize_t _Py_RefTotal;
+    _Py_RefTotal++;
+#endif
+```
+
+See `Misc/SpecialBuilds.txt` for more on debug builds.
+
+## Common Patterns
+
+### Error Propagation
+
+```python
+# Python: Let exceptions propagate
+def outer():
+    try:
+        result = inner()  # May raise
+    except ValueError:
+        # Handle specific error
+        return None
+    return result
+```
+
+```c
+/* C: Return NULL on error */
+static PyObject *
+outer(PyObject *self)
+{
+    PyObject *result = inner(self);
+    if (result == NULL) {
+        return NULL;  /* Propagate exception */
+    }
+    return result;
+}
+```
+
+### Resource Cleanup
+
+```python
+# Python: Use context managers
+with open(filename) as f:
+    data = f.read()
+    # File automatically closed
+```
+
+```c
+/* C: Manual cleanup with gotos */
+static PyObject *
+function(void)
+{
+    PyObject *result = NULL;
+    PyObject *tmp = PyList_New(0);
+    if (tmp == NULL)
+        goto error;
+    
+    result = process(tmp);
+    if (result == NULL)
+        goto error;
+    
+    Py_DECREF(tmp);
+    return result;
+
+error:
+    Py_XDECREF(tmp);
+    return NULL;
+}
+```
+
+## Code Review Checklist
+
+Before submitting code, verify:
+
+- [ ] Follows PEP 8 (Python) or PEP 7 (C)
+- [ ] All functions documented
+- [ ] Type hints added (Python)
+- [ ] Reference counting correct (C)
+- [ ] Error handling complete
+- [ ] Tests added
+- [ ] No trailing whitespace
+- [ ] Unix line endings (LF)
+- [ ] No tabs in Python code
+- [ ] Consistent indentation
+
+## Next Steps
+
+- [Learn the development workflow](/contributing/workflow)
+- [Read about testing](/contributing/testing)
+- Study [PEP 7 - C Code Style](https://peps.python.org/pep-0007/)
+- Study [PEP 8 - Python Code Style](https://peps.python.org/pep-0008/)
+
+## Additional Resources
+
+- [PEP 7 - Style Guide for C Code](https://peps.python.org/pep-0007/)
+- [PEP 8 - Style Guide for Python Code](https://peps.python.org/pep-0008/)
+- [PEP 257 - Docstring Conventions](https://peps.python.org/pep-0257/)
+- [CPython Developer Guide](https://devguide.python.org/)
+- [C API Reference](https://docs.python.org/3/c-api/)

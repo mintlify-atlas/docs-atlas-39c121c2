@@ -1,0 +1,418 @@
+---
+title: Control Flow Tools
+description: Master Python's control flow with if, for, while, functions, and more
+---
+
+Python provides several control flow tools beyond the `while` statement. Let's explore if statements, for loops, functions, and more advanced concepts.
+
+## if Statements
+
+The `if` statement is used for conditional execution:
+
+```python
+>>> x = int(input("Please enter an integer: "))
+Please enter an integer: 42
+>>> if x < 0:
+...     x = 0
+...     print('Negative changed to zero')
+... elif x == 0:
+...     print('Zero')
+... elif x == 1:
+...     print('Single')
+... else:
+...     print('More')
+...
+More
+```
+
+**Key points:**
+- Zero or more `elif` parts
+- The `else` part is optional
+- `elif` is short for "else if" and helps avoid excessive indentation
+
+<Info>
+For comparing the same value to several constants, consider using the `match` statement (covered below).
+</Info>
+
+## for Statements
+
+Python's `for` statement iterates over items of any sequence (list, string, etc.) in the order they appear:
+
+```python
+>>> words = ['cat', 'window', 'defenestrate']
+>>> for w in words:
+...     print(w, len(w))
+...
+cat 3
+window 6
+defenestrate 12
+```
+
+### Modifying Collections While Iterating
+
+<Warning>
+Modifying a collection while iterating over it can be tricky. Instead, iterate over a copy or create a new collection:
+</Warning>
+
+```python
+# Strategy 1: Iterate over a copy
+users = {'Hans': 'active', 'Éléonore': 'inactive', '景太郎': 'active'}
+for user, status in users.copy().items():
+    if status == 'inactive':
+        del users[user]
+
+# Strategy 2: Create a new collection
+active_users = {}
+for user, status in users.items():
+    if status == 'active':
+        active_users[user] = status
+```
+
+## The range() Function
+
+To iterate over a sequence of numbers, use `range()`:
+
+```python
+>>> for i in range(5):
+...     print(i)
+...
+0
+1
+2
+3
+4
+```
+
+**range() with start, stop, and step:**
+
+```python
+>>> list(range(5, 10))
+[5, 6, 7, 8, 9]
+>>> list(range(0, 10, 3))
+[0, 3, 6, 9]
+>>> list(range(-10, -100, -30))
+[-10, -40, -70]
+```
+
+**Combining range() with len():**
+
+```python
+>>> a = ['Mary', 'had', 'a', 'little', 'lamb']
+>>> for i in range(len(a)):
+...     print(i, a[i])
+...
+0 Mary
+1 had
+2 a
+3 little
+4 lamb
+```
+
+<Tip>
+In most cases, use `enumerate()` instead of `range(len())` for cleaner code.
+</Tip>
+
+## break and continue Statements
+
+### break
+
+The `break` statement exits the innermost loop:
+
+```python
+>>> for n in range(2, 10):
+...     for x in range(2, n):
+...         if n % x == 0:
+...             print(f"{n} equals {x} * {n//x}")
+...             break
+...
+4 equals 2 * 2
+6 equals 2 * 3
+8 equals 2 * 4
+9 equals 3 * 3
+```
+
+### continue
+
+The `continue` statement skips to the next iteration:
+
+```python
+>>> for num in range(2, 10):
+...     if num % 2 == 0:
+...         print(f"Found an even number {num}")
+...         continue
+...     print(f"Found an odd number {num}")
+...
+Found an even number 2
+Found an odd number 3
+Found an even number 4
+Found an odd number 5
+```
+
+## else Clauses on Loops
+
+Loops can have an `else` clause that executes when the loop finishes without hitting a `break`:
+
+```python
+>>> for n in range(2, 10):
+...     for x in range(2, n):
+...         if n % x == 0:
+...             print(n, 'equals', x, '*', n//x)
+...             break
+...     else:
+...         # loop finished without finding a factor
+...         print(n, 'is a prime number')
+...
+2 is a prime number
+3 is a prime number
+4 equals 2 * 2
+5 is a prime number
+```
+
+<Note>
+The `else` clause belongs to the `for` loop, not the `if` statement. It runs when no `break` occurs.
+</Note>
+
+## pass Statements
+
+The `pass` statement does nothing. It's used when a statement is required syntactically but no action is needed:
+
+```python
+>>> while True:
+...     pass  # Busy-wait for keyboard interrupt (Ctrl+C)
+
+>>> class MyEmptyClass:
+...     pass
+
+>>> def initlog(*args):
+...     pass   # Remember to implement this!
+```
+
+## match Statements
+
+The `match` statement (Python 3.10+) compares a value against patterns:
+
+```python
+def http_error(status):
+    match status:
+        case 400:
+            return "Bad request"
+        case 404:
+            return "Not found"
+        case 418:
+            return "I'm a teapot"
+        case _:
+            return "Something's wrong with the internet"
+```
+
+### Combining Patterns
+
+```python
+case 401 | 403 | 404:
+    return "Not allowed"
+```
+
+### Pattern Matching with Unpacking
+
+```python
+# point is an (x, y) tuple
+match point:
+    case (0, 0):
+        print("Origin")
+    case (0, y):
+        print(f"Y={y}")
+    case (x, 0):
+        print(f"X={x}")
+    case (x, y):
+        print(f"X={x}, Y={y}")
+    case _:
+        raise ValueError("Not a point")
+```
+
+### Pattern Matching with Classes
+
+```python
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+def where_is(point):
+    match point:
+        case Point(x=0, y=0):
+            print("Origin")
+        case Point(x=0, y=y):
+            print(f"Y={y}")
+        case Point(x=x, y=0):
+            print(f"X={x}")
+        case Point():
+            print("Somewhere else")
+        case _:
+            print("Not a point")
+```
+
+## Defining Functions
+
+Use the `def` keyword to create a function:
+
+```python
+>>> def fib(n):    # write Fibonacci series less than n
+...     """Print a Fibonacci series less than n."""
+...     a, b = 0, 1
+...     while a < n:
+...         print(a, end=' ')
+...         a, b = b, a+b
+...     print()
+...
+>>> fib(2000)
+0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597
+```
+
+**Key concepts:**
+- The first statement can be a docstring
+- Functions without an explicit `return` statement return `None`
+- Variables assigned in a function are stored in the local symbol table
+
+### Returning Values
+
+```python
+>>> def fib2(n):  # return Fibonacci series up to n
+...     """Return a list containing the Fibonacci series up to n."""
+...     result = []
+...     a, b = 0, 1
+...     while a < n:
+...         result.append(a)
+...         a, b = b, a+b
+...     return result
+...
+>>> f100 = fib2(100)
+>>> f100
+[0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
+```
+
+## More on Defining Functions
+
+### Default Argument Values
+
+Specify default values for arguments:
+
+```python
+def ask_ok(prompt, retries=4, reminder='Please try again!'):
+    while True:
+        reply = input(prompt)
+        if reply in {'y', 'ye', 'yes'}:
+            return True
+        if reply in {'n', 'no', 'nop', 'nope'}:
+            return False
+        retries = retries - 1
+        if retries < 0:
+            raise ValueError('invalid user response')
+        print(reminder)
+```
+
+This function can be called:
+- `ask_ok('Do you really want to quit?')`
+- `ask_ok('OK to overwrite the file?', 2)`
+- `ask_ok('OK to overwrite the file?', 2, 'Come on, only yes or no!')`
+
+<Warning>
+**Important:** Default values are evaluated only once at function definition time:
+
+```python
+def f(a, L=[]):
+    L.append(a)
+    return L
+
+print(f(1))  # [1]
+print(f(2))  # [1, 2]
+print(f(3))  # [1, 2, 3]
+```
+
+Use `None` as the default to avoid this:
+
+```python
+def f(a, L=None):
+    if L is None:
+        L = []
+    L.append(a)
+    return L
+```
+</Warning>
+
+### Keyword Arguments
+
+Functions can be called using keyword arguments:
+
+```python
+def parrot(voltage, state='a stiff', action='voom', type='Norwegian Blue'):
+    print("-- This parrot wouldn't", action, end=' ')
+    print("if you put", voltage, "volts through it.")
+    print("-- Lovely plumage, the", type)
+    print("-- It's", state, "!")
+```
+
+Valid calls:
+```python
+parrot(1000)                                          # 1 positional
+parrot(voltage=1000)                                  # 1 keyword
+parrot(voltage=1000000, action='VOOOOOM')             # 2 keyword
+parrot(action='VOOOOOM', voltage=1000000)             # 2 keyword
+parrot('a million', 'bereft of life', 'jump')         # 3 positional
+parrot('a thousand', state='pushing up the daisies')  # 1 positional, 1 keyword
+```
+
+### Lambda Expressions
+
+Small anonymous functions can be created with `lambda`:
+
+```python
+>>> def make_incrementor(n):
+...     return lambda x: x + n
+...
+>>> f = make_incrementor(42)
+>>> f(0)
+42
+>>> f(1)
+43
+```
+
+Lambdas can be used as arguments:
+
+```python
+>>> pairs = [(1, 'one'), (2, 'two'), (3, 'three'), (4, 'four')]
+>>> pairs.sort(key=lambda pair: pair[1])
+>>> pairs
+[(4, 'four'), (1, 'one'), (3, 'three'), (2, 'two')]
+```
+
+### Function Annotations
+
+Annotations are optional metadata about types:
+
+```python
+>>> def f(ham: str, eggs: str = 'eggs') -> str:
+...     print("Annotations:", f.__annotations__)
+...     print("Arguments:", ham, eggs)
+...     return ham + ' and ' + eggs
+...
+>>> f('spam')
+Annotations: {'ham': <class 'str'>, 'return': <class 'str'>, 'eggs': <class 'str'>}
+Arguments: spam eggs
+'spam and eggs'
+```
+
+## Coding Style
+
+Follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) for consistent Python code:
+
+- Use 4-space indentation (no tabs)
+- Wrap lines at 79 characters
+- Use blank lines to separate functions and classes
+- Use docstrings
+- Use spaces around operators: `a = f(1, 2) + g(3, 4)`
+- Name classes with `UpperCamelCase`
+- Name functions and methods with `lowercase_with_underscores`
+- Use UTF-8 encoding
+
+## Next Steps
+
+Now that you understand control flow and functions, learn about [Data Structures](/tutorial/data-structures) including lists, tuples, sets, and dictionaries.

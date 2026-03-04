@@ -1,0 +1,609 @@
+---
+title: pathlib - Object-Oriented Filesystem Paths
+description: Modern object-oriented interface for filesystem paths
+---
+
+The `pathlib` module provides classes for working with filesystem paths in an object-oriented way. It's the modern replacement for many `os.path` operations.
+
+## Module Import
+
+```python
+from pathlib import Path
+```
+
+## Creating Path Objects
+
+### Path() - Platform-Specific Path
+
+```python
+from pathlib import Path
+
+# Current directory
+p = Path('.')
+
+# Specific file
+p = Path('data.txt')
+
+# Nested path
+p = Path('folder/subfolder/file.txt')
+
+# Multiple components
+p = Path('folder', 'subfolder', 'file.txt')
+
+# From home directory
+p = Path.home() / 'documents' / 'file.txt'
+
+# Current working directory
+p = Path.cwd()
+```
+
+### Path Operators
+
+Use `/` operator to join paths:
+
+```python
+from pathlib import Path
+
+base = Path('/home/user')
+path = base / 'documents' / 'file.txt'
+print(path)  # /home/user/documents/file.txt
+
+# Can mix strings and Path objects
+path = Path('folder') / 'subfolder' / 'file.txt'
+
+# Right division
+path = 'folder' / Path('subfolder') / 'file.txt'
+```
+
+## Path Properties
+
+### Path Components
+
+```python
+from pathlib import Path
+
+path = Path('/home/user/documents/file.txt')
+
+# Parts
+print(path.parts)  # ('/', 'home', 'user', 'documents', 'file.txt')
+
+# Name (filename with extension)
+print(path.name)  # 'file.txt'
+
+# Stem (filename without extension)
+print(path.stem)  # 'file'
+
+# Suffix (extension)
+print(path.suffix)  # '.txt'
+
+# Multiple extensions
+path = Path('archive.tar.gz')
+print(path.suffixes)  # ['.tar', '.gz']
+
+# Parent directory
+print(path.parent)  # /home/user/documents
+
+# All parents
+for parent in path.parents:
+    print(parent)
+# /home/user/documents
+# /home/user
+# /home
+# /
+```
+
+### Path Types
+
+```python
+from pathlib import Path
+
+path = Path('/home/user/file.txt')
+
+# Drive letter (Windows: 'C:', Unix: '')
+print(path.drive)
+
+# Root (Unix: '/', Windows: '\\')
+print(path.root)
+
+# Anchor (drive + root)
+print(path.anchor)
+
+# Check if absolute
+if path.is_absolute():
+    print("Absolute path")
+```
+
+## File Operations
+
+### Reading Files
+
+```python
+from pathlib import Path
+
+path = Path('data.txt')
+
+# Read entire file as string
+content = path.read_text(encoding='utf-8')
+
+# Read as bytes
+data = path.read_bytes()
+
+# Read lines
+lines = path.read_text().splitlines()
+
+# Iterate over lines
+for line in path.open():
+    print(line.strip())
+```
+
+### Writing Files
+
+```python
+from pathlib import Path
+
+path = Path('output.txt')
+
+# Write string
+path.write_text('Hello, World!', encoding='utf-8')
+
+# Write bytes
+path.write_bytes(b'Binary data')
+
+# Append to file
+with path.open('a') as f:
+    f.write('Appended line\n')
+```
+
+### File Information
+
+```python
+from pathlib import Path
+from datetime import datetime
+
+path = Path('file.txt')
+
+# Check existence
+if path.exists():
+    print("File exists")
+
+# Check type
+if path.is_file():
+    print("It's a file")
+
+if path.is_dir():
+    print("It's a directory")
+
+if path.is_symlink():
+    print("It's a symbolic link")
+
+# Get stats
+stats = path.stat()
+print(f"Size: {stats.st_size} bytes")
+print(f"Modified: {datetime.fromtimestamp(stats.st_mtime)}")
+
+# File size
+size = path.stat().st_size
+print(f"Size: {size / 1024:.2f} KB")
+```
+
+## Directory Operations
+
+### Listing Contents
+
+```python
+from pathlib import Path
+
+path = Path('.')
+
+# List all items
+for item in path.iterdir():
+    print(item)
+
+# Filter files
+for file in path.iterdir():
+    if file.is_file():
+        print(file.name)
+
+# Filter by extension
+for py_file in path.glob('*.py'):
+    print(py_file)
+
+# Recursive search
+for py_file in path.rglob('*.py'):
+    print(py_file)
+
+# Using glob patterns
+for item in path.glob('**/*.txt'):
+    print(item)
+```
+
+### Creating and Removing Directories
+
+```python
+from pathlib import Path
+
+# Create directory
+Path('new_folder').mkdir()
+
+# Create nested directories
+Path('path/to/nested/folder').mkdir(parents=True, exist_ok=True)
+
+# Remove empty directory
+Path('empty_folder').rmdir()
+
+# Remove file
+Path('file.txt').unlink()
+
+# Remove file if exists
+path = Path('file.txt')
+if path.exists():
+    path.unlink()
+
+# Or with missing_ok (Python 3.8+)
+path.unlink(missing_ok=True)
+```
+
+## Path Manipulation
+
+### Joining Paths
+
+```python
+from pathlib import Path
+
+# Using / operator
+base = Path('/home/user')
+path = base / 'documents' / 'file.txt'
+
+# Using joinpath method
+path = base.joinpath('documents', 'file.txt')
+```
+
+### Changing Path Components
+
+```python
+from pathlib import Path
+
+path = Path('/home/user/documents/file.txt')
+
+# Change filename
+new_path = path.with_name('newfile.txt')
+print(new_path)  # /home/user/documents/newfile.txt
+
+# Change extension
+new_path = path.with_suffix('.md')
+print(new_path)  # /home/user/documents/file.md
+
+# Change stem (filename without extension)
+new_path = path.with_stem('newfile')
+print(new_path)  # /home/user/documents/newfile.txt
+```
+
+### Resolving Paths
+
+```python
+from pathlib import Path
+
+path = Path('relative/path/file.txt')
+
+# Get absolute path
+absolute = path.resolve()
+print(absolute)
+
+# Expand user home directory
+path = Path('~/documents')
+expanded = path.expanduser()
+print(expanded)  # /home/user/documents
+
+# Make relative to another path
+path = Path('/home/user/documents/file.txt')
+base = Path('/home/user')
+relative = path.relative_to(base)
+print(relative)  # documents/file.txt
+```
+
+## File Operations
+
+### Renaming and Moving
+
+```python
+from pathlib import Path
+
+# Rename file
+old_path = Path('old_name.txt')
+new_path = Path('new_name.txt')
+old_path.rename(new_path)
+
+# Move file
+source = Path('file.txt')
+dest = Path('folder/file.txt')
+source.rename(dest)
+
+# Replace (atomic on some platforms)
+source.replace(dest)
+```
+
+### Copying Files
+
+```python
+from pathlib import Path
+import shutil
+
+source = Path('source.txt')
+dest = Path('dest.txt')
+
+# pathlib doesn't have copy, use shutil
+shutil.copy(source, dest)
+
+# Copy with metadata
+shutil.copy2(source, dest)
+
+# Copy directory
+shutil.copytree(Path('source_dir'), Path('dest_dir'))
+```
+
+### Permissions
+
+```python
+from pathlib import Path
+import stat
+
+path = Path('file.txt')
+
+# Change permissions
+path.chmod(0o644)  # rw-r--r--
+
+# Make executable
+path.chmod(path.stat().st_mode | stat.S_IXUSR)
+
+# Get current permissions
+mode = path.stat().st_mode
+print(oct(stat.S_IMODE(mode)))  # e.g., '0o644'
+```
+
+## Special Methods
+
+### Path Matching
+
+```python
+from pathlib import Path
+
+path = Path('/home/user/documents/file.txt')
+
+# Match pattern
+if path.match('*.txt'):
+    print("Text file")
+
+if path.match('**/documents/*.txt'):
+    print("Text file in documents folder")
+```
+
+### Symbolic Links
+
+```python
+from pathlib import Path
+
+target = Path('target.txt')
+link = Path('link.txt')
+
+# Create symbolic link
+link.symlink_to(target)
+
+# Read link target
+if link.is_symlink():
+    target = link.readlink()
+    print(f"Link points to: {target}")
+
+# Resolve symlinks
+real_path = link.resolve()
+```
+
+## Practical Examples
+
+### Find All Files with Extension
+
+```python
+from pathlib import Path
+
+def find_files(directory, pattern):
+    """Find all files matching pattern recursively"""
+    return list(Path(directory).rglob(pattern))
+
+# Usage
+python_files = find_files('.', '*.py')
+for file in python_files:
+    print(file)
+```
+
+### Calculate Directory Size
+
+```python
+from pathlib import Path
+
+def get_directory_size(directory):
+    """Calculate total size of directory in bytes"""
+    total = 0
+    for item in Path(directory).rglob('*'):
+        if item.is_file():
+            total += item.stat().st_size
+    return total
+
+# Usage
+size = get_directory_size('.')
+print(f"Directory size: {size / (1024**2):.2f} MB")
+```
+
+### Backup Files with Timestamp
+
+```python
+from pathlib import Path
+from datetime import datetime
+import shutil
+
+def backup_file(filepath):
+    """Create timestamped backup of file"""
+    path = Path(filepath)
+    if not path.exists():
+        return None
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_path = path.with_stem(f"{path.stem}_{timestamp}")
+    
+    shutil.copy2(path, backup_path)
+    return backup_path
+
+# Usage
+backup = backup_file('important.txt')
+print(f"Backup created: {backup}")
+```
+
+### Clean Up Old Files
+
+```python
+from pathlib import Path
+from datetime import datetime, timedelta
+
+def clean_old_files(directory, days=30, pattern='*'):
+    """Remove files older than specified days"""
+    cutoff = datetime.now() - timedelta(days=days)
+    removed = []
+    
+    for file in Path(directory).glob(pattern):
+        if file.is_file():
+            mtime = datetime.fromtimestamp(file.stat().st_mtime)
+            if mtime < cutoff:
+                file.unlink()
+                removed.append(file)
+    
+    return removed
+
+# Usage
+removed = clean_old_files('/tmp', days=7, pattern='*.tmp')
+print(f"Removed {len(removed)} files")
+```
+
+### Process All Files in Directory
+
+```python
+from pathlib import Path
+
+def process_files(directory, extension='.txt'):
+    """Process all files with given extension"""
+    for file in Path(directory).rglob(f'*{extension}'):
+        if file.is_file():
+            content = file.read_text()
+            # Process content
+            lines = len(content.splitlines())
+            words = len(content.split())
+            print(f"{file.name}: {lines} lines, {words} words")
+
+# Usage
+process_files('.', '.py')
+```
+
+## Path Types
+
+### Pure Paths (No I/O)
+
+```python
+from pathlib import PurePath, PurePosixPath, PureWindowsPath
+
+# Platform-independent path manipulation
+path = PurePath('/home/user/file.txt')
+
+# Force Unix-style paths
+posix_path = PurePosixPath('/home/user/file.txt')
+
+# Force Windows-style paths  
+win_path = PureWindowsPath('C:/Users/user/file.txt')
+
+# Pure paths don't access filesystem
+path = PurePath('nonexistent.txt')
+print(path.name)  # Works even if file doesn't exist
+```
+
+### Concrete Paths (With I/O)
+
+```python
+from pathlib import Path, PosixPath, WindowsPath
+
+# Platform-specific (recommended)
+path = Path('file.txt')
+
+# Force POSIX (only works on POSIX systems)
+# posix_path = PosixPath('file.txt')
+
+# Force Windows (only works on Windows)
+# win_path = WindowsPath('file.txt')
+```
+
+## Best Practices
+
+<Tip>
+  **Use pathlib instead of os.path for new code:**
+  ```python
+  # Modern
+  from pathlib import Path
+  path = Path('folder') / 'file.txt'
+  if path.exists():
+      content = path.read_text()
+  
+  # Old style
+  import os
+  path = os.path.join('folder', 'file.txt')
+  if os.path.exists(path):
+      with open(path) as f:
+          content = f.read()
+  ```
+</Tip>
+
+<Warning>
+  **Use missing_ok=True when deleting:**
+  ```python
+  # Avoid errors if file doesn't exist
+  Path('file.txt').unlink(missing_ok=True)
+  
+  # Instead of
+  path = Path('file.txt')
+  if path.exists():
+      path.unlink()
+  ```
+</Warning>
+
+<Note>
+  **Always use parents=True when creating nested directories:**
+  ```python
+  Path('path/to/nested/folder').mkdir(parents=True, exist_ok=True)
+  ```
+</Note>
+
+## Migration from os.path
+
+| os.path | pathlib |
+|---------|----------|
+| `os.path.join(a, b)` | `Path(a) / b` |
+| `os.path.exists(path)` | `Path(path).exists()` |
+| `os.path.isfile(path)` | `Path(path).is_file()` |
+| `os.path.isdir(path)` | `Path(path).is_dir()` |
+| `os.path.basename(path)` | `Path(path).name` |
+| `os.path.dirname(path)` | `Path(path).parent` |
+| `os.path.splitext(path)` | `Path(path).stem`, `Path(path).suffix` |
+| `os.path.abspath(path)` | `Path(path).resolve()` |
+| `os.getcwd()` | `Path.cwd()` |
+| `os.path.expanduser('~')` | `Path.home()` |
+
+## Related Modules
+
+<CardGroup cols={2}>
+  <Card title="os" icon="folder" href="/library/os">
+    Operating system interfaces
+  </Card>
+  <Card title="shutil" icon="copy">
+    High-level file operations
+  </Card>
+  <Card title="glob" icon="asterisk">
+    Unix-style pathname patterns
+  </Card>
+  <Card title="tempfile" icon="file">
+    Temporary files
+  </Card>
+</CardGroup>

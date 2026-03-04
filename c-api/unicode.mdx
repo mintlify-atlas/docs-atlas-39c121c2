@@ -1,0 +1,124 @@
+---
+title: Unicode Objects
+description: Working with Python str type (Unicode strings)
+---
+
+## Overview
+
+Python strings are Unicode (UTF-8) text. The C API provides extensive functions for creating and manipulating Unicode strings.
+
+## Type Object
+
+```c
+PyTypeObject PyUnicode_Type
+```
+
+## Type Checking
+
+```c
+int PyUnicode_Check(PyObject *o)
+int PyUnicode_CheckExact(PyObject *o)
+```
+
+## Creating Unicode Strings
+
+### From C Strings
+
+```c
+PyObject* PyUnicode_FromString(const char *u)
+```
+
+Create from UTF-8 encoded C string (null-terminated).
+
+**Example:**
+
+```c
+PyObject *hello = PyUnicode_FromString("Hello, World!");
+return hello;
+```
+
+### With Length
+
+```c
+PyObject* PyUnicode_FromStringAndSize(const char *u, Py_ssize_t size)
+```
+
+**Example:**
+
+```c
+PyObject *str = PyUnicode_FromStringAndSize("Hello", 5);
+```
+
+### From Format String
+
+```c
+PyObject* PyUnicode_FromFormat(const char *format, ...)
+```
+
+Like `sprintf` for Python strings.
+
+**Format codes:**
+- `%s` - C string (UTF-8)
+- `%d`, `%ld` - Integers
+- `%S` - PyObject* (via `PyObject_Str()`)
+- `%R` - PyObject* (via `PyObject_Repr()`)
+
+**Example:**
+
+```c
+PyObject *msg = PyUnicode_FromFormat("Value: %d, Name: %s", 42, "test");
+```
+
+## Converting to C Strings
+
+```c
+const char* PyUnicode_AsUTF8(PyObject *unicode)
+```
+
+Get UTF-8 encoded C string. Returns `NULL` on error.
+
+**Example:**
+
+```c
+const char *str = PyUnicode_AsUTF8(obj);
+if (str == NULL)
+    return NULL;
+printf("String: %s\\n", str);
+```
+
+<Warning>
+  The returned pointer is owned by the Unicode object. Don't free it!
+</Warning>
+
+## String Operations
+
+```c
+Py_ssize_t PyUnicode_GetLength(PyObject *unicode)
+PyObject* PyUnicode_Concat(PyObject *left, PyObject *right)
+PyObject* PyUnicode_Join(PyObject *separator, PyObject *seq)
+PyObject* PyUnicode_Split(PyObject *s, PyObject *sep, Py_ssize_t maxsplit)
+```
+
+**Example:**
+
+```c
+PyObject *parts = PyUnicode_Split(str, PyUnicode_FromString(","), -1);
+```
+
+## Complete Example
+
+```c
+static PyObject* format_name(PyObject *self, PyObject *args) {
+    const char *first, *last;
+    
+    if (!PyArg_ParseTuple(args, "ss", &first, &last))
+        return NULL;
+    
+    return PyUnicode_FromFormat("%s %s", first, last);
+}
+```
+
+## See Also
+
+- [Bytes Objects](/c-api/bytes)
+- [Object Protocol](/c-api/object)

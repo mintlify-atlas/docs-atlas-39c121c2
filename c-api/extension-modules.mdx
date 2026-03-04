@@ -1,0 +1,521 @@
+---
+title: Building Extension Modules
+description: Create C extension modules for Python
+---
+
+## Overview
+
+Extension modules allow you to extend Python with C/C++ code for:
+- Performance-critical operations
+- Integration with existing C libraries
+- Access to system-level APIs
+- Custom data types
+
+This guide covers the fundamentals of creating Python extension modules in C.
+
+## Module Structure
+
+A minimal extension module consists of:
+1. Method definitions
+2. Module definition structure
+3. Module initialization function
+
+### Basic Example
+
+```c
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
+// 1. Define module methods
+static PyObject* spam_system(PyObject *self, PyObject *args) {
+    const char *command;
+    int status;
+
+    if (!PyArg_ParseTuple(args, "s", &command))
+        return NULL;
+
+    status = system(command);
+    return PyLong_FromLong(status);
+}
+
+// 2. Method table
+static PyMethodDef SpamMethods[] = {
+    {"system", spam_system, METH_VARARGS,
+     "Execute a shell command."},
+    {NULL, NULL, 0, NULL}  // Sentinel
+};
+
+// 3. Module definition
+static struct PyModuleDef spammodule = {
+    PyModuleDef_HEAD_INIT,
+    "spam",      // Module name
+    "Spam module example",  // Module docstring
+    -1,          // Module state size (-1 = global state)
+    SpamMethods  // Method table
+};
+
+// 4. Initialization function
+PyMODINIT_FUNC PyInit_spam(void) {
+    return PyModule_Create(&spammodule);
+}
+```
+
+## Method Definitions
+
+### PyMethodDef Structure
+
+```c
+struct PyMethodDef {
+    const char *ml_name;    // Method name
+    PyCFunction ml_meth;    // C function pointer
+    int ml_flags;           // Calling convention flags
+    const char *ml_doc;     // Docstring
+};
+```
+
+### Method Flags
+
+<ParamField path="METH_VARARGS" type="int">
+  Function accepts positional arguments tuple
+  
+  ```c
+  static PyObject* func(PyObject *self, PyObject *args)
+  ```
+</ParamField>
+
+<ParamField path="METH_KEYWORDS" type="int">
+  Function accepts positional and keyword arguments
+  
+  ```c
+  static PyObject* func(PyObject *self, PyObject *args, PyObject *kwargs)
+  ```
+</ParamField>
+
+<ParamField path="METH_NOARGS" type="int">
+  Function takes no arguments (only self)
+  
+  ```c
+  static PyObject* func(PyObject *self, PyObject *Py_UNUSED(ignored))
+  ```
+</ParamField>
+
+<ParamField path="METH_O" type="int">
+  Function takes exactly one Python object argument
+  
+  ```c
+  static PyObject* func(PyObject *self, PyObject *arg)
+  ```
+</ParamField>
+
+<ParamField path="METH_CLASS" type="int">
+  Class method - first argument is the class, not instance
+</ParamField>
+
+<ParamField path="METH_STATIC" type="int">
+  Static method - receives no implicit first argument
+</ParamField>
+
+### Method Examples
+
+```c
+// METH_VARARGS - positional arguments
+static PyObject* add(PyObject *self, PyObject *args) {
+    int a, b;
+    if (!PyArg_ParseTuple(args, "ii", &a, &b))
+        return NULL;
+    return PyLong_FromLong(a + b);
+}
+
+// METH_VARARGS | METH_KEYWORDS - with keyword arguments
+static PyObject* greet(PyObject *self, PyObject *args, PyObject *kwargs) {
+    const char *name = "World";
+    int excited = 0;
+    
+    static char *kwlist[] = {"name", "excited", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|sp", kwlist,
+                                     &name, &excited))
+        return NULL;
+    
+    if (excited)
+        return PyUnicode_FromFormat("Hello, %s!!!", name);
+    else
+        return PyUnicode_FromFormat("Hello, %s", name);
+}
+
+// METH_NOARGS - no arguments
+static PyObject* get_version(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    return PyUnicode_FromString("1.0.0");
+}
+
+// METH_O - single object argument
+static PyObject* double_value(PyObject *self, PyObject *arg) {
+    long value = PyLong_AsLong(arg);
+    if (value == -1 && PyErr_Occurred())
+        return NULL;
+    return PyLong_FromLong(value * 2);
+}
+```
+
+## Module Definition
+
+### PyModuleDef Structure
+
+```c
+struct PyModuleDef {
+    PyModuleDef_Base m_base;    // Always PyModuleDef_HEAD_INIT
+    const char *m_name;          // Module name
+    const char *m_doc;           // Module docstring (can be NULL)
+    Py_ssize_t m_size;           // Module state size
+    PyMethodDef *m_methods;      // Module methods
+    PyModuleDef_Slot *m_slots;   // Multi-phase init slots
+    traverseproc m_traverse;     // GC traverse function
+    inquiry m_clear;             // GC clear function
+    freefunc m_free;             // Module cleanup
+};
+```
+
+### Module State
+
+The `m_size` field controls module state:
+- `-1` - Module uses global state (simple modules)
+- `>= 0` - Per-module state size (multi-phase init)
+
+**Example with module state:**
+
+```c
+typedef struct {
+    int counter;
+    PyObject *cache;
+} module_state;
+
+static module_state* get_module_state(PyObject *module) {
+    return (module_state*)PyModule_GetState(module);
+}
+
+static PyObject* increment(PyObject *module, PyObject *Py_UNUSED(ignored)) {
+    module_state *state = get_module_state(module);
+    state->counter++;
+    return PyLong_FromLong(state->counter);
+}
+
+static int module_traverse(PyObject *module, visitproc visit, void *arg) {
+    module_state *state = get_module_state(module);
+    Py_VISIT(state->cache);
+    return 0;
+}
+
+static int module_clear(PyObject *module) {
+    module_state *state = get_module_state(module);
+    Py_CLEAR(state->cache);
+    return 0;
+}
+
+static struct PyModuleDef mymodule = {
+    PyModuleDef_HEAD_INIT,
+    "mymodule",
+    "Module with state",
+    sizeof(module_state),
+    MyMethods,
+    NULL,
+    module_traverse,
+    module_clear,
+    NULL
+};
+```
+
+## Initialization Function
+
+### PyMODINIT_FUNC Macro
+
+```c
+PyMODINIT_FUNC PyInit_<modulename>(void)
+```
+
+The initialization function must:
+1. Be named `PyInit_` followed by the module name
+2. Return a `PyObject*` (the module object)
+3. Use the `PyMODINIT_FUNC` macro
+
+<Warning>
+  The function name must exactly match the module filename. For a module file `spam.so`, the function must be named `PyInit_spam`.
+</Warning>
+
+### Single-Phase Initialization
+
+```c
+PyMODINIT_FUNC PyInit_spam(void) {
+    PyObject *module;
+    
+    module = PyModule_Create(&spammodule);
+    if (module == NULL)
+        return NULL;
+    
+    // Add module constants
+    if (PyModule_AddIntConstant(module, "VERSION", 1) < 0) {
+        Py_DECREF(module);
+        return NULL;
+    }
+    
+    // Add exception types
+    PyObject *SpamError = PyErr_NewException("spam.error", NULL, NULL);
+    if (PyModule_AddObject(module, "error", SpamError) < 0) {
+        Py_XDECREF(SpamError);
+        Py_DECREF(module);
+        return NULL;
+    }
+    
+    return module;
+}
+```
+
+## Argument Parsing
+
+### PyArg_ParseTuple
+
+Parse positional arguments:
+
+```c
+int PyArg_ParseTuple(PyObject *args, const char *format, ...)
+```
+
+**Format strings:**
+- `s` - String (char*)
+- `s#` - String and length (char*, Py_ssize_t)
+- `i` - Integer (int)
+- `l` - Long (long)
+- `L` - Long long (long long)
+- `f` - Float (float)
+- `d` - Double (double)
+- `O` - Python object (PyObject*)
+- `O!` - Python object with type check (PyTypeObject*, PyObject*)
+- `|` - Optional arguments follow
+
+**Examples:**
+
+```c
+// Required string and integer
+const char *name;
+int age;
+if (!PyArg_ParseTuple(args, "si", &name, &age))
+    return NULL;
+
+// String with optional integer (default: 0)
+const char *text;
+int count = 0;
+if (!PyArg_ParseTuple(args, "s|i", &text, &count))
+    return NULL;
+
+// Python object with type check
+PyListObject *list;
+if (!PyArg_ParseTuple(args, "O!", &PyList_Type, &list))
+    return NULL;
+```
+
+### PyArg_ParseTupleAndKeywords
+
+Parse positional and keyword arguments:
+
+```c
+static PyObject* connect(PyObject *self, PyObject *args, PyObject *kwargs) {
+    const char *host;
+    int port = 80;
+    int timeout = 30;
+    
+    static char *kwlist[] = {"host", "port", "timeout", NULL};
+    
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|ii", kwlist,
+                                     &host, &port, &timeout))
+        return NULL;
+    
+    // Use host, port, timeout...
+    Py_RETURN_NONE;
+}
+```
+
+## Building Return Values
+
+### Py_BuildValue
+
+Create Python objects from C values:
+
+```c
+PyObject* Py_BuildValue(const char *format, ...)
+```
+
+**Examples:**
+
+```c
+// Return integer
+return Py_BuildValue("i", 42);
+
+// Return string
+return Py_BuildValue("s", "hello");
+
+// Return tuple
+return Py_BuildValue("(ii)", 10, 20);  // (10, 20)
+
+// Return list
+return Py_BuildValue("[iii]", 1, 2, 3);  // [1, 2, 3]
+
+// Return dict
+return Py_BuildValue("{sisi}", "x", 1, "y", 2);  // {'x': 1, 'y': 2}
+
+// Complex structure
+return Py_BuildValue("(si[ss])", "name", 42, "tag1", "tag2");
+// ('name', 42, ['tag1', 'tag2'])
+```
+
+## Adding Module Constants
+
+```c
+// Integer constant
+PyModule_AddIntConstant(module, "MAX_SIZE", 1024);
+
+// String constant
+PyModule_AddStringConstant(module, "VERSION", "1.0.0");
+
+// Object constant
+PyObject *value = PyLong_FromLong(42);
+PyModule_AddObject(module, "ANSWER", value);
+// Note: AddObject steals reference to value
+```
+
+## Error Handling in Extensions
+
+### Setting Exceptions
+
+```c
+// Simple error with message
+if (value < 0) {
+    PyErr_SetString(PyExc_ValueError, "Value must be non-negative");
+    return NULL;
+}
+
+// Formatted error message
+if (index >= size) {
+    PyErr_Format(PyExc_IndexError, "Index %d out of range (size=%d)",
+                 index, size);
+    return NULL;
+}
+
+// Custom exception type
+PyObject *MyError = PyErr_NewException("mymodule.MyError", NULL, NULL);
+PyErr_SetString(MyError, "Something went wrong");
+return NULL;
+```
+
+### Cleanup on Error
+
+```c
+PyObject* risky_operation(PyObject *self, PyObject *args) {
+    PyObject *list = NULL, *item = NULL;
+    
+    list = PyList_New(0);
+    if (list == NULL)
+        return NULL;
+    
+    item = PyLong_FromLong(42);
+    if (item == NULL) {
+        Py_DECREF(list);
+        return NULL;
+    }
+    
+    if (PyList_Append(list, item) < 0) {
+        Py_DECREF(item);
+        Py_DECREF(list);
+        return NULL;
+    }
+    
+    Py_DECREF(item);
+    return list;
+}
+```
+
+## Building and Installing
+
+### Using setuptools
+
+Create `setup.py`:
+
+```python
+from setuptools import setup, Extension
+
+module = Extension(
+    'spam',
+    sources=['spammodule.c'],
+    include_dirs=[],
+    libraries=[],
+    extra_compile_args=['-O3'],
+)
+
+setup(
+    name='spam',
+    version='1.0',
+    description='Spam module',
+    ext_modules=[module],
+)
+```
+
+Build and install:
+
+```bash
+python setup.py build
+python setup.py install
+```
+
+### Development Mode
+
+```bash
+pip install -e .
+```
+
+## Best Practices
+
+<Warning>
+  **Reference Counting**
+  
+  Always manage reference counts correctly:
+  - `Py_INCREF()` when storing a reference
+  - `Py_DECREF()` when done with a reference
+  - Functions return new or borrowed references
+</Warning>
+
+<Note>
+  **Error Checking**
+  
+  Check every API call that can fail:
+  ```c
+  PyObject *result = PyLong_FromLong(value);
+  if (result == NULL)
+      return NULL;  // Memory allocation failed
+  ```
+</Note>
+
+<Note>
+  **Thread Safety**
+  
+  Release the GIL for long operations:
+  ```c
+  Py_BEGIN_ALLOW_THREADS
+  // Long computation without touching Python objects
+  result = expensive_c_function();
+  Py_END_ALLOW_THREADS
+  ```
+</Note>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Type Objects" icon="cube" href="/c-api/type">
+    Define custom Python types in C
+  </Card>
+  <Card title="Memory Management" icon="memory" href="/c-api/memory">
+    Allocate and free memory properly
+  </Card>
+  <Card title="Exception Handling" icon="triangle-exclamation" href="/c-api/exceptions">
+    Handle errors in extension code
+  </Card>
+  <Card title="Utilities" icon="wrench" href="/c-api/utilities">
+    Parsing arguments and building values
+  </Card>
+</CardGroup>

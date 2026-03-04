@@ -1,0 +1,593 @@
+---
+title: Built-in Functions
+description: Complete reference for Python's built-in functions available without importing
+---
+
+Python provides 71 built-in functions that are always available without importing any module. These functions cover common operations like type conversion, iteration, I/O, and more.
+
+## Most Commonly Used
+
+These functions are used in almost every Python program:
+
+### print()
+
+Output text to the console.
+
+<ParamField path="*objects" type="any">
+  Values to print (converted to strings)
+</ParamField>
+
+<ParamField path="sep" type="str" default="' '">
+  String inserted between values
+</ParamField>
+
+<ParamField path="end" type="str" default="'\n'">
+  String appended after the last value
+</ParamField>
+
+<ParamField path="file" type="file" default="sys.stdout">
+  File object to write to
+</ParamField>
+
+```python
+print("Hello", "World")  # Hello World
+print("A", "B", "C", sep="-")  # A-B-C
+print("Loading", end="...\n")  # Loading...
+```
+
+### len()
+
+Return the length of an object.
+
+<ParamField path="obj" type="object" required>
+  Any object with a length (string, list, dict, etc.)
+</ParamField>
+
+<ResponseField name="return" type="int">
+  Number of items in the object
+</ResponseField>
+
+```python
+len("hello")  # 5
+len([1, 2, 3, 4])  # 4
+len({'a': 1, 'b': 2})  # 2
+```
+
+### type()
+
+Return the type of an object.
+
+<ParamField path="object" type="any" required>
+  Object to get the type of
+</ParamField>
+
+<ResponseField name="return" type="type">
+  The type of the object
+</ResponseField>
+
+```python
+type(42)  # <class 'int'>
+type("hello")  # <class 'str'>
+type([1, 2, 3])  # <class 'list'>
+```
+
+### range()
+
+Generate a sequence of numbers.
+
+<ParamField path="stop" type="int" required>
+  End of range (exclusive)
+</ParamField>
+
+<ParamField path="start" type="int" default="0">
+  Start of range (inclusive)
+</ParamField>
+
+<ParamField path="step" type="int" default="1">
+  Increment between values
+</ParamField>
+
+```python
+list(range(5))  # [0, 1, 2, 3, 4]
+list(range(2, 10))  # [2, 3, 4, 5, 6, 7, 8, 9]
+list(range(0, 10, 2))  # [0, 2, 4, 6, 8]
+```
+
+### input()
+
+Read a string from standard input.
+
+<ParamField path="prompt" type="str" default="''">
+  Prompt to display before reading input
+</ParamField>
+
+<ResponseField name="return" type="str">
+  String entered by the user
+</ResponseField>
+
+```python
+name = input("Enter your name: ")
+age = int(input("Enter your age: "))
+```
+
+## Type Conversion
+
+Convert between different data types:
+
+### int(), float(), str(), bool()
+
+```python
+# String to integer
+int("42")  # 42
+int("FF", 16)  # 255 (hexadecimal)
+
+# String to float
+float("3.14")  # 3.14
+
+# Number to string
+str(42)  # "42"
+str(3.14)  # "3.14"
+
+# To boolean
+bool(0)  # False
+bool(1)  # True
+bool("")  # False
+bool("text")  # True
+```
+
+### list(), tuple(), set(), dict()
+
+```python
+# Convert to list
+list("abc")  # ['a', 'b', 'c']
+list(range(3))  # [0, 1, 2]
+
+# Convert to tuple
+tuple([1, 2, 3])  # (1, 2, 3)
+
+# Convert to set (removes duplicates)
+set([1, 2, 2, 3, 3])  # {1, 2, 3}
+
+# Create dictionary from pairs
+dict([('a', 1), ('b', 2)])  # {'a': 1, 'b': 2}
+```
+
+## Iteration & Sequences
+
+### enumerate()
+
+Add counter to an iterable.
+
+```python
+fruits = ['apple', 'banana', 'cherry']
+for index, fruit in enumerate(fruits):
+    print(f"{index}: {fruit}")
+# 0: apple
+# 1: banana
+# 2: cherry
+
+# Start from different index
+for i, fruit in enumerate(fruits, start=1):
+    print(f"{i}. {fruit}")
+```
+
+### zip()
+
+Combine multiple iterables.
+
+```python
+names = ['Alice', 'Bob', 'Charlie']
+ages = [25, 30, 35]
+for name, age in zip(names, ages):
+    print(f"{name} is {age} years old")
+
+# Create dictionary from two lists
+data = dict(zip(names, ages))
+# {'Alice': 25, 'Bob': 30, 'Charlie': 35}
+```
+
+### map()
+
+Apply function to every item.
+
+```python
+# Square all numbers
+numbers = [1, 2, 3, 4, 5]
+squared = list(map(lambda x: x**2, numbers))
+# [1, 4, 9, 16, 25]
+
+# Convert strings to integers
+strings = ['1', '2', '3']
+integers = list(map(int, strings))
+# [1, 2, 3]
+```
+
+### filter()
+
+Filter items based on condition.
+
+```python
+numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+# Get even numbers
+even = list(filter(lambda x: x % 2 == 0, numbers))
+# [2, 4, 6, 8, 10]
+
+# Get numbers greater than 5
+large = list(filter(lambda x: x > 5, numbers))
+# [6, 7, 8, 9, 10]
+```
+
+### sorted()
+
+Return sorted list.
+
+```python
+# Sort numbers
+sorted([3, 1, 4, 1, 5, 9])  # [1, 1, 3, 4, 5, 9]
+
+# Sort in reverse
+sorted([3, 1, 4], reverse=True)  # [4, 3, 1]
+
+# Sort by key function
+words = ['banana', 'pie', 'Washington', 'book']
+sorted(words, key=len)  # ['pie', 'book', 'banana', 'Washington']
+sorted(words, key=str.lower)  # ['banana', 'book', 'pie', 'Washington']
+```
+
+### reversed()
+
+Reverse an iterable.
+
+```python
+list(reversed([1, 2, 3, 4, 5]))  # [5, 4, 3, 2, 1]
+list(reversed("hello"))  # ['o', 'l', 'l', 'e', 'h']
+```
+
+## Mathematical Functions
+
+### sum(), min(), max()
+
+```python
+numbers = [1, 2, 3, 4, 5]
+
+sum(numbers)  # 15
+min(numbers)  # 1
+max(numbers)  # 5
+
+# With start value
+sum(numbers, 10)  # 25 (10 + 15)
+
+# Min/max with key
+words = ['banana', 'pie', 'Washington']
+min(words, key=len)  # 'pie'
+max(words, key=len)  # 'Washington'
+```
+
+### abs(), round(), pow()
+
+```python
+abs(-5)  # 5
+abs(-3.14)  # 3.14
+
+round(3.14159, 2)  # 3.14
+round(42.5)  # 42
+
+pow(2, 3)  # 8 (2^3)
+pow(2, 3, 5)  # 3 (2^3 % 5)
+```
+
+### divmod()
+
+Get quotient and remainder.
+
+```python
+divmod(17, 5)  # (3, 2)
+quotient, remainder = divmod(17, 5)
+```
+
+## Object Inspection
+
+### isinstance()
+
+Check if object is instance of class.
+
+```python
+isinstance(42, int)  # True
+isinstance("hello", str)  # True
+isinstance([1, 2], (list, tuple))  # True (checks multiple types)
+```
+
+### hasattr(), getattr(), setattr()
+
+Work with object attributes.
+
+```python
+class Person:
+    def __init__(self, name):
+        self.name = name
+
+person = Person("Alice")
+
+hasattr(person, 'name')  # True
+hasattr(person, 'age')  # False
+
+getattr(person, 'name')  # 'Alice'
+getattr(person, 'age', 0)  # 0 (default value)
+
+setattr(person, 'age', 25)
+person.age  # 25
+```
+
+### dir()
+
+List attributes of an object.
+
+```python
+dir([])  # List all list methods
+dir(str)  # List all string methods
+```
+
+### vars()
+
+Return `__dict__` attribute of an object.
+
+```python
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+p = Point(1, 2)
+vars(p)  # {'x': 1, 'y': 2}
+```
+
+## File Operations
+
+### open()
+
+Open a file for reading or writing.
+
+<ParamField path="file" type="str" required>
+  Path to the file
+</ParamField>
+
+<ParamField path="mode" type="str" default="'r'">
+  Opening mode: 'r' (read), 'w' (write), 'a' (append), 'b' (binary)
+</ParamField>
+
+<ParamField path="encoding" type="str" default="None">
+  Text encoding (e.g., 'utf-8')
+</ParamField>
+
+```python
+# Read file
+with open('data.txt', 'r') as f:
+    content = f.read()
+
+# Write file
+with open('output.txt', 'w') as f:
+    f.write('Hello, World!')
+
+# Read lines
+with open('data.txt', 'r') as f:
+    for line in f:
+        print(line.strip())
+```
+
+## Advanced Functions
+
+### all(), any()
+
+Test if all or any elements are true.
+
+```python
+# All elements must be True
+all([True, True, True])  # True
+all([True, False, True])  # False
+all([1, 2, 3])  # True (non-zero numbers are truthy)
+
+# At least one element must be True
+any([False, False, True])  # True
+any([False, False, False])  # False
+any([0, 0, 1])  # True
+
+# Practical examples
+numbers = [2, 4, 6, 8]
+all(n % 2 == 0 for n in numbers)  # True (all even)
+
+scores = [45, 67, 89, 92]
+any(score > 90 for score in scores)  # True (at least one > 90)
+```
+
+### eval(), exec()
+
+<Warning>
+  These functions execute arbitrary Python code and should be used with extreme caution, especially with user input.
+</Warning>
+
+```python
+# Evaluate expression
+result = eval('2 + 3 * 4')  # 14
+
+# Execute code
+exec('print("Hello from exec")')
+
+# With variables
+x = 5
+result = eval('x * 2 + 10')  # 20
+```
+
+### compile()
+
+Compile source code into code object.
+
+```python
+code = compile('print("Hello")', '<string>', 'exec')
+exec(code)  # Hello
+```
+
+### globals(), locals()
+
+Access global and local namespaces.
+
+```python
+# Global variables
+globals()['x'] = 42
+print(x)  # 42
+
+# Local variables in function
+def func():
+    y = 10
+    print(locals())  # {'y': 10}
+```
+
+## Special Functions
+
+### id()
+
+Return unique identifier for an object.
+
+```python
+a = [1, 2, 3]
+id(a)  # Memory address
+
+b = a
+id(b) == id(a)  # True (same object)
+```
+
+### hash()
+
+Return hash value of an object.
+
+```python
+hash("hello")  # Some integer
+hash(42)  # 42
+hash((1, 2, 3))  # Tuples are hashable
+
+# Lists are not hashable
+# hash([1, 2, 3])  # TypeError
+```
+
+### callable()
+
+Check if object is callable.
+
+```python
+callable(print)  # True
+callable(len)  # True
+callable(42)  # False
+callable(lambda x: x)  # True
+```
+
+## Complete List
+
+Here are all 71 built-in functions:
+
+<Accordion title="Complete Alphabetical List">
+  - `abs()` - Absolute value
+  - `aiter()` - Async iterator
+  - `all()` - Test if all elements are true
+  - `anext()` - Async next
+  - `any()` - Test if any element is true
+  - `ascii()` - ASCII representation
+  - `bin()` - Convert to binary
+  - `bool()` - Convert to boolean
+  - `breakpoint()` - Debugger breakpoint
+  - `bytearray()` - Mutable bytes
+  - `bytes()` - Immutable bytes
+  - `callable()` - Check if callable
+  - `chr()` - Character from code point
+  - `classmethod()` - Class method decorator
+  - `compile()` - Compile source code
+  - `complex()` - Complex number
+  - `delattr()` - Delete attribute
+  - `dict()` - Dictionary
+  - `dir()` - List attributes
+  - `divmod()` - Quotient and remainder
+  - `enumerate()` - Add counter to iterable
+  - `eval()` - Evaluate expression
+  - `exec()` - Execute code
+  - `filter()` - Filter items
+  - `float()` - Convert to float
+  - `format()` - Format value
+  - `frozenset()` - Immutable set
+  - `getattr()` - Get attribute
+  - `globals()` - Global namespace
+  - `hasattr()` - Check for attribute
+  - `hash()` - Hash value
+  - `help()` - Interactive help
+  - `hex()` - Convert to hexadecimal
+  - `id()` - Object identifier
+  - `input()` - Read input
+  - `int()` - Convert to integer
+  - `isinstance()` - Check instance
+  - `issubclass()` - Check subclass
+  - `iter()` - Create iterator
+  - `len()` - Length of object
+  - `list()` - List
+  - `locals()` - Local namespace
+  - `map()` - Map function
+  - `max()` - Maximum value
+  - `memoryview()` - Memory view
+  - `min()` - Minimum value
+  - `next()` - Next item from iterator
+  - `object()` - Base object
+  - `oct()` - Convert to octal
+  - `open()` - Open file
+  - `ord()` - Code point from character
+  - `pow()` - Power
+  - `print()` - Print output
+  - `property()` - Property decorator
+  - `range()` - Range of numbers
+  - `repr()` - String representation
+  - `reversed()` - Reverse iterable
+  - `round()` - Round number
+  - `set()` - Set
+  - `setattr()` - Set attribute
+  - `slice()` - Slice object
+  - `sorted()` - Sort iterable
+  - `staticmethod()` - Static method decorator
+  - `str()` - String
+  - `sum()` - Sum of items
+  - `super()` - Call parent class
+  - `tuple()` - Tuple
+  - `type()` - Type of object
+  - `vars()` - Object dictionary
+  - `zip()` - Combine iterables
+  - `__import__()` - Import module
+</Accordion>
+
+## Best Practices
+
+<Tip>
+  **Use built-in functions instead of loops when possible** - They're optimized in C and much faster.
+  
+  ```python
+  # Slow
+  total = 0
+  for num in numbers:
+      total += num
+  
+  # Fast
+  total = sum(numbers)
+  ```
+</Tip>
+
+<Warning>
+  Avoid `eval()` and `exec()` with untrusted input - they can execute arbitrary code.
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Built-in Types" icon="shapes" href="/library/built-in-types">
+    Fundamental data types
+  </Card>
+  <Card title="itertools" icon="repeat" href="/library/itertools">
+    Advanced iteration tools
+  </Card>
+  <Card title="functools" icon="function" href="/library/functools">
+    Higher-order function tools
+  </Card>
+</CardGroup>

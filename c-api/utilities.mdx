@@ -1,0 +1,119 @@
+---
+title: Utilities
+description: Utility functions for argument parsing and value building
+---
+
+## Overview
+
+Python provides utility functions for parsing arguments and building return values.
+
+## Argument Parsing
+
+### PyArg_ParseTuple
+
+```c
+int PyArg_ParseTuple(PyObject *args, const char *format, ...)
+```
+
+Parse positional arguments.
+
+**Format codes:**
+- `s` - String (char*)
+- `i` - Integer (int)
+- `l` - Long (long)
+- `d` - Double (double)
+- `O` - PyObject*
+- `|` - Optional arguments follow
+
+**Example:**
+```c
+static PyObject* my_function(PyObject *self, PyObject *args) {
+    const char *name;
+    int age = 0;
+    
+    if (!PyArg_ParseTuple(args, "s|i", &name, &age))
+        return NULL;
+    
+    printf("Name: %s, Age: %d\n", name, age);
+    Py_RETURN_NONE;
+}
+```
+
+### PyArg_ParseTupleAndKeywords
+
+```c
+int PyArg_ParseTupleAndKeywords(
+    PyObject *args,
+    PyObject *kwargs,
+    const char *format,
+    char *kwlist[],
+    ...
+)
+```
+
+**Example:**
+```c
+static PyObject* connect(PyObject *self, PyObject *args, PyObject *kwargs) {
+    const char *host;
+    int port = 80;
+    int timeout = 30;
+    
+    static char *kwlist[] = {"host", "port", "timeout", NULL};
+    
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|ii", kwlist,
+                                     &host, &port, &timeout))
+        return NULL;
+    
+    // Use arguments...
+    Py_RETURN_NONE;
+}
+```
+
+## Building Values
+
+### Py_BuildValue
+
+```c
+PyObject* Py_BuildValue(const char *format, ...)
+```
+
+Build Python objects from C values.
+
+**Example:**
+```c
+// Return tuple (str, int, list)
+return Py_BuildValue("(si[ii])", "name", 42, 1, 2);
+// Returns: ('name', 42, [1, 2])
+
+// Return dict
+return Py_BuildValue("{sisi}", "x", 10, "y", 20);
+// Returns: {'x': 10, 'y': 20}
+```
+
+## Import Functions
+
+```c
+PyObject* PyImport_ImportModule(const char *name)
+PyObject* PyImport_Import(PyObject *name)
+```
+
+**Example:**
+```c
+PyObject *math = PyImport_ImportModule("math");
+if (math == NULL)
+    return NULL;
+
+PyObject *sqrt = PyObject_GetAttrString(math, "sqrt");
+Py_DECREF(math);
+
+if (sqrt == NULL)
+    return NULL;
+
+PyObject *result = PyObject_CallFunction(sqrt, "d", 16.0);
+Py_DECREF(sqrt);
+return result;
+```
+
+## See Also
+- [Extension Modules](/c-api/extension-modules)
+- [Object Protocol](/c-api/object)

@@ -1,0 +1,167 @@
+---
+title: Exception Handling
+description: Raising and handling Python exceptions in C
+---
+
+## Overview
+
+Exception handling in C extensions requires explicit checking of return values and managing the exception state.
+
+## Checking for Exceptions
+
+```c
+PyObject* PyErr_Occurred(void)
+```
+
+Check if an exception is set.
+
+**Returns:** Exception type, or `NULL` if no exception
+
+## Setting Exceptions
+
+### PyErr_SetString
+
+```c
+void PyErr_SetString(PyObject *type, const char *message)
+```
+
+**Example:**
+```c
+if (value < 0) {
+    PyErr_SetString(PyExc_ValueError, "Value must be non-negative");
+    return NULL;
+}
+```
+
+### PyErr_Format
+
+```c
+PyObject* PyErr_Format(PyObject *exception, const char *format, ...)
+```
+
+**Example:**
+```c
+if (index >= size) {
+    PyErr_Format(PyExc_IndexError,
+                 "Index %d out of range (size=%d)",
+                 index, size);
+    return NULL;
+}
+```
+
+## Standard Exceptions
+
+```c
+PyExc_Exception
+PyExc_TypeError
+PyExc_ValueError
+PyExc_IndexError
+PyExc_KeyError
+PyExc_MemoryError
+PyExc_RuntimeError
+PyExc_IOError
+PyExc_AttributeError
+```
+
+## Clearing Exceptions
+
+```c
+void PyErr_Clear(void)
+```
+
+Clear the exception state.
+
+**Example:**
+```c
+PyObject *item = PyDict_GetItem(dict, key);
+if (item == NULL && PyErr_Occurred()) {
+    if (PyErr_ExceptionMatches(PyExc_KeyError)) {
+        PyErr_Clear();
+        // Handle missing key
+        item = default_value;
+    } else {
+        return NULL;  // Propagate other errors
+    }
+}
+```
+
+## Exception Matching
+
+```c
+int PyErr_ExceptionMatches(PyObject *exc)
+```
+
+Check if current exception matches type.
+
+## Printing Exceptions
+
+```c
+void PyErr_Print(void)
+void PyErr_PrintEx(int set_sys_last_vars)
+```
+
+Print exception traceback to stderr.
+
+## Custom Exceptions
+
+```c
+PyObject* PyErr_NewException(const char *name,
+                             PyObject *base,
+                             PyObject *dict)
+```
+
+**Example:**
+```c
+static PyObject *SpamError;
+
+PyMODINIT_FUNC PyInit_spam(void) {
+    PyObject *m = PyModule_Create(&spammodule);
+    if (m == NULL)
+        return NULL;
+    
+    SpamError = PyErr_NewException("spam.error", NULL, NULL);
+    Py_XINCREF(SpamError);
+    if (PyModule_AddObject(m, "error", SpamError) < 0) {
+        Py_XDECREF(SpamError);
+        Py_CLEAR(SpamError);
+        Py_DECREF(m);
+        return NULL;
+    }
+    
+    return m;
+}
+```
+
+## Error Handling Pattern
+
+```c
+static PyObject* risky_function(PyObject *self, PyObject *args) {
+    PyObject *a = NULL, *b = NULL, *result = NULL;
+    
+    a = PyList_New(0);
+    if (a == NULL)
+        goto error;
+    
+    b = PyDict_New();
+    if (b == NULL)
+        goto error;
+    
+    // Perform operations...
+    result = process(a, b);
+    if (result == NULL)
+        goto error;
+    
+    Py_DECREF(a);
+    Py_DECREF(b);
+    return result;
+    
+error:
+    Py_XDECREF(a);
+    Py_XDECREF(b);
+    return NULL;
+}
+```
+
+## See Also
+- [Object Protocol](/c-api/object)
+- [Reference Counting](/c-api/refcounting)
