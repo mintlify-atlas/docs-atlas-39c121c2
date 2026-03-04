@@ -1,0 +1,238 @@
+{
+  "projectType": "general",
+  "projectName": "CPython",
+  "projectDescription": "The reference implementation of the Python programming language",
+  "theme": "linden",
+  "primaryColor": "#dedede",
+  "lightColor": "#fbde58",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Tutorial",
+            "pages": [
+              "tutorial/interpreter",
+              "tutorial/introduction",
+              "tutorial/control-flow",
+              "tutorial/data-structures",
+              "tutorial/modules",
+              "tutorial/input-output",
+              "tutorial/errors",
+              "tutorial/classes"
+            ]
+          },
+          {
+            "group": "Language Reference",
+            "pages": [
+              "reference/lexical-analysis",
+              "reference/data-model",
+              "reference/execution-model",
+              "reference/expressions",
+              "reference/statements",
+              "reference/compound-statements"
+            ]
+          },
+          {
+            "group": "How-To Guides",
+            "pages": [
+              "howto/regex",
+              "howto/descriptors",
+              "howto/logging",
+              "howto/functional",
+              "howto/async"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Standard Library",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "library/overview",
+              "library/built-in-functions",
+              "library/built-in-types"
+            ]
+          },
+          {
+            "group": "Built-in Modules",
+            "pages": [
+              "library/sys",
+              "library/os",
+              "library/pathlib",
+              "library/datetime",
+              "library/collections",
+              "library/itertools",
+              "library/functools",
+              "library/typing"
+            ]
+          },
+          {
+            "group": "Concurrency",
+            "pages": [
+              "library/asyncio",
+              "library/threading",
+              "library/multiprocessing",
+              "library/concurrent-futures"
+            ]
+          },
+          {
+            "group": "Text Processing",
+            "pages": [
+              "library/re",
+              "library/string",
+              "library/json",
+              "library/csv"
+            ]
+          },
+          {
+            "group": "File & Data",
+            "pages": [
+              "library/io",
+              "library/pickle",
+              "library/sqlite3",
+              "library/zipfile"
+            ]
+          },
+          {
+            "group": "Networking",
+            "pages": [
+              "library/socket",
+              "library/http",
+              "library/urllib",
+              "library/email"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "C API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "c-api/intro",
+              "c-api/veryhigh",
+              "c-api/extension-modules"
+            ]
+          },
+          {
+            "group": "Object Protocol",
+            "pages": [
+              "c-api/object",
+              "c-api/type",
+              "c-api/allocation",
+              "c-api/refcounting"
+            ]
+          },
+          {
+            "group": "Concrete Objects",
+            "pages": [
+              "c-api/bool",
+              "c-api/long",
+              "c-api/float",
+              "c-api/unicode",
+              "c-api/bytes",
+              "c-api/list",
+              "c-api/dict",
+              "c-api/set"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "c-api/memory",
+              "c-api/exceptions",
+              "c-api/utilities",
+              "c-api/import"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Internals",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "internals/structure",
+              "internals/compiler",
+              "internals/interpreter",
+              "internals/garbage-collector"
+            ]
+          },
+          {
+            "group": "Runtime",
+            "pages": [
+              "internals/code-objects",
+              "internals/frames",
+              "internals/generators",
+              "internals/exception-handling"
+            ]
+          },
+          {
+            "group": "Advanced Topics",
+            "pages": [
+              "internals/jit",
+              "internals/parser",
+              "internals/string-interning"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "contributing/setup",
+              "contributing/building",
+              "contributing/testing"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "contributing/workflow",
+              "contributing/code-style",
+              "contributing/documentation"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Complete Python language implementation in C",
+    "Comprehensive standard library with 200+ modules",
+    "Extensive C API for embedding and extending",
+    "Advanced interpreter with JIT compilation",
+    "Multi-platform support (Unix, Windows, macOS, mobile)",
+    "Robust garbage collection and memory management"
+  ],
+  "publicApiSurface": [
+    "Python.h - Main C API header",
+    "sys module - System-specific parameters",
+    "os module - Operating system interface",
+    "asyncio - Asynchronous I/O",
+    "typing - Type hints support",
+    "collections - Container datatypes",
+    "itertools - Iterator functions",
+    "functools - Higher-order functions",
+    "pathlib - Object-oriented filesystem paths",
+    "datetime - Date and time types"
+  ]
+}
